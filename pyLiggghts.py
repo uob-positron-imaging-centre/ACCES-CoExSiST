@@ -6,8 +6,10 @@
 # Date   : 01.09.2020
 
 
+import io
 import re
 import textwrap
+import tempfile
 
 import numpy as np
 import pandas as pd
@@ -161,15 +163,14 @@ class Simulation:
             documentation for further information and example instantiation.
         '''
 
+        self.simulation = liggghts()
+
         # Try to read in `simulation` as a file, otherwise treat it as a string
         try:
             with open(simulation) as f:
-                simlines = "".join(f.readlines())
+                self.simulation.file(simulation)
         except FileNotFoundError:
-            simlines = str(simulation)
-
-        self.simulation = liggghts()
-        self.simulation.command(simlines)
+            self.simulation.command(str(simulation))
 
         if not isinstance(parameters, Parameters):
             raise TypeError(textwrap.fill(
@@ -181,7 +182,8 @@ class Simulation:
 
 
     def __setitem__(self, key, value):
-        # Custom key-value setter to also also change the simulation parameter.
+        # Custom key-value setter to change a parameter in the class *and*
+        # during the simulation.
         # Raises an AttributeError if the key didn't exist previously.
         if not key in self.parameters.index:
             raise AttributeError(textwrap.fill(
@@ -279,7 +281,7 @@ parameters = Parameters(
     [0.0, 1.0]
 )
 
-simulation = Simulation("vibrofluidised/in.sim", parameters)
+simulation = Simulation("in.sim", parameters)
 
 
 
