@@ -12,6 +12,8 @@ import textwrap
 import numpy as np
 import pandas as pd
 
+from liggghts import liggghts
+
 
 
 class Parameters(pd.DataFrame):
@@ -162,9 +164,12 @@ class Simulation:
         # Try to read in `simulation` as a file, otherwise treat it as a string
         try:
             with open(simulation) as f:
-                self.simulation = f.readlines()
+                simlines = "".join(f.readlines())
         except FileNotFoundError:
-            self.simulation = str(simulation)
+            simlines = str(simulation)
+
+        self.simulation = liggghts()
+        self.simulation.command(simlines)
 
         if not isinstance(parameters, Parameters):
             raise TypeError(textwrap.fill(
@@ -191,6 +196,49 @@ class Simulation:
         )
 
         self.parameters.at[key, "value"] = value
+
+
+    #
+    # Dominik, implement those pls
+    #
+    def save(self, filename = "checkpoint"):
+        pass
+
+
+    def load(self, filename = "checkpoint"):
+        pass
+
+
+    def positions(self):
+        # get particle positions
+        pass
+
+
+    def velocities(self):
+        # get particle velocities
+        pass
+
+
+    def step(self, num_steps):
+        # run simulation for `num_steps` timesteps
+        pass
+
+
+    def step_to(self, timestamp):
+        # run simulation up to time = `timestamp`
+        pass
+
+
+    @property
+    def timestep(self):
+        # save a timestep property of the class, so we can define the timestep
+        pass
+
+
+    @timestep.setter
+    def timestep(self, new_timestep):
+        # set the timestep size
+        pass
 
 
     def __str__(self):
