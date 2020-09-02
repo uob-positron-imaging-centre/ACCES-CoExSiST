@@ -118,11 +118,12 @@ class Parameters(pd.DataFrame):
             ))
 
         for cmd in commands:
-            if not "{}" in cmd:
+            if re.search("{.*}", cmd) is None:
                 raise ValueError(textwrap.fill(
                     '''The strings in the input `commands` must contain one
-                    substring `"{}"`, in which the right value will be
-                    substituted when running the LIGGGHTS command.'''
+                    substring `"{}"` (e.g. `"fix m1 ... {0}, {0}, {0}"`), in
+                    which the right value will be substituted when running the
+                    LIGGGHTS command.'''
                 ))
 
         parameters = {
@@ -179,9 +180,88 @@ class Simulation:
             ))
 
         self.parameters = parameters
-        self._step_size = self.simulation.extract_global("dt",1)
-        
+        self._step_size = self.simulation.extract_global("dt", 1)
 
+        # Set simulation parameters to the values in `parameters`
+        for idx in self.parameters.index:
+            self[idx] = self.parameters.loc[idx, "value"]
+
+
+    @property
+    def step_size(self):
+        # save a step_size property of the class, so we can define the
+        # step_size
+        return self._step_size
+
+
+    @step_size.setter
+    def step_size(self, new_step_size):
+        # set the step_size size
+        if 0 < new_step_size < 1:
+            self._step_size = new_step_size
+            self.simulation.command(f"timestep {new_step_size}")
+        else:
+            raise ValueError("Step size must be between 0 and 1 !")
+
+
+    def save(self, filename = "checkpoint"):
+        # write a dump file
+        cmd = f"write_dump all custom {filename} id type x y z vx vy vz radius"
+        self.simulation.command(cmd)
+
+
+    def load(self, filename = "checkpoint"):
+        # load particle positions and velocity
+        cmd = f"read_dump {filename} 0 radius x y z vx vy vz"
+        self.simulation.command(cmd)
+
+
+    def num_atoms(self):
+        return self.simulation.get_natoms()
+
+
+    def positions(self):
+        # get particle positions
+        pos = self.simulation.gather_atoms("x", 1, 3)
+        pos = np.array(list(pos)).reshape(self.num_atoms(), -1)
+        return pos
+
+
+    def velocities(self):
+        # get particle velocities
+        pos = self.simulation.gather_atoms("v", 1, 3)
+        pos = np.array(list(pos)).reshape(self.num_atoms(), -1)
+        return pos
+
+
+    def step(self, num_steps):
+        # run simulation for `num_steps` timesteps
+        self.simulation.command(f"run {num_steps} ")
+
+
+    def step_to(self, timestamp):
+        # run simulation up to time = `timestamp`
+        if timestamp < self.timestep():
+            raise ValueError(textwrap.fill(
+                '''Timestep is below the current timestep.\nCheck input or
+                reset the timestep!'''
+            ))
+
+        self.simulation.command(f"run {timestamp} upto ")
+
+
+    def reset_time(self):
+        # reset the current timestep to 0
+        self.simulation.command("reset_timestep 0")
+
+
+    def timestep(self):
+        # return the current timestep
+        return self.simulation.extract_global("ntimestep", 0)
+
+
+    def time(self):
+        return self.simulation.extract_global("atime", 1)
 
 
     def __setitem__(self, key, value):
@@ -194,84 +274,17 @@ class Simulation:
                 should be set when instantiating the `Parameters`. Received
                 {key}.'''
             ))
-        input(row["command"].format(value))
+
         row = self.parameters.loc[key]
         self.simulation.command(
             row["command"].format(value)
         )
 
         self.parameters.at[key, "value"] = value
-        
-        
 
 
-    def save(self, filename = "checkpoint"):
-        # write a dump file
-        self.simulation.command(f"write_dump all custom {filename} id type x y z vx vy vz radius")
-
-
-
-    def load(self, filename = "checkpoint"):
-        # load particle positions and velocity
-        self.simulation.command(f"read_dump {filename} 0 radius x y z vx vy vz")
-
-
-    def positions(self):
-        # get particle positions
-        pos = self.simulation.gather_atoms("x",0,3)
-        return pos
-
-
-    def velocities(self):
-        # get particle velocities
-        
-        return self.simulation.extract_atom("v",3)
-        
-
-
-    def step(self, num_steps):
-        # run simulation for `num_steps` timesteps
-        self.simulation.command(f"run {num_steps} ")
-        pass
-
-
-    def step_to(self, timestamp):
-        # run simulation up to time = `timestamp`
-        
-        if timestamp < self.get_timestep():
-            raise ValueError("Timestep is below the current timestep.\nCheck input or reset the timestep!")
-           
-        self.simulation.command(f"run {timestamp} upto ")
-        
-
-    def reset_time(self):
-        # reset the current timestep to 0
-        self.simulation.command("reset_timestep 0")
-        
-        
-        
-    def get_timestep(self):
-        # return the current timestep
-        return self.simulation.extract_global("ntimestep",0) 
-        
-       
-        
-    @property
-    def step_size(self):
-        # save a step_size property of the class, so we can define the step_size
-        return self._step_size
-        
-
-
-    @step_size.setter
-    def step_size(self, new_step_size):
-        # set the step_size size
-        if 0 < new_step_size < 1:
-            self._step_size = new_step_size
-            self.simulation.command(f"timestep {new_step_size}")
-        else:
-            raise ValueError("Step size must be between 0 and 1 !")
-        
+    def __del__(self):
+        self.simulation.close()
 
 
     def __str__(self):
@@ -305,8 +318,8 @@ class Simulation:
 
 parameters = Parameters(
     ["Young's Modulus", "Poisson Ratio"],
-    ["fix  m1 all property/global youngsModulus peratomtype {}",
-     "fix  m2 all property/global poissonsRatio peratomtype {}"],
+    ["fix  m1 all property/global youngsModulus peratomtype {0} {0} {0}",
+     "fix  m2 all property/global poissonsRatio peratomtype {0} {0} {0}"],
     [0.8e9, 0.4],
     [None, None],
     [0.0, 1.0]
