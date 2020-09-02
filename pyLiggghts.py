@@ -179,6 +179,9 @@ class Simulation:
             ))
 
         self.parameters = parameters
+        self._step_size = self.simulation.extract_global("dt",1)
+        
+
 
 
     def __setitem__(self, key, value):
@@ -191,56 +194,84 @@ class Simulation:
                 should be set when instantiating the `Parameters`. Received
                 {key}.'''
             ))
-
+        input(row["command"].format(value))
         row = self.parameters.loc[key]
         self.simulation.command(
             row["command"].format(value)
         )
 
         self.parameters.at[key, "value"] = value
+        
+        
 
 
-    #
-    # Dominik, implement those pls
-    #
     def save(self, filename = "checkpoint"):
-        pass
+        # write a dump file
+        self.simulation.command(f"write_dump all custom {filename} id type x y z vx vy vz radius")
+
 
 
     def load(self, filename = "checkpoint"):
-        pass
+        # load particle positions and velocity
+        self.simulation.command(f"read_dump {filename} 0 radius x y z vx vy vz")
 
 
     def positions(self):
         # get particle positions
-        pass
+        pos = self.simulation.gather_atoms("x",0,3)
+        return pos
 
 
     def velocities(self):
         # get particle velocities
-        pass
+        
+        return self.simulation.extract_atom("v",3)
+        
 
 
     def step(self, num_steps):
         # run simulation for `num_steps` timesteps
+        self.simulation.command(f"run {num_steps} ")
         pass
 
 
     def step_to(self, timestamp):
         # run simulation up to time = `timestamp`
-        pass
+        
+        if timestamp < self.get_timestep():
+            raise ValueError("Timestep is below the current timestep.\nCheck input or reset the timestep!")
+           
+        self.simulation.command(f"run {timestamp} upto ")
+        
 
-
+    def reset_time(self):
+        # reset the current timestep to 0
+        self.simulation.command("reset_timestep 0")
+        
+        
+        
+    def get_timestep(self):
+        # return the current timestep
+        return self.simulation.extract_global("ntimestep",0) 
+        
+       
+        
     @property
-    def timestep(self):
-        # save a timestep property of the class, so we can define the timestep
-        pass
+    def step_size(self):
+        # save a step_size property of the class, so we can define the step_size
+        return self._step_size
+        
 
 
-    @timestep.setter
-    def timestep(self, new_timestep):
-        # set the timestep size
-        pass
+    @step_size.setter
+    def step_size(self, new_step_size):
+        # set the step_size size
+        if 0 < new_step_size < 1:
+            self._step_size = new_step_size
+            self.simulation.command(f"timestep {new_step_size}")
+        else:
+            raise ValueError("Step size must be between 0 and 1 !")
+        
 
 
     def __str__(self):
@@ -282,6 +313,5 @@ parameters = Parameters(
 )
 
 simulation = Simulation("in.sim", parameters)
-
 
 
