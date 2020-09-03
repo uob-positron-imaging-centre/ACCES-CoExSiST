@@ -176,6 +176,7 @@ class Simulation:
         try:
             with open(simulation) as f:
                 self.simulation.file(simulation)
+                self.filename = simulation
         except FileNotFoundError:
             self.simulation.command(str(simulation))
 
@@ -210,16 +211,30 @@ class Simulation:
             raise ValueError("Step size must be between 0 and 1 !")
 
 
-    def save(self, filename = "checkpoint"):
-        # write a dump file
-        cmd = f"write_dump all custom {filename} id type x y z vx vy vz radius"
+    def save(self, filename = "restart.data"):
+        # write a restart file
+        cmd = f"write_restart {filename}"
         self.simulation.command(cmd)
 
 
-    def load(self, filename = "checkpoint"):
-        # load particle positions and velocity
-        cmd = f"read_dump {filename} 0 radius x y z vx vy vz"
-        self.simulation.command(cmd)
+    def load(self, filename = "restart.data"):
+        # load a new simulation based on the position data from filename and the system based on self.filename
+        
+        # 1st:
+        # open the simulation file and search for the line where it reads the restart
+        # then change the filename in this file and save
+        with open(self.filename,"r") as f:
+            lines = f.readlines()
+        for id,line in enumerate(lines):
+            if line.split("read_restart")[0] == "": 
+                lines[id] = f"read_restart {filename}\n"
+        with open(self.filename,"w") as f:
+            lines = f.writelines(lines)   
+        # 2nd:
+        # close current simulation and open new one 
+        self.simulation.close()
+        self.simulation = liggghts()
+        self.simulation.file(self.filename)
 
 
     def num_atoms(self):
@@ -359,7 +374,26 @@ parameters = Parameters(
     [1.0, 1.0]      # Maximum values
 )
 
-simulation = Simulation("in.sim", parameters)
+simulation = Simulation("run.sim", parameters)
+
+
+simulation.save()
+simulation.step(200)
+
+simulation.save("2.save")
+simulation.step(200)
+
+simulation.load("2.save")
+
+simulation.step(200)
+
+
+
+
+
+
+
+exit()
 
 print("\nInitial simulation parameters:")
 print(f"corPP: {simulation.variable('corPP')}")
