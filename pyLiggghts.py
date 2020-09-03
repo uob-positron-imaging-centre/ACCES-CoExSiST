@@ -235,9 +235,9 @@ class Simulation:
 
     def velocities(self):
         # get particle velocities
-        pos = self.simulation.gather_atoms("v", 1, 3)
-        pos = np.array(list(pos)).reshape(self.num_atoms(), -1)
-        return pos
+        vel = self.simulation.gather_atoms("v", 1, 3)
+        vel = np.array(list(vel)).reshape(self.num_atoms(), -1)
+        return vel
 
 
     def variable(self, var_name):
@@ -250,7 +250,7 @@ class Simulation:
 
 
     def step_to(self, timestamp):
-        # run simulation up to time = `timestamp`
+        # run simulation up to timestep = `timestamp`
         if timestamp < self.timestep():
             raise ValueError(textwrap.fill(
                 '''Timestep is below the current timestep.\nCheck input or
@@ -258,6 +258,18 @@ class Simulation:
             ))
 
         self.simulation.command(f"run {timestamp} upto ")
+
+
+    def step_to_time(self, time):
+        # run simulation up to sim time = `time`
+        if time < self.time():
+            raise ValueError(textwrap.fill(
+                '''Time is below the current simulation time. Check input or
+                reset the timestep!'''
+            ))
+
+        nsteps = (time - self.time()) / self.step_size
+        self.step(nsteps)
 
 
     def reset_time(self):
@@ -344,33 +356,34 @@ class Simulation:
 
 
 
-parameters = Parameters(
-    ["corPP", "corPW"],
-    ["fix  m3 all property/global coefficientRestitution peratomtypepair 3 \
-        ${corPP} ${corPW} ${corPW2} \
-        ${corPW} ${corPW2} ${corPW} \
-        ${corPW2} ${corPW} ${corPW} ",
-     "fix  m3 all property/global coefficientRestitution peratomtypepair 3 \
-        ${corPP} ${corPW} ${corPW2} \
-        ${corPW} ${corPW2} ${corPW} \
-        ${corPW2} ${corPW} ${corPW} "],
-    [0.5, 0.5],     # Initial values
-    [0.0, 0.0],     # Minimum values
-    [1.0, 1.0]      # Maximum values
-)
+if __name__ == "main":
+    parameters = Parameters(
+        ["corPP", "corPW"],
+        ["fix  m3 all property/global coefficientRestitution peratomtypepair 3 \
+            ${corPP} ${corPW} ${corPW2} \
+            ${corPW} ${corPW2} ${corPW} \
+            ${corPW2} ${corPW} ${corPW} ",
+        "fix  m3 all property/global coefficientRestitution peratomtypepair 3 \
+            ${corPP} ${corPW} ${corPW2} \
+            ${corPW} ${corPW2} ${corPW} \
+            ${corPW2} ${corPW} ${corPW} "],
+        [0.5, 0.5],     # Initial values
+        [0.0, 0.0],     # Minimum values
+        [1.0, 1.0]      # Maximum values
+    )
 
-simulation = Simulation("in.sim", parameters)
+    simulation = Simulation("in.sim", parameters)
 
-print("\nInitial simulation parameters:")
-print(f"corPP: {simulation.variable('corPP')}")
-print(f"corPW: {simulation.variable('corPW')}")
+    print("\nInitial simulation parameters:")
+    print(f"corPP: {simulation.variable('corPP')}")
+    print(f"corPW: {simulation.variable('corPW')}")
 
-simulation["corPP"] = 0.75
-simulation["corPW"] = 0.25
+    simulation["corPP"] = 0.75
+    simulation["corPW"] = 0.25
 
-print("\nModified simulation parameters:")
-print(f"corPP: {simulation.variable('corPP')}")
-print(f"corPW: {simulation.variable('corPW')}")
+    print("\nModified simulation parameters:")
+    print(f"corPP: {simulation.variable('corPP')}")
+    print(f"corPW: {simulation.variable('corPW')}")
 
 
 
