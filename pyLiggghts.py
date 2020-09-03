@@ -24,19 +24,19 @@ class Parameters(pd.DataFrame):
 
     In order to dynamically change LIGGGHTS simulation parameters, a macro
     command must be run (e.g. `liggghts.command(fix  m1 all property/global
-    youngsModulus peratomtype 0.8e9)`). This class saves in a DataFrame:
+    youngsModulus peratomtype 0.8e9)`). This class saves the data needed to
+    modify simulation parameters in a DataFrame:
 
-        1. The required *command template* to change a given parameter. E.g. if
-           "fix  m1 all property/global youngsModulus peratomtype 0.8e9" is the
-           command to set the Young's modulus, then the *command template* is
-           "fix  m1 all property/global youngsModulus peratomtype {}". Notice
-           the `{}`, which will be replaced dynamically with a given value.
+        1. The required *command template* to change a given parameter using
+           LIGGGHTS equal-style variables. E.g. "fix  m1 all property/global
+           youngsModulus peratomtype ${youngmodP} ${youngmodP} ${youngmodP}" is
+           a LIGGGHTS command which uses the ${youngmodP} variable.
 
         2. Per-parameter initial guesses.
 
-        3. Per-parameter lower bounds (i.e. minimum valid value).
+        3. Per-parameter lower bounds (i.e. minimum valid value), optional.
 
-        4. Per-parameter upper bounds (i.e. maximum valid value).
+        4. Per-parameter upper bounds (i.e. maximum valid value), optional.
 
     All those values are indexed by the parameter name. Below is an example
     that shows how to construct a `Parameters` class containing a hypothetical
@@ -44,20 +44,26 @@ class Parameters(pd.DataFrame):
 
     Examples
     --------
+    In the example below, the command to change a single simulation parameter
+    contains other variables which we won't modify:
 
     >>> parameters = Parameters(
-    >>>     ["Young's Modulus", "Poisson Ratio"],
-    >>>     ["fix  m1 all property/global youngsModulus peratomtype {}",
-    >>>     "fix  m2 all property/global poissonsRatio peratomtype {}"],
-    >>>     [0.8e9, 0.4],
-    >>>     [None, None],
-    >>>     [0.0, 1.0]
+    >>>     ["corPP", "youngmodP"],
+    >>>     ["fix  m3 all property/global coefficientRestitution \
+    >>>         peratomtypepair 3 ${corPP} ${corPW} ${corPW2} \
+    >>>                                    ${corPW} ${corPW2} ${corPW} \
+    >>>                                    ${corPW2} ${corPW} ${corPW} ",
+    >>>      "fix  m1 all property/global youngsModulus peratomtype \
+    >>>         ${youngmodP} ${youngmodP} ${youngmodP}"],
+    >>>     [0.5, 0.8e9],
+    >>>     [0.0, None],
+    >>>     [1.0, None],
     >>> )
     >>>
     >>> parameters
-    >>>                                      command        value   min   max
-    >>> Young's Modulus  fix  m1 all property/glob...  800000000.0  None  None
-    >>> Poisson Ratio    fix  m2 all property/glob...          0.4  0.0   1.0
+    >>>                                              command  value   min  max
+    >>> corPP  fix  m3 all property/global coefficientRes...    0.5  None  0.0
+    >>> corPW  fix  m3 all property/global coefficientRes...    0.5  None  1.0
 
     Notes
     -----
@@ -67,7 +73,7 @@ class Parameters(pd.DataFrame):
 
     def __init__(
         self,
-        names,
+        variables,
         commands,
         initial_values,
         minimums = None,
@@ -77,20 +83,19 @@ class Parameters(pd.DataFrame):
 
         Parameters
         ----------
-        names: list[str]
-            An iterable containing the parameter names that will be used for
-            indexing / accessing each row. The names do not have to match the
-            LIGGGHTS terms - it is only used by the programmer.
+        variables: list[str]
+            An iterable containing the LIGGGHTS variable names that will be
+            used for changing simulation parameters.
 
         commands: list[str]
-            An iterable containing the macro commands required to modify the
-            needed LIGGGHTS parameters, containing a `{}` as a placeholder
-            for the actual value. E.g. `"fix  m1 all property/global
-            youngsModulus peratomtype {}"`.
+            An iterable containing the macro commands required to modify
+            LIGGGHTS simulation parameters, containing the variable names
+            as `${varname}`. E.g. `"fix  m1 all property/global youngsModulus
+            peratomtype ${youngmodP} ${youngmodP} ${youngmodP}"`.
 
         initial_values: list[float]
-            An iterable containing the initial guess for each LIGGGHTS
-            parameter.
+            An iterable containing the initial values for each LIGGGHTS
+            simulation parameter.
 
         minimums: list[float], optional
             An iterable containing the lower bounds for each LIGGGHTS
@@ -104,26 +109,27 @@ class Parameters(pd.DataFrame):
         '''
 
         if minimums is None:
-            minimums = [None] * len(names)
+            minimums = [None] * len(variables)
 
         if maximums is None:
-            maximums = [None] * len(names)
+            maximums = [None] * len(variables)
 
-        if not (len(names) == len(commands) == len(initial_values) ==
-            len(minimums) == len(maximums)):
+        if not (len(variables) == len(commands) == len(initial_values) ==
+                len(minimums) == len(maximums)):
             raise ValueError(textwrap.fill(
-                '''The input iterables `names`, `commands`, `initial_values`
-                and (if defined) `minimums` and `maximums` must all have the
-                same length.'''
+                '''The input iterables `variables`, `commands`,
+                `initial_values` and (if defined) `minimums` and `maximums`
+                must all have the same length.'''
             ))
 
         for cmd in commands:
-            if re.search("{.*}", cmd) is None:
+            if re.search("\$\{\w+\}", cmd) is None:
                 raise ValueError(textwrap.fill(
-                    '''The strings in the input `commands` must contain one
-                    substring `"{}"` (e.g. `"fix m1 ... {0}, {0}, {0}"`), in
-                    which the right value will be substituted when running the
-                    LIGGGHTS command.'''
+                    '''The strings in the input `commands` must contain at
+                    least one substring `"${varname}"` (e.g. `"fix  m2 all
+                    property/global poissonsRatio peratomtype ${poissP}
+                    ${poissP} ${poissP}"`), in which the right value will be
+                    substituted when running the LIGGGHTS command.'''
                 ))
 
         parameters = {
@@ -133,7 +139,7 @@ class Parameters(pd.DataFrame):
             "max": maximums,
         }
 
-        pd.DataFrame.__init__(self, parameters, index = names)
+        pd.DataFrame.__init__(self, parameters, index = variables)
 
 
 
@@ -234,6 +240,10 @@ class Simulation:
         return pos
 
 
+    def variable(self, var_name):
+        return self.simulation.extract_variable(var_name, "", 0)
+
+
     def step(self, num_steps):
         # run simulation for `num_steps` timesteps
         self.simulation.command(f"run {num_steps} ")
@@ -275,11 +285,33 @@ class Simulation:
                 {key}.'''
             ))
 
-        row = self.parameters.loc[key]
-        self.simulation.command(
-            row["command"].format(value)
+        # Extracts variable LIGGGHTS substitutions, like ${corPP} => corPP
+        variable_extractor = re.compile("\$\{|\}")
+
+        # Substitute all occurences of ${varname} in the LIGGGHTS command with:
+        #   1. `value` if `varname` == `key`
+        #   2. the LIGGGHTS variable `varname` otherwise
+        def replace_var(match):
+            var = variable_extractor.split(match.group(0))[1]
+
+            if var == key:
+                return str(value)
+            else:
+                return str(self.variable(var))
+
+        cmd = re.sub(
+            "\$\{\w+\}",
+            replace_var,
+            self.parameters.loc[key, "command"]
         )
 
+        # Run the command with replaced varnames
+        self.simulation.command(cmd)
+
+        # Modify the global variable name to reflect the change
+        self.simulation.command(f"variable {key} equal {value}")
+
+        # Set inner class parameter value
         self.parameters.at[key, "value"] = value
 
 
@@ -289,12 +321,8 @@ class Simulation:
 
     def __str__(self):
         # Shown when calling print(class)
-        sdoc = self.simulation.__str__().split(r"\\n")
-        sdoc = [s.replace("', '", "") for s in sdoc]
-        sdoc = "\n".join(sdoc)
-
         docstr = (
-            f"simulation:\n{sdoc}\n\n"
+            f"simulation:\n{self.simulation}\n\n"
             f"parameters:\n{self.parameters}"
         )
 
@@ -317,14 +345,34 @@ class Simulation:
 
 
 parameters = Parameters(
-    ["Young's Modulus", "Poisson Ratio"],
-    ["fix  m1 all property/global youngsModulus peratomtype {0} {0} {0}",
-     "fix  m2 all property/global poissonsRatio peratomtype {0} {0} {0}"],
-    [0.8e9, 0.4],
-    [None, None],
-    [0.0, 1.0]
+    ["corPP", "corPW"],
+    ["fix  m3 all property/global coefficientRestitution peratomtypepair 3 \
+        ${corPP} ${corPW} ${corPW2} \
+        ${corPW} ${corPW2} ${corPW} \
+        ${corPW2} ${corPW} ${corPW} ",
+     "fix  m3 all property/global coefficientRestitution peratomtypepair 3 \
+        ${corPP} ${corPW} ${corPW2} \
+        ${corPW} ${corPW2} ${corPW} \
+        ${corPW2} ${corPW} ${corPW} "],
+    [0.5, 0.5],     # Initial values
+    [0.0, 0.0],     # Minimum values
+    [1.0, 1.0]      # Maximum values
 )
 
 simulation = Simulation("in.sim", parameters)
+
+print("\nInitial simulation parameters:")
+print(f"corPP: {simulation.variable('corPP')}")
+print(f"corPW: {simulation.variable('corPW')}")
+
+simulation["corPP"] = 0.75
+simulation["corPW"] = 0.25
+
+print("\nModified simulation parameters:")
+print(f"corPP: {simulation.variable('corPP')}")
+print(f"corPW: {simulation.variable('corPW')}")
+
+
+
 
 
