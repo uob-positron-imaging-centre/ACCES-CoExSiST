@@ -8,8 +8,15 @@
 
 import io
 import re
+import os
+import sys
+import signal
 import textwrap
 import tempfile
+import platform
+
+import ctypes
+from contextlib import contextmanager
 
 import numpy as np
 import pandas as pd
@@ -154,6 +161,7 @@ class Simulation:
         self,
         simulation,
         parameters,
+        verbose = True
     ):
         '''`Simulation` class constructor.
 
@@ -168,14 +176,23 @@ class Simulation:
             The LIGGGHTS simulation parameters that will be dynamically
             modified, encapsulated in a `Parameters` class instance. Check its
             documentation for further information and example instantiation.
+
+        verbose: bool, default `True`
+            Show LIGGGHTS output while simulation is running.
         '''
 
-        self.simulation = liggghts()
+        self._verbose = bool(verbose)
+
+        if self._verbose:
+            self.simulation = liggghts()
+        else:
+            self.simulation = liggghts(cmdargs = ["-screen","/dev/null"])
 
         # Try to read in `simulation` as a file, otherwise treat it as a string
         try:
             with open(simulation) as f:
                 self.simulation.file(simulation)
+                self.filename = simulation
         except FileNotFoundError:
             self.simulation.command(str(simulation))
 
@@ -210,16 +227,40 @@ class Simulation:
             raise ValueError("Step size must be between 0 and 1 !")
 
 
-    def save(self, filename = "checkpoint"):
-        # write a dump file
-        cmd = f"write_dump all custom {filename} id type x y z vx vy vz radius"
+    @property
+    def verbose(self):
+        self._verbose
+
+
+    @verbose.setter
+    def verbose(self, verbose):
+        self._verbose = bool(verbose)
+
+
+    def save(self, filename = "restart.data"):
+        # write a restart file
+        cmd = f"write_restart {filename}"
         self.simulation.command(cmd)
 
 
-    def load(self, filename = "checkpoint"):
-        # load particle positions and velocity
-        cmd = f"read_dump {filename} 0 radius x y z vx vy vz"
-        self.simulation.command(cmd)
+    def load(self, filename = "restart.data"):
+        # load a new simulation based on the position data from filename and the system based on self.filename
+        #
+        # 1st:
+        # open the simulation file and search for the line where it reads the restart
+        # then change the filename in this file and save
+        with open(self.filename,"r") as f:
+            lines = f.readlines()
+        for id,line in enumerate(lines):
+            if line.split("read_restart")[0] == "":
+                lines[id] = f"read_restart {filename}\n"
+        with open(self.filename,"w") as f:
+            lines = f.writelines(lines)
+        # 2nd:
+        # close current simulation and open new one
+        self.simulation.close()
+        self.simulation = liggghts()
+        self.simulation.file(self.filename)
 
 
     def num_atoms(self):
@@ -246,7 +287,11 @@ class Simulation:
 
     def step(self, num_steps):
         # run simulation for `num_steps` timesteps
-        self.simulation.command(f"run {num_steps} ")
+        if self.verbose:
+            self.simulation.command(f"run {num_steps}")
+        else:
+            #with stdout_redirector(self._log):
+            self.simulation.command(f"run {num_steps} post no")
 
 
     def step_to(self, timestamp):
@@ -257,7 +302,11 @@ class Simulation:
                 reset the timestep!'''
             ))
 
-        self.simulation.command(f"run {timestamp} upto ")
+        if self.verbose:
+            self.simulation.command(f"run {timestamp} upto")
+        else:
+            #with stdout_redirector(self._log):
+            self.simulation.command(f"run {timestamp} upto post no")
 
 
     def step_to_time(self, time):
@@ -356,6 +405,59 @@ class Simulation:
 
 
 
+libc = ctypes.CDLL(None)
+
+if platform.system() == 'Darwin':
+    stdout = '__stdoutp'
+else:
+    stdout = 'stdout'
+
+c_stdout = ctypes.c_void_p.in_dll(libc, stdout)
+
+
+@contextmanager
+def stdout_redirector(stream):
+    # The original fd stdout points to. Usually 1 on POSIX systems.
+    original_stdout_fd = sys.stdout.fileno()
+
+    def _redirect_stdout(to_fd):
+        """Redirect stdout to the given file descriptor."""
+        # Flush the C-level buffer stdout
+        libc.fflush(c_stdout)
+        # Flush and close sys.stdout - also closes the file descriptor (fd)
+        sys.stdout.close()
+        # Make original_stdout_fd point to the same file as to_fd
+        os.dup2(to_fd, original_stdout_fd)
+        # Create a new sys.stdout that points to the redirected fd
+        sys.stdout = io.TextIOWrapper(os.fdopen(original_stdout_fd, 'wb'))
+
+    def _close_all():
+        tfile.close()
+        os.close(saved_stdout_fd)
+
+    # Save a copy of the original stdout fd in saved_stdout_fd
+    saved_stdout_fd = os.dup(original_stdout_fd)
+    try:
+        # Create a temporary file and redirect stdout to it
+        tfile = tempfile.TemporaryFile(mode='w+b')
+        _redirect_stdout(tfile.fileno())
+
+        # Catch SIGINT so we close all file descriptors opened
+        signal.signal(signal.SIGINT, _close_all)
+
+        # Yield to caller, then redirect stdout back to the saved fd
+        yield
+        _redirect_stdout(saved_stdout_fd)
+        # Copy contents of temporary file to the given stream
+        tfile.flush()
+        tfile.seek(0, io.SEEK_SET)
+        stream.write(tfile.read())
+    finally:
+        _close_all()
+
+
+
+
 if __name__ == "main":
     parameters = Parameters(
         ["corPP", "corPW"],
@@ -372,7 +474,18 @@ if __name__ == "main":
         [1.0, 1.0]      # Maximum values
     )
 
-    simulation = Simulation("in.sim", parameters)
+    simulation = Simulation("run.sim", parameters)
+
+    simulation.save()
+    simulation.step(200)
+
+    simulation.save("2.save")
+    simulation.step(200)
+
+    simulation.load("2.save")
+
+    simulation.step(200)
+
 
     print("\nInitial simulation parameters:")
     print(f"corPP: {simulation.variable('corPP')}")
@@ -384,7 +497,6 @@ if __name__ == "main":
     print("\nModified simulation parameters:")
     print(f"corPP: {simulation.variable('corPP')}")
     print(f"corPW: {simulation.variable('corPW')}")
-
 
 
 

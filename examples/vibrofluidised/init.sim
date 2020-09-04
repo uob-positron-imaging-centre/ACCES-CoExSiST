@@ -92,7 +92,7 @@ fix    integr all nve/sphere
 
 #output settings, include total thermal energy
 
-thermo        50000
+thermo        1000
 
 thermo_style  custom step atoms ke vol time
 thermo_modify lost ignore norm no
@@ -119,4 +119,4 @@ fix move2 all move/mesh mesh front_back viblin axis 0. 0. 1 order 1 amplitude 0.
 reset_timestep 0
 #insert particles
 #run    10000000 upto
-
+write_restart restart.sim
