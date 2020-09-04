@@ -186,15 +186,11 @@ class Simulation:
         if self._verbose:
             self.simulation = liggghts()
         else:
-            self.simulation = liggghts(cmdargs = ["-screen","/dev/null"])
+            self.simulation = liggghts(cmdargs = ["-screen", "/dev/null"])
 
-        # Try to read in `simulation` as a file, otherwise treat it as a string
-        try:
-            with open(simulation) as f:
-                self.simulation.file(simulation)
-                self.filename = simulation
-        except FileNotFoundError:
-            self.simulation.command(str(simulation))
+        with open(simulation) as f:
+            self.simulation.file(simulation)
+            self.filename = simulation
 
         if not isinstance(parameters, Parameters):
             raise TypeError(textwrap.fill(
@@ -249,18 +245,26 @@ class Simulation:
         # 1st:
         # open the simulation file and search for the line where it reads the restart
         # then change the filename in this file and save
-        with open(self.filename,"r") as f:
+        with open(self.filename, "r") as f:
             lines = f.readlines()
-        for id,line in enumerate(lines):
+
+        for i, line in enumerate(lines):
             if line.split("read_restart")[0] == "":
-                lines[id] = f"read_restart {filename}\n"
-        with open(self.filename,"w") as f:
-            lines = f.writelines(lines)
+                lines[i] = f"read_restart {filename}\n"
+
+        temporary_file = tempfile.NamedTemporaryFile(mode = 'w+t')
+        temporary_file.writelines(lines)
+
         # 2nd:
         # close current simulation and open new one
         self.simulation.close()
-        self.simulation = liggghts()
-        self.simulation.file(self.filename)
+
+        if self._verbose:
+            self.simulation = liggghts()
+        else:
+            self.simulation = liggghts(cmdargs = ["-screen", "/dev/null"])
+
+        self.simulation.file(temporary_file.name)
 
 
     def num_atoms(self):
