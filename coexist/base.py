@@ -182,6 +182,7 @@ class Simulation:
         '''
 
         self._verbose = bool(verbose)
+        self._log = io.BytesIO()
 
         if self._verbose:
             self.simulation = liggghts()
@@ -252,8 +253,9 @@ class Simulation:
             if line.split("read_restart")[0] == "":
                 lines[i] = f"read_restart {filename}\n"
 
-        temporary_file = tempfile.NamedTemporaryFile(mode = 'w+t')
-        temporary_file.writelines(lines)
+        temporary_fname = f"temp_{int(np.random.random() * 1000000)}.restart"
+        with open(temporary_fname, "w+") as f:
+            f.writelines(lines)
 
         # 2nd:
         # close current simulation and open new one
@@ -264,7 +266,8 @@ class Simulation:
         else:
             self.simulation = liggghts(cmdargs = ["-screen", "/dev/null"])
 
-        self.simulation.file(temporary_file.name)
+        self.simulation.file(temporary_fname)
+        os.remove(temporary_fname)
 
 
     def num_atoms(self):

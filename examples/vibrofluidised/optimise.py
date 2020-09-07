@@ -28,11 +28,11 @@ parameters = coexist.Parameters(
         ${corPW} ${corPW2} ${corPW} \
         ${corPW2} ${corPW} ${corPW} "],
     [0.4, 0.4],     # Initial WRONG values
-    [0.0, 0.0],     # Minimum values
-    [1.0, 1.0]      # Maximum values
+    [0.05, 0.05],     # Minimum values
+    [0.95, 0.95]      # Maximum values
 )
 
-simulation = coexist.Simulation("run.sim", parameters)#, verbose = False)
+simulation = coexist.Simulation("run.sim", parameters, verbose = False)
 print(simulation)
 
 
@@ -59,10 +59,7 @@ def simulate_xi(simulation, num_steps, solutions, truth):
     global_save_name = f"restarts/simopt_{sim_hash(solutions)}.restart"
     local_save_name = "restarts/simopt.restart"
 
-
-    print("SAVING\n")
     simulation.save(global_save_name)
-    print("SAVED\n")
 
     param_names = simulation.parameters.index
 
@@ -113,6 +110,7 @@ def optimise(simulation, num_steps, truth):
 
     while not es.stop():
         solutions = es.ask()
+        print(f"Trying solutions {solutions}")
 
         results = simulate_xi(simulation, num_steps, solutions, truth)
 
