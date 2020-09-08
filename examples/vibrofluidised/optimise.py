@@ -12,8 +12,8 @@ import cma
 import coexist
 
 
-exp_pos = np.load("truth/positions_short.npy")
-exp_tsteps = np.load("truth/timesteps_short.npy")
+exp_positions = np.load("truth/positions_short.npy")
+exp_timesteps = np.load("truth/timesteps_short.npy")
 radius = 0.005 / 2
 
 
@@ -27,7 +27,7 @@ parameters = coexist.Parameters(
         ${corPP} ${corPW} ${corPW2} \
         ${corPW} ${corPW2} ${corPW} \
         ${corPW2} ${corPW} ${corPW} "],
-    [0.4, 0.4],     # Initial WRONG values
+    [0.45, 0.45],       # Initial WRONG values
     [0.05, 0.05],     # Minimum values
     [0.95, 0.95]      # Maximum values
 )
@@ -35,17 +35,33 @@ parameters = coexist.Parameters(
 simulation = coexist.Simulation("run.sim", parameters, verbose = False)
 print(simulation)
 
+global_solutions = []
+global_results = []
 
-def compute_xi(exp_positions, sim_positions):
+###
+### Optimisation Functions
+###
+
+def compute_xi(sim_positions, exp_positions):
     xi = np.linalg.norm(exp_positions - sim_positions, axis = 1)
 
     # Threshold - the center of a simulated particle should always be inside
     # the equivalent experimental particle
-    xi[xi < radius] = 0.
+    #xi[xi < radius] = 0.
 
     xi = xi.sum()
 
     return xi
+
+
+def compute_xi_acc(simulation, num_steps, num_checkpoints, truth):
+    xi_acc = 0.
+
+    for i in range(num_checkpoints):
+        simulation.step(num_steps)
+        xi_acc += compute_xi(simulation.positions(), truth[i + 1])
+
+    return xi_acc
 
 
 def sim_hash(solutions):
@@ -53,39 +69,48 @@ def sim_hash(solutions):
     return str(h)[:4]
 
 
-def simulate_xi(simulation, num_steps, solutions, truth):
-    print(f"Trying solutions: {solutions}")
-
-    global_save_name = f"restarts/simopt_{sim_hash(solutions)}.restart"
-    local_save_name = "restarts/simopt.restart"
-
-    simulation.save(global_save_name)
+def try_solutions(simulation, num_steps, num_checkpoints, solutions, truth):
+    # Save current checkpoint
+    save_name = f"restarts/simopt_{sim_hash(solutions)}.restart"
+    simulation.save(save_name)
 
     param_names = simulation.parameters.index
 
+
+    # TEST
+    simulation["corPP"] = 0.5
+    simulation["corPW"] = 0.5
+    xiacc = compute_xi_acc(simulation, num_steps, num_checkpoints, truth)
+    print(f"\n\n\nTEST xiacc: {xiacc}\n\n\n")
+    simulation.load(save_name)
+
+
     results = []
     for sol in solutions:
-        # Save before running
-        simulation.save(local_save_name)
-
         # Change parameters
         for i, sol_val in enumerate(sol):
             simulation[param_names[i]] = sol_val
 
-        # Run simulation for `num_steps`
-        simulation.step(num_steps)
+        # Compute and save the xi_acc value
+        results.append(
+            compute_xi_acc(simulation, num_steps, num_checkpoints, truth)
+        )
 
-        # Save xi value
-        results.append(compute_xi(truth, simulation.positions()))
+        # Load the  simulation
+        simulation.load(save_name)
 
-        # Load back simulation
-        simulation.load(local_save_name)
+    global_solutions.extend(solutions)
+    global_results.extend(results)
 
-    simulation.load(global_save_name)
     return results
 
 
-def optimise(simulation, num_steps, truth):
+def optimise(
+    simulation,
+    num_steps,
+    num_checkpoints,
+    exp_positions
+):
     print("\nStarting optimisation of simulation:")
     print(simulation, "\n")
 
@@ -93,7 +118,7 @@ def optimise(simulation, num_steps, truth):
     mins = simulation.parameters["min"].to_numpy()
     maxs = simulation.parameters["max"].to_numpy()
 
-    sigma0 = 0.1
+    sigma0 = 0.2
     bounds = [
         mins,   # lower bounds
         maxs,   # upper bounds
@@ -112,32 +137,97 @@ def optimise(simulation, num_steps, truth):
         solutions = es.ask()
         print(f"Trying solutions {solutions}")
 
-        results = simulate_xi(simulation, num_steps, solutions, truth)
+        results = try_solutions(
+            simulation,
+            num_steps,
+            num_checkpoints,
+            solutions,
+            exp_positions,
+        )
 
         es.tell(solutions, results)
         es.disp()
 
+    solutions = es.result.xbest
+    param_names = simulation.parameters.index
+
+    print(f"Best results for solutions {solutions}")
+
+    # Change parameters
+    for i, sol_val in enumerate(solutions):
+        simulation[param_names[i]] = sol_val
+
+    # Compute xi_acc for found solutions and move simulation forward in time
+    xi_acc = compute_xi_acc(simulation, num_steps, num_checkpoints, exp_positions)
+    return xi_acc
+
+
+###
+### Optimisation Driver Script
+###
+
 
 # Number of steps between checkpoints
-num_steps = int((exp_tsteps[1] - exp_tsteps[0]) / simulation.step_size)
+num_steps = int((exp_timesteps[1] - exp_timesteps[0]) / simulation.step_size)
 simulation.save()
 
-for i, t in enumerate(exp_tsteps):
-    simulation.step_to_time(t)
-    pos = simulation.positions()
+# Number of particles
+num_particles = len(exp_positions[0])
 
-    xi = compute_xi(exp_pos[i], pos)
-    print(f"i: {i:>4} | xi: {xi}")
+# Cummulative xi
+xi_acc = 0.
 
-    if xi > radius:
-        # Load previous timestep's simulation
+# Number of checkpoints with non-zero xi
+num_checkpoints = 0
+
+# Number of LIGGGHTS steps per checkpoint
+num_steps = 10_000
+
+# Erroneous experimental positions at checkpoints from start to end
+start_index = 0
+end_index = 0
+
+
+for i in range(100):
+    # Run simulation up to experimental timestep t
+    simulation.step(num_steps)
+    sim_positions = simulation.positions()
+
+    xi = compute_xi(sim_positions, exp_positions[i])
+    xi_acc += xi
+
+    print(f"i: {i:>4} | xi: {xi:5.5e} | xi_acc: {xi_acc:5.5e} | num_checkpoints: {num_checkpoints:>4}")
+    #print(np.hstack((sim_positions, exp_positions[i])))
+
+    # Only save checkpoints if experiment is perfectly synchronised
+    if xi_acc == 0.:
+        simulation.save()
+        num_checkpoints = 0
+
+        start_index = i
+        end_index = i
+    else:
+        num_checkpoints += 1
+
+    # If the accummulated erorr (Xi) is large enough, start optimisation
+    if xi_acc > radius * num_particles:
+        if xi_acc > 2 * radius * num_particles:
+            print("Might be chaotic")
+
+        # Load previous checkpoint's simulation
         simulation.load()
 
-        # Re-iterate this timestep, optimising the sim parameters
-        optimise(simulation, num_steps, exp_pos[i])
+        # Optimise against experimental positions from start_index:end_index
+        end_index = i + 1
 
-    simulation.save()
-
+        # Re-iterate the steps since the last checkpoints, optimising the sim
+        # parameters. This function will also run the sim up to the current t
+        xi_acc = optimise(
+            simulation,
+            num_steps,
+            num_checkpoints,
+            exp_positions[start_index:end_index],
+        )
 
 
 
