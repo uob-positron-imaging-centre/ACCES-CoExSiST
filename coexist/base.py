@@ -322,10 +322,31 @@ class Simulation:
                 reset the timestep!'''
             ))
 
-        nsteps = (time - self.time()) / self.step_size
+        rest_time = (time - self.time()) % self.step_size
+        n_steps = (time - self.time()-rest_time) / self.step_size
+        
         self.step(nsteps)
-
-
+        #Now run 1 single timestep with a smaller timestep
+        old_dt = self.step_size
+        
+        #set step size to the rest time
+        self.step_size = rest_time
+        self.step(1)
+        #reset to normal dt
+        self.step_size = old_dt
+        
+    def step_time(self, time):
+        # find timestep which can run exectly to time
+        #  while beeing lower then self.step_size
+        new_dt = time/(int(time/self.step_size)+1)
+        steps = time / new_dt
+        
+        old_dt = self.step_size
+        self.step_size = new_dt
+        self.step(steps)
+        self.step_size = old_dt
+        
+    
     def reset_time(self):
         # reset the current timestep to 0
         self.simulation.command("reset_timestep 0")
