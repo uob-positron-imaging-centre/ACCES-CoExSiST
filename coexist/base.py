@@ -83,8 +83,9 @@ class Parameters(pd.DataFrame):
         variables,
         commands,
         initial_values,
-        minimums = None,
-        maximums = None,
+        minimums,
+        maximums,
+        sigma0 = None,
     ):
         '''`Parameters` class constructor.
 
@@ -104,30 +105,32 @@ class Parameters(pd.DataFrame):
             An iterable containing the initial values for each LIGGGHTS
             simulation parameter.
 
-        minimums: list[float], optional
+        minimums: list[float]
             An iterable containing the lower bounds for each LIGGGHTS
-            parameter. For non-existing bounds, use `None`. If unset, all
-            values are `None`.
+            parameter. For non-existing bounds, use `None`, in which case also
+            define a `sigma0`.
 
-        maximums: list[float], optional
+        maximums: list[float]
             An iterable containing the upper bounds for each LIGGGHTS
-            parameter. For non-existing bounds, use `None`. If unset, all
-            values are `None`.
+            parameter. For non-existing bounds, use `None`, in which case also
+            define a `sigma0`.
+
+        sigma0: list[float], optional
+            The standard deviation of the first population of solutions tried
+            by the CMA-ES optimisation algorithm. If unset, it is computed as
+            `0.2 * (maximum - minimum)`.
         '''
-
-        if minimums is None:
-            minimums = [None] * len(variables)
-
-        if maximums is None:
-            maximums = [None] * len(variables)
 
         if not (len(variables) == len(commands) == len(initial_values) ==
                 len(minimums) == len(maximums)):
             raise ValueError(textwrap.fill(
                 '''The input iterables `variables`, `commands`,
-                `initial_values` and (if defined) `minimums` and `maximums`
-                must all have the same length.'''
+                `initial_values`, `minimums` and `maximums` must all have the
+                same length.'''
             ))
+
+        if sigma0 is None:
+            sigma0 = [0.2 * (ma - mi) for mi, ma in zip(minimums, maximums)]
 
         for cmd in commands:
             if re.search("\$\{\w+\}", cmd) is None:
@@ -144,6 +147,7 @@ class Parameters(pd.DataFrame):
             "value": initial_values,
             "min": minimums,
             "max": maximums,
+            "sigma": sigma0,
         }
 
         pd.DataFrame.__init__(self, parameters, index = variables)
@@ -241,11 +245,12 @@ class Simulation:
 
 
     def load(self, filename = "restart.data"):
-        # load a new simulation based on the position data from filename and the system based on self.filename
+        # load a new simulation based on the position data from filename and
+        # the system based on self.filename
         #
         # 1st:
-        # open the simulation file and search for the line where it reads the restart
-        # then change the filename in this file and save
+        # open the simulation file and search for the line where it reads the
+        # restart then change the filename in this file and save
         with open(self.filename, "r") as f:
             lines = f.readlines()
 
@@ -314,6 +319,18 @@ class Simulation:
             self.simulation.command(f"run {timestamp} upto post no")
 
 
+    def step_time(self, time):
+        # find timestep which can run exectly to time
+        # while beeing lower then self.step_size
+        new_dt = time / (int(time / self.step_size) + 1)
+        steps = time / new_dt
+
+        old_dt = self.step_size
+        self.step_size = new_dt
+        self.step(steps)
+        self.step_size = old_dt
+
+
     def step_to_time(self, time):
         # run simulation up to sim time = `time`
         if time < self.time():
@@ -324,29 +341,20 @@ class Simulation:
 
         rest_time = (time - self.time()) % self.step_size
         n_steps = (time - self.time()-rest_time) / self.step_size
-        
+
         self.step(nsteps)
-        #Now run 1 single timestep with a smaller timestep
+
+        # Now run 1 single timestep with a smaller timestep
         old_dt = self.step_size
-        
-        #set step size to the rest time
+
+        # set step size to the rest time
         self.step_size = rest_time
         self.step(1)
-        #reset to normal dt
+
+        # reset to normal dt
         self.step_size = old_dt
-        
-    def step_time(self, time):
-        # find timestep which can run exectly to time
-        #  while beeing lower then self.step_size
-        new_dt = time/(int(time/self.step_size)+1)
-        steps = time / new_dt
-        
-        old_dt = self.step_size
-        self.step_size = new_dt
-        self.step(steps)
-        self.step_size = old_dt
-        
-    
+
+
     def reset_time(self):
         # reset the current timestep to 0
         self.simulation.command("reset_timestep 0")
