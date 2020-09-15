@@ -165,7 +165,9 @@ class Simulation:
         self,
         simulation,
         parameters,
-        verbose = True
+        verbose = True,
+        log = True,
+        log_file = "pyLiggghts.log"
     ):
         '''`Simulation` class constructor.
 
@@ -183,11 +185,52 @@ class Simulation:
 
         verbose: bool, default `True`
             Show LIGGGHTS output while simulation is running.
+            
+        log: bool, default 'True'
+            save all property changing commands that where exectuted in a log
+            file. Does not contain commands inside the default LIGGGHTS
+            macro script
+            Needed for the .copy function!
+            excluded commands:
+                run
+                write_restart
         '''
 
         self._verbose = bool(verbose)
-        self._log = io.BytesIO()
-
+        #self._log = io.BytesIO()
+        self.log = log
+        self.log_file = log_file
+        
+        # find the nex "free" log filename
+        # This filename is exclusively for this single Coexist instance
+        if self.log:
+            count = 0
+            finished = False
+            while not finished:
+                #test if a file exist
+                # if not, create it and give it a "unused" value
+                if not os.path.exists(self.log_file):
+                    a = open(self.log_file,"w")
+                    a.write("0\n")
+                    a.close()
+                # open the file, check if it is unused
+                # if not try new filename
+                # if it is unused empty the file and use mark
+                # as used
+                with open(self.log_file, "r+") as f:
+                    f.seek(0)
+                    line = f.readlines()[0]
+                if "1" in line :
+                    if self.verbose:
+                        print(f"{self.log_file} is currently in use. Trying ",endline="")
+                    count += 1
+                    self.log_file = log_file.split(".log")[0]+str(count)+".log"
+                    if self.verbose:
+                        print(f"{self.log_file}")
+                else:
+                    finished = True
+                    with open(self.log_file,"w") as f:
+                        f.write("1\n")
         if self._verbose:
             self.simulation = liggghts()
         else:
@@ -223,10 +266,18 @@ class Simulation:
         # set the step_size size
         if 0 < new_step_size < 1:
             self._step_size = new_step_size
-            self.simulation.command(f"timestep {new_step_size}")
+            self.execute_command(f"timestep {new_step_size}")
         else:
             raise ValueError("Step size must be between 0 and 1 !")
-
+    
+    @property
+    def log(self):
+        return self._log
+        
+    @log.setter
+    def log(self, log):
+        self._log = bool(log)
+    
 
     @property
     def verbose(self):
@@ -241,7 +292,7 @@ class Simulation:
     def save(self, filename = "restart.data"):
         # write a restart file
         cmd = f"write_restart {filename}"
-        self.simulation.command(cmd)
+        self.execute_command(cmd)
 
 
     def load(self, filename = "restart.data"):
@@ -300,9 +351,9 @@ class Simulation:
     def step(self, num_steps):
         # run simulation for `num_steps` timesteps
         if self.verbose:
-            self.simulation.command(f"run {num_steps}")
+            self.execute_command(f"run {num_steps}")
         else:
-            self.simulation.command(f"run {num_steps} post no")
+            self.execute_command(f"run {num_steps} post no")
 
 
     def step_to(self, timestamp):
@@ -314,9 +365,9 @@ class Simulation:
             ))
 
         if self.verbose:
-            self.simulation.command(f"run {timestamp} upto")
+            self.execute_command(f"run {timestamp} upto")
         else:
-            self.simulation.command(f"run {timestamp} upto post no")
+            self.execute_command(f"run {timestamp} upto post no")
 
 
     def step_time(self, time):
@@ -357,7 +408,7 @@ class Simulation:
 
     def reset_time(self):
         # reset the current timestep to 0
-        self.simulation.command("reset_timestep 0")
+        self.execute_command("reset_timestep 0")
 
 
     def timestep(self):
@@ -368,7 +419,42 @@ class Simulation:
     def time(self):
         return self.simulation.extract_global("atime", 1)
 
-
+    
+    def execute_command(self, cmd):
+        if self.log:
+            if not ("run" in cmd or "write_restart" in cmd):
+                
+                with open(self.log_file,"a") as f:
+                    f.write(cmd+"\n")
+        self.simulation.command(cmd)
+        
+    
+    
+    def copy(self):
+        """
+        copy the ligghts instance 
+        includes: 
+            - particle positions /velocitys / properties
+            - system
+            
+            
+        """
+        if not self.log:
+            raise ValueError("Log neceserry to make copy")
+        self.save("copy.restart")
+        with open("new_simulation_file.in","w") as f:
+            with open(self.filename,"r") as infile:
+                sim = infile.readlines()
+            for id,line in enumerate(sim):
+                if "read_restart" in line:
+                    sim[id] = "read_restart copy.restart"
+            with open(self.log_file,"r") as infile:
+                sim2 = infile.readlines()[1::]
+            f.writelines(sim)
+            f.writelines(sim2)
+        
+        return Simulation("new_simulation_file.in",self.parameters,self.verbose,self.log)
+    
     def __setitem__(self, key, value):
         # Custom key-value setter to change a parameter in the class *and*
         # during the simulation.
@@ -401,10 +487,10 @@ class Simulation:
         )
 
         # Run the command with replaced varnames
-        self.simulation.command(cmd)
+        self.execute_command(cmd)
 
         # Modify the global variable name to reflect the change
-        self.simulation.command(f"variable {key} equal {value}")
+        self.execute_command(f"variable {key} equal {value}")
 
         # Set inner class parameter value
         self.parameters.at[key, "value"] = value
@@ -412,7 +498,12 @@ class Simulation:
 
     def __del__(self):
         self.simulation.close()
-
+        if self.log:
+            with open(self.log_file,"r") as f:
+                lines = f.readlines()
+            lines[0] = "0"
+            with open(self.log_file,"w") as f:
+                lines = f.writelines(lines)
 
     def __str__(self):
         # Shown when calling print(class)
