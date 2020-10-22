@@ -398,19 +398,20 @@ class Simulation:
             ))
 
         rest_time = (time - self.time()) % self.step_size
+        
         n_steps = (time - self.time()-rest_time) / self.step_size
+        
+        self.step(n_steps)
+        if rest_time != 0.0:
+            # Now run 1 single timestep with a smaller timestep
+            old_dt = self.step_size
 
-        self.step(nsteps)
+            # set step size to the rest time
+            self.step_size = rest_time
+            self.step(1)
 
-        # Now run 1 single timestep with a smaller timestep
-        old_dt = self.step_size
-
-        # set step size to the rest time
-        self.step_size = rest_time
-        self.step(1)
-
-        # reset to normal dt
-        self.step_size = old_dt
+            # reset to normal dt
+            self.step_size = old_dt
 
 
     def reset_time(self):
