@@ -482,18 +482,18 @@ class Simulation:
         #   2. the LIGGGHTS variable `varname` otherwise
         def replace_var(match):
             var = variable_extractor.split(match.group(0))[1]
-            print(var)
+            
             if var == key:
                 return str(value)
             else:
                 return str(self.variable(var))
-        print(key)
+        
         cmd = re.sub(
             "\$\{\w+\}",
             replace_var,
             self.parameters.loc[key, "command"]
         )
-        print(cmd)
+        
         # Run the command with replaced varnames
         self.execute_command(cmd)
 
