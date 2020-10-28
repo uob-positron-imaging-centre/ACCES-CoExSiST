@@ -507,7 +507,8 @@ class Simulation:
     def __del__(self):
         self.simulation.close()
         if self.log:
-            with open(self.log_file,"r") as f:
+            print(self.log_file)
+            with open(self.log_file,"a") as f:
                 lines = f.readlines()
             lines[0] = "0"
             with open(self.log_file,"w") as f:
