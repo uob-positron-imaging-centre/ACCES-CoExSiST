@@ -129,8 +129,23 @@ class Parameters(pd.DataFrame):
                 same length.'''
             ))
 
+        initial_values = np.array(initial_values, dtype = float)
+        minimums = np.array(minimums, dtype = float)
+        maximums = np.array(maximums, dtype = float)
+
+        if (minimums >= maximums).any():
+            raise ValueError(textwrap.fill(
+                '''Found value in `maximums` that was smaller or equal than the
+                corresponding value in `minimums`.'''
+            ))
+
         if sigma0 is None:
-            sigma0 = [0.2 * (ma - mi) for mi, ma in zip(minimums, maximums)]
+            sigma0 = 0.2 * (maximums - minimums)
+        elif len(sigma0) != len(variables):
+            raise ValueError(textwrap.fill(
+                '''If defined, `sigma0` must have the same length as the other
+                input parameters.'''
+            ))
 
         for cmd in commands:
             if re.search("\$\{\w+\}", cmd) is None:
