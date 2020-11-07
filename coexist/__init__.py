@@ -6,13 +6,16 @@
 # Date   : 03.09.2020
 
 
-from    .base       import  Parameters
-from    .base       import  Simulation
+from    .base           import  Parameters
+from    .base           import  Simulation
+from    .base           import  Experiment
+
+from    .optimisation   import  Coexist
 
 
 __all__ = [
     "Parameters",
     "Simulation",
+    "Experiment",
+    "Coexist",
 ]
-
-

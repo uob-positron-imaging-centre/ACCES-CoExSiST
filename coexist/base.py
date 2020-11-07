@@ -6,17 +6,9 @@
 # Date   : 01.09.2020
 
 
-import io
 import re
 import os
-import sys
-import signal
 import textwrap
-import tempfile
-import platform
-
-import ctypes
-from contextlib import contextmanager
 
 import numpy as np
 import pandas as pd
@@ -54,23 +46,25 @@ class Parameters(pd.DataFrame):
     In the example below, the command to change a single simulation parameter
     contains other variables which we won't modify:
 
-    >>> parameters = Parameters(
-    >>>     ["corPP", "youngmodP"],
-    >>>     ["fix  m3 all property/global coefficientRestitution \
-    >>>         peratomtypepair 3 ${corPP} ${corPW} ${corPW2} \
-    >>>                                    ${corPW} ${corPW2} ${corPW} \
-    >>>                                    ${corPW2} ${corPW} ${corPW} ",
-    >>>      "fix  m1 all property/global youngsModulus peratomtype \
-    >>>         ${youngmodP} ${youngmodP} ${youngmodP}"],
-    >>>     [0.5, 0.8e9],
-    >>>     [0.0, None],
-    >>>     [1.0, None],
-    >>> )
-    >>>
-    >>> parameters
-    >>>                                              command  value   min  max
-    >>> corPP  fix  m3 all property/global coefficientRes...    0.5  None  0.0
-    >>> corPW  fix  m3 all property/global coefficientRes...    0.5  None  1.0
+    .. code-block:: python
+
+        parameters = Parameters(
+            ["corPP", "youngmodP"],
+            ["fix  m3 all property/global coefficientRestitution \
+                peratomtypepair 3 ${corPP} ${corPW} ${corPW2} \
+                                           ${corPW} ${corPW2} ${corPW} \
+                                           ${corPW2} ${corPW} ${corPW} ",
+             "fix  m1 all property/global youngsModulus peratomtype \
+                ${youngmodP} ${youngmodP} ${youngmodP}"],
+            [0.5, 0.8e9],
+            [0.0, None],
+            [1.0, None],
+        )
+
+        parameters
+                                                     command  value   min  max
+        corPP  fix  m3 all property/global coefficientRes...    0.5  None  0.0
+        corPW  fix  m3 all property/global coefficientRes...    0.5  None  1.0
 
     Notes
     -----
@@ -170,6 +164,143 @@ class Parameters(pd.DataFrame):
 
 
 
+class Experiment:
+    '''Class encapsulating an experiment's recorded particle positions at
+    multiple timesteps.
+
+    For a single timestep, the particles in a system can be represented as a 2D
+    array with columns [x, y, z]. For multiple timesteps, the positions arrays
+    can be stacked, yielding a 3D array with shape (T, N, 3), where T is the
+    number of timesteps, N is the number of particles, plus three columns for
+    their cartesian coordinates.
+
+    This class contains the recorded timesteps and the stacked 3D array of
+    particle positions.
+
+    It is used for the ground truth data that another DEM simulation will learn
+    the parameters of.
+    '''
+
+    def __init__(
+        self,
+        times,
+        positions_all,
+        resolution,
+        **kwargs
+    ):
+        '''`Experiment` class constructor.
+
+        Parameters
+        ----------
+        times: list[float]
+            A list (or vector) of timestamp values for all positions recorded
+            in the experiment.
+
+        positions_all: (T, N, M>=3) numpy.ndarray
+            A 3D array-like with dimensions (T, N, M>=3), where T is the number
+            of timesteps (corresponding exactly to the length of `times`), N is
+            the number of particles in the system and M is the number of data
+            columns per particle (at least 3 for their [x, y, z] coordinates,
+            but can contain extra columns).
+
+        resolution: float
+            The expected error on the positions recorded.
+
+        kwargs: keyword arguments
+            Extra data that should be attached to this class as new attributes
+            (e.g. "exp.droplets = 5" creates a new attribute).
+
+        Raises
+        ------
+        ValueError
+            If `times` is not a flat list-like, or `times` contains repeated
+            values, or `positions_all` does not have exactly three dimensions
+            and at least 3 columns (axis 2), or
+            `len(times) != len(positions_all)`.
+        '''
+
+        times = np.asarray(times, dtype = float, order = "C")
+        positions_all = np.asarray(positions_all, dtype = float, order = "C")
+
+        if times.ndim != 1:
+            raise ValueError(textwrap.fill((
+                "The `times` input parameter must have exactly one dimension. "
+                f"Received `ndim = {times.ndim}`."
+            )))
+
+        if len(np.unique(times)) != len(times):
+            raise ValueError(textwrap.fill((
+                "The `times` input parameter must have only unique values. "
+                f"Found {len(times) - len(np.unique(times))} repeated values."
+            )))
+
+        if positions_all.ndim != 3 or positions_all.shape[2] < 3:
+            raise ValueError(textwrap.fill((
+                "The `positions_all` input parameter must have exactly three "
+                "dimensions and at least three columns. Received "
+                f"`shape = {positions_all.shape}`."
+            )))
+
+        if len(times) != len(positions_all):
+            raise ValueError(textwrap.fill((
+                "The input `positions_all` parameter must be a 3D array with "
+                "the particles' positions at every timestep in `times`. The "
+                "shape of `positions_all` should then be (T, N, 3), where T "
+                "is the number of timesteps, N is the number of particles, "
+                "plus three columns for x, y, z coordinates. Received "
+                f"{len(times)} timesteps in `times` and {len(positions_all)} "
+                "stacked arrays in `positions_all`."
+            )))
+
+        self.times = times
+        self.positions_all = positions_all
+        self.kwargs = kwargs
+
+
+    def positions(self, timestep):
+        time_idx = np.argwhere(np.isclose(timestep, self.times))
+
+        if len(time_idx) == 0:
+            raise ValueError(textwrap.fill((
+                "There are no values in `times` equal to the requested "
+                f"timestep {timestep}."
+            )))
+
+        return self.positions_all[time_idx[0, 0]]
+
+
+    def __getattr__(self, name):
+        # Allow defining custom attributes (e.g. "exp.droplets = 5")
+        return self.kwargs[name]
+
+
+    def __str__(self):
+        # Shown when calling print(class)
+        docstr = (
+            f"times:\n{self.times}\n\n"
+            f"positions_all:\n{self.positions_all}"
+        )
+
+        if self.kwargs:
+            docstr += f"\n\nkwargs:\n{self.kwargs}"
+
+        return docstr
+
+
+    def __repr__(self):
+        # Shown when writing the class on a REPL
+        docstr = (
+            "Class instance that inherits from `pyCoexist.Experiment`.\n"
+            f"Type:\n{type(self)}\n\n"
+            "Attributes\n----------\n"
+            f"{self.__str__()}"
+        )
+
+        return docstr
+
+
+
+
 class Simulation:
     '''Class encapsulating a single LIGGGHTS simulation whose parameters will
     be modified dynamically by a driver code.
@@ -200,7 +331,7 @@ class Simulation:
 
         verbose: bool, default `True`
             Show LIGGGHTS output while simulation is running.
-            
+
         log: bool, default 'True'
             save all property changing commands that where exectuted in a log
             file. Does not contain commands inside the default LIGGGHTS
@@ -212,20 +343,19 @@ class Simulation:
         '''
 
         self._verbose = bool(verbose)
-        #self._log = io.BytesIO()
         self.log = log
         self.log_file = log_file
-        
+
         # find the nex "free" log filename
         # This filename is exclusively for this single Coexist instance
         if self.log:
             count = 0
             finished = False
             while not finished:
-                #test if a file exist
+                # test if a file exist
                 # if not, create it and give it a "unused" value
                 if not os.path.exists(self.log_file):
-                    a = open(self.log_file,"w")
+                    a = open(self.log_file, "w")
                     a.write("0\n")
                     a.close()
                 # open the file, check if it is unused
@@ -235,17 +365,20 @@ class Simulation:
                 with open(self.log_file, "r+") as f:
                     f.seek(0)
                     line = f.readlines()[0]
-                if "1" in line :
+                if "1" in line:
                     if self.verbose:
-                        print(f"{self.log_file} is currently in use. Trying ",endline="")
+                        print(f"{self.log_file} is currently in use. Trying ",
+                              endline="")
                     count += 1
-                    self.log_file = log_file.split(".log")[0]+str(count)+".log"
+                    self.log_file = log_file.split(".log")[0] + str(count) + \
+                        ".log"
                     if self.verbose:
                         print(f"{self.log_file}")
                 else:
                     finished = True
-                    with open(self.log_file,"w") as f:
+                    with open(self.log_file, "w") as f:
                         f.write("1\n")
+
         if self._verbose:
             self.simulation = liggghts()
         else:
@@ -284,15 +417,17 @@ class Simulation:
             self.execute_command(f"timestep {new_step_size}")
         else:
             raise ValueError("Step size must be between 0 and 1 !")
-    
+
+
     @property
     def log(self):
         return self._log
-        
+
+
     @log.setter
     def log(self, log):
         self._log = bool(log)
-    
+
 
     @property
     def verbose(self):
@@ -345,6 +480,12 @@ class Simulation:
         return self.simulation.get_natoms()
 
 
+    def radii(self):
+        # TODO Dominik - return radii of all particles in the system
+        # That is, a 1D numpy array with the radius for each particle
+        return np.ones(self.num_atoms()) * 0.0025
+
+
     def positions(self):
         # get particle positions
         pos = self.simulation.gather_atoms("x", 1, 3)
@@ -366,7 +507,7 @@ class Simulation:
             raise ValueError((
                 f"[ERROR]: Tried to access non-existent variable {var_name}!"
             ))
-    
+
         return varb
 
 
@@ -413,9 +554,9 @@ class Simulation:
             ))
 
         rest_time = (time - self.time()) % self.step_size
-        
-        n_steps = (time - self.time()-rest_time) / self.step_size
-        
+
+        n_steps = (time - self.time() - rest_time) / self.step_size
+
         self.step(n_steps)
         if rest_time != 0.0:
             # Now run 1 single timestep with a smaller timestep
@@ -442,47 +583,50 @@ class Simulation:
     def time(self):
         return self.simulation.extract_global("atime", 1)
 
-    
+
     def execute_command(self, cmd):
         if self.log:
             if not ("run" in cmd or "write_restart" in cmd):
-                
-                with open(self.log_file,"a") as f:
-                    f.write(cmd+"\n")
+                with open(self.log_file, "a") as f:
+                    f.write(cmd + "\n")
         self.simulation.command(cmd)
-        
-    
-    
+
+
     def copy(self):
         """
-        copy the ligghts instance 
-        includes: 
+        copy the ligghts instance
+        includes:
             - particle positions /velocitys / properties
             - system
-            
-            
         """
         if not self.log:
             raise ValueError("Log neceserry to make copy")
         self.save("copy.restart")
-        with open("new_simulation_file.in","w") as f:
-            with open(self.filename,"r") as infile:
+
+        with open("new_simulation_file.in", "w") as f:
+            with open(self.filename, "r") as infile:
                 sim = infile.readlines()
-            for id,line in enumerate(sim):
+            for id, line in enumerate(sim):
                 if "read_restart" in line:
                     sim[id] = "read_restart copy.restart"
-            with open(self.log_file,"r") as infile:
+            with open(self.log_file, "r") as infile:
                 sim2 = infile.readlines()[1::]
             f.writelines(sim)
             f.writelines(sim2)
-        
-        return Simulation("new_simulation_file.in",self.parameters,self.verbose,self.log)
-    
+
+        return Simulation(
+            "new_simulation_file.in",
+            self.parameters,
+            self.verbose,
+            self.log
+        )
+
+
     def __setitem__(self, key, value):
         # Custom key-value setter to change a parameter in the class *and*
         # during the simulation.
         # Raises an AttributeError if the key didn't exist previously.
-        if not key in self.parameters.index:
+        if key not in self.parameters.index:
             raise AttributeError(textwrap.fill(
                 f'''The given parameter name (the `key`) does not exist. It
                 should be set when instantiating the `Parameters`. Received
@@ -497,18 +641,18 @@ class Simulation:
         #   2. the LIGGGHTS variable `varname` otherwise
         def replace_var(match):
             var = variable_extractor.split(match.group(0))[1]
-            
+
             if var == key:
                 return str(value)
             else:
                 return str(self.variable(var))
-        
+
         cmd = re.sub(
             "\$\{\w+\}",
             replace_var,
             self.parameters.loc[key, "command"]
         )
-        
+
         # Run the command with replaced varnames
         self.execute_command(cmd)
 
@@ -523,11 +667,12 @@ class Simulation:
         self.simulation.close()
         if self.log:
             print(self.log_file)
-            with open(self.log_file,"a") as f:
+            with open(self.log_file, "a") as f:
                 lines = f.readlines()
             lines[0] = "0"
-            with open(self.log_file,"w") as f:
+            with open(self.log_file, "w") as f:
                 lines = f.writelines(lines)
+
 
     def __str__(self):
         # Shown when calling print(class)
@@ -561,7 +706,7 @@ if __name__ == "main":
             ${corPP} ${corPW} ${corPW2} \
             ${corPW} ${corPW2} ${corPW} \
             ${corPW2} ${corPW} ${corPW} ",
-        "fix  m3 all property/global coefficientRestitution peratomtypepair 3 \
+         "fix  m3 all property/global coefficientRestitution peratomtypepair 3 \
             ${corPP} ${corPW} ${corPW2} \
             ${corPW} ${corPW2} ${corPW} \
             ${corPW2} ${corPW} ${corPW} "],
@@ -593,7 +738,3 @@ if __name__ == "main":
     print("\nModified simulation parameters:")
     print(f"corPP: {simulation.variable('corPP')}")
     print(f"corPW: {simulation.variable('corPW')}")
-
-
-
-
