@@ -492,7 +492,22 @@ class Simulation:
         pos = np.array(list(pos)).reshape(self.num_atoms(), -1)
         return pos
 
-
+    def set_position(
+        self,
+        particle_id,    # single number of particle's ID
+        position        # array or list of particle positions 1x3
+        ):
+        cmd = "set atom {particle_id} x {position[0]} y {position[1]} z {position[2]}"
+        self.execute_command(cmd)
+        
+    def set_velocity(
+        self,
+        particle_id,    # single number of particle's ID
+        velocity        # array or list of particle velocitys 1x3
+        ):
+        cmd = "set atom {particle_id} vx {velocity[0]} vy {velocity[1]} vz {velocity[2]}"
+        self.execute_command(cmd)
+        
     def velocities(self):
         # get particle velocities
         vel = self.simulation.gather_atoms("v", 1, 3)
