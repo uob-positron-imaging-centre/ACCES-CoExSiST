@@ -254,6 +254,7 @@ class Experiment:
 
         self.times = times
         self.positions_all = positions_all
+        self.resolution = float(resolution)
         self.kwargs = kwargs
 
 
@@ -492,27 +493,32 @@ class Simulation:
         pos = np.array(list(pos)).reshape(self.num_atoms(), -1)
         return pos
 
-    def set_position(
-        self,
-        particle_id,    # single number of particle's ID
-        position        # array or list of particle positions 1x3
-        ):
-        cmd = "set atom {particle_id} x {position[0]} y {position[1]} z {position[2]}"
-        self.execute_command(cmd)
-        
-    def set_velocity(
-        self,
-        particle_id,    # single number of particle's ID
-        velocity        # array or list of particle velocitys 1x3
-        ):
-        cmd = "set atom {particle_id} vx {velocity[0]} vy {velocity[1]} vz {velocity[2]}"
-        self.execute_command(cmd)
-        
+
     def velocities(self):
         # get particle velocities
         vel = self.simulation.gather_atoms("v", 1, 3)
         vel = np.array(list(vel)).reshape(self.num_atoms(), -1)
         return vel
+
+
+    def set_position(
+        self,
+        particle_id,    # single number of particle's ID
+        position        # array or list of particle positions 1x3
+    ):
+        cmd = (f"set atom {particle_id + 1} x {position[0]} y {position[1]} "
+               f"z {position[2]}")
+        self.execute_command(cmd)
+
+
+    def set_velocity(
+        self,
+        particle_id,    # single number of particle's ID
+        velocity        # array or list of particle velocitys 1x3
+    ):
+        cmd = (f"set atom {particle_id + 1} vx {velocity[0]} vy {velocity[1]} "
+               f"vz {velocity[2]}")
+        self.execute_command(cmd)
 
 
     def variable(self, var_name):
@@ -685,7 +691,7 @@ class Simulation:
             with open(self.log_file, "a") as f:
                 lines = f.readlines()
             lines[0] = "0"
-            with open(self.log_file, "w") as f:
+            with open(self.log_file, "a+") as f:
                 lines = f.writelines(lines)
 
 

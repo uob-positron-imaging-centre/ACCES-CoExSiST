@@ -6,13 +6,16 @@
 # Date   : 03.09.2020
 
 
+import  os
 import  textwrap
+import  time
 
-import  numpy               as      np
-from    scipy.integrate     import  solve_ivp
+import  numpy           as      np
+import  pandas          as      pd
 import  sympy
+import  cma
 
-from    coexist             import  Simulation, Experiment
+from    coexist         import  Simulation, Experiment
 
 
 class Coexist:
@@ -20,6 +23,7 @@ class Coexist:
     def __init__(
         self,
         simulation: Simulation,
+        save_log = False,
     ):
         '''`Coexist` class constructor.
 
@@ -28,6 +32,10 @@ class Coexist:
         simulation: coexist.Simulation
             The DEM simulation, encapsulated in a `coexist.Simulation`
             instance.
+
+        save_log: bool, default False
+            If true, save details about the optimisations runs executed,
+            including the parameter combinations tried.
 
         '''
 
@@ -38,8 +46,12 @@ class Coexist:
                 f"`coexist.Simulation`. Received type `{type(simulation)}`."
             )))
 
+        self.save_log = bool(save_log)
+        self.log = [] if self.save_log else None
+
         # Setting class attributes
         self.simulation = simulation
+        self.experiment = None          # Set in `self.learn()`
 
         # Vector of bools corresponding to whether sim-exp particles are
         # attached or detached (i.e. sim particles are forcibly moved)
@@ -54,14 +66,18 @@ class Coexist:
         # for the timesteps given in an experiment
         self.optimised_times = None
 
-        self.xi = 0         # Current timestep's error
-        self.xi_acc = 0     # Multiple timesteps' (accumulated) error
+        self.xi = 0             # Current timestep's error
+        self.xi_acc = 0         # Multiple timesteps' (accumulated) error
+
+        self.diverged = False
+        self.popsize = None     # Set in `self.learn()`
 
 
     def learn(
         self,
         experiment: Experiment,
-        max_optimisations: 3,
+        max_optimisations = 3,
+        popsize = 8,
         verbose = True,
     ):
         '''Start synchronising the DEM simulation against a given experimental
@@ -72,6 +88,21 @@ class Coexist:
         experiment: coexist.Experiment
             The experimental positions recorded, encapsulated in a
             `coexist.Experiment` instance.
+
+        max_optimisations: int, default 3
+            The maximum number of optimisation runs to execute before
+            reattaching particles.
+
+        popsize: int, default 8
+            The number of parameter combinations to try at each optimisation
+            step. A larger number corresponds to a more "global" parameter
+            space search, at the expense of longer runtime. The more
+            parameters you optimise at the same time, the larger this
+            value should be (~ 4 * num_parameters).
+
+        verbose: bool, default True
+            If True, print information about the optimisation to the terminal.
+
         '''
 
         # Type-checking inputs
@@ -90,12 +121,16 @@ class Coexist:
                 "particles."
             )))
 
+        max_optimisations = int(max_optimisations)
+
         # Setting class attributes
         self.experiment = experiment
         self.optimised_times = np.zeros(
             len(self.experiment.times),
             dtype = int,
         )
+
+        self.popsize = int(popsize)
 
         # Aliases
         sim = self.simulation
@@ -114,6 +149,22 @@ class Coexist:
 
         # Forcibly move the attached particles' positions
         self.move_attached(0)   # Sets positions of attached particles
+
+        # Optimisation start / end timestep indices
+        start_index = 0
+        end_index = 0
+
+        # Flag to keep track of divergence between sim and exp
+        self.diverged = False
+
+        # Nice printing of optimisation parameters
+        if verbose:
+            print((
+                "    i |     xi     |   xi_acc   | checkpoints | "
+                "  attached   | max_collisions \n"
+                "------+------------+------------+-------------+-"
+                "-------------+----------------"
+            ))
 
         # Start moving the simulation in sync with the recorded experimental
         # times in self.experiment.times. Start from the second timestep
@@ -135,7 +186,7 @@ class Coexist:
             # Only save checkpoints if the simulation is not diverging. A
             # checkpoint is a saved simulation state that will be used for
             # optimisation (which is done over multiple timesteps)
-            if not self.diverging():
+            if not self.diverging(i):
                 sim.save()
 
                 # Keep track of the index of the last saved checkpoint for
@@ -145,15 +196,40 @@ class Coexist:
 
             if verbose:
                 print((
-                    f"i: {i:>4} | "
-                    f"xi: {self.xi:5.5e} | "
-                    f"xi_acc: {self.xi_acc:5.5e} | "
-                    f"num_checkpoints: {(end_index - start_index):>4} | "
-                    f"attached: {self.attached} / {sim.num_atoms()}"
+                    f" {i:>4} | "
+                    f" {self.xi:5.3e} | "
+                    f" {self.xi_acc:5.3e} | "
+                    f" {(i - start_index):>10} | "
+                    f" {self.attached.sum():>4} / {sim.num_atoms():>4} | "
+                    f" {self.collisions.max():>10}"
                 ))
 
             if self.optimisable():
-                pass
+                print("\nerr: ", self.calc_xi(sim.positions(),
+                                              exp.positions_all[start_index]))
+                print(f"time: {sim.time()}")
+
+                # Load previous checkpoint's simulation
+                sim.load()
+
+                print("\nerr: ", self.calc_xi(sim.positions(),
+                                              exp.positions_all[start_index]))
+                print(f"time: {sim.time()}")
+
+                # Optimise against experimental positions from
+                # start_index:end_index (excluding end_index)
+                end_index = i + 1
+
+                # Re-iterate the steps since the last checkpoint, optimising
+                # the DEM parameters. This function will also run the sim up to
+                # the current time t and set the new xi_acc
+                self.optimise(start_index, end_index, verbose = verbose)
+
+                # After optimisation, reset `collisions`, increment
+                # `optimised_times` and reset the `diverged` flag
+                self.collisions[:] = 0
+                self.optimised_times[start_index:end_index] += 1
+                self.diverged = False
 
             # If the last saved checkpoint was used too many times for
             # optimisation, reattach all particles and start again from the
@@ -168,15 +244,90 @@ class Coexist:
 
                 if verbose:
                     print(textwrap.fill((
-                        "Maximum optimisation runs reached, reattached all "
-                        "particles and moved first checkpoint to timestep "
-                        f"index {i} (t = {exp.times[i]})."
+                        "Maximum optimisation runs reached; reattached all "
+                        "particles and moved first checkpoint to the timestep "
+                        f"at index {i} (t = {exp.times[i]})."
                     )))
 
             # At the end of a timestep, try to detach the remaining particles;
             # if not possible, forcibly move the remaining attached particles
             self.try_detach(i)
             self.move_attached(i)
+
+
+    def diverging(self, time_index):
+        '''Check whether the simulation diverges from the recorded particle
+        positions at the timestep at index `time_index`.
+
+        Parameters
+        ----------
+        time_index: int
+            The time index in `self.experiment.times` for which the particles
+            should be detached.
+
+        Returns
+        -------
+        bool
+            True if the distance between any simulated particle and its
+            corresponding experimental particle is greater than
+            `self.experiment.resolution`. False otherwise.
+
+        Raises
+        ------
+        ValueError
+            If the input `time_index` is invalid: either smaller than 0 or
+            larger than `len(self.experiment.times)`.
+        '''
+
+        # Check input `time_index` is valid
+        time_index = int(time_index)
+        if time_index >= len(self.experiment.times) or time_index < 0:
+            raise ValueError(textwrap.fill((
+                "The `time_index` input parameter must be between 0 and "
+                f"`len(experiment.times)` = {len(self.experiment.times)}. "
+                f"Received {time_index}."
+            )))
+
+        # Once the sim diverged, it should keep returning True until the
+        # optimiser is run and resets it to False
+        if self.diverged is True:
+            return True
+
+        sim_positions = self.simulation.positions()
+        exp_positions = self.experiment.positions_all[time_index]
+
+        distances = np.linalg.norm(sim_positions - exp_positions, axis = 1)
+        self.diverged = (distances > self.experiment.resolution).any()
+
+        self.diverged = (self.xi > 2.5e-05)
+
+        return self.diverged
+
+
+    def optimisable(self):
+        '''Check whether the simulation is in the optimum state to learn the
+        DEM parameters.
+
+        A simulation is optimisable if:
+
+        1. All particles collided at least twice or any particle collided at
+           least four times.
+        2. The accumulated error (`xi_acc`) is larger than the sum of particle
+           radii.
+
+        Returns
+        -------
+        bool
+            True if simulation is optimisable, False otherwise.
+        '''
+
+        # Aliases
+        col = self.collisions
+
+        # If all particles collided twice or any particle collided four times
+        collided = ((col >= 2).all() or (col >= 4).any())
+
+        return (collided and self.diverged)
 
 
     def try_detach(self, time_index):
@@ -209,8 +360,6 @@ class Coexist:
             timesteps to compute predicted positions).
         '''
 
-        # Three points A, B, C are colinear if AB + BC = AC; in order to allow
-        # for some variance due to gravity / buoyancy, check AB + BC > 0.95 A
         pos_all = self.experiment.positions_all
         times = self.experiment.times
 
@@ -233,8 +382,8 @@ class Coexist:
         t2 = times[time_index + 2]
         p2 = pos_all[time_index + 2]
 
-        t3 = times[time_index + 2]
-        p3 = times[time_index + 2]
+        t3 = times[time_index + 3]
+        p3 = pos_all[time_index + 3]
 
         # Based on the particle positions at t0, t1 and t2, predict their
         # positions at t3; if the prediction is correct, the inferred velocity
@@ -244,29 +393,25 @@ class Coexist:
         # Euclidean distance between predicted p(t3) and actual p(t3)
         error = np.linalg.norm(p3_predicted - p3, axis = 1)
 
-        # If the positional error is smaller than measurement error on the
-        # particles' position (the experiment's resolution), set the particles'
-        # velocity at t0 to u0 and detach it
+        # If the positional error is smaller than measurement error on an
+        # attached particle's position (i.e. the experiment's resolution),
+        # detach the particle and set its velocity at t0 to u0
         resolution = self.experiment.resolution
-        self.attached[error < resolution] = False
+        particle_indices = np.arange(self.simulation.num_atoms())
+        to_detach = (self.attached & (error < resolution))
+
+        # for pid in particle_indices[to_detach]:
+        #     self.simulation.set_velocity(pid, u0[pid])
+
+        self.attached[to_detach] = False
 
         # Only change the collisions counter if this timestep was not already
         # used for optimisation
         if self.optimised_times[time_index] == 0:
-            # If the positional error is larger, at least a collision has
-            # ocurred in the timesteps we looked at
-            self.collisions[error >= resolution] += 1
-
-            # We only care about collisions if particles are detached. Set the
-            # collision counter for attached particles to 0. Note:
-            # `self.attached` is a vector of True and False, so use it directly
-            # for indexing
-            self.collisions[self.attached] = 0
-
-        # TODO: set velocity functions
-        # TODO: after optimisation set collisions to 0.
-        # TODO: set optimised_times to True after optimisation
-
+            # If the positional error is large, at least a collision has
+            # ocurred in the timesteps we looked at. We only care about
+            # collisions for the detached particles.
+            self.collisions[(error >= resolution) & (~self.attached)] += 1
 
 
     @staticmethod
@@ -290,7 +435,7 @@ class Coexist:
         p1 = np.asarray(p1)
         p2 = np.asarray(p2)
 
-        if not (p0.ndim == p1.ndim == p2.ndim and
+        if not (p0.ndim == p1.ndim == p2.ndim == 2 and
                 len(p0) == len(p1) == len(p2)) or \
                 p0.shape[1] < 3 or p1.shape[1] < 3 or p2.shape[1] < 3:
             raise ValueError(textwrap.fill((
@@ -306,7 +451,7 @@ class Coexist:
         # The analytical expression was derived using SymPy in the
         # `coexist.optimisation.ballistic_approx` function
         def A(t):
-            return t * t0 - (t * t + t0 * t0) / 2
+            return -0.5 * (t - t0) ** 2
 
         def B(t):
             return t - t0
@@ -363,6 +508,7 @@ class Coexist:
             If the input `time_index` is invalid: either smaller than 0 or
             larger than `len(self.experiment.times)`.
         '''
+
         # Check input `time_index` is valid
         time_index = int(time_index)
         if time_index >= len(self.experiment.times) or time_index < 0:
@@ -372,7 +518,14 @@ class Coexist:
                 f"Received {time_index}."
             )))
 
-        # TODO: set positions functions
+        # Aliases
+        sim = self.simulation
+        exp = self.experiment
+
+        particle_indices = np.arange(sim.num_atoms())
+
+        for pid in particle_indices[self.attached]:
+            sim.set_position(pid, exp.positions_all[time_index, pid])
 
 
     @staticmethod
@@ -380,7 +533,222 @@ class Coexist:
         return np.linalg.norm(sim_pos - exp_pos, axis = 1).sum()
 
 
-    def diverging(self):
+    def calc_xi_acc(self, start_index, end_index):
+        sim = self.simulation
+        exp = self.experiment
+
+        xi_acc = self.calc_xi(sim.positions(), exp.positions_all[start_index])
+        print(f"i = {start_index} | xi = {xi_acc} | xi_acc = {xi_acc}")
+        print(f"sim pos\n{sim.positions()[:10]}\n\nexp pos\n{exp.positions_all[start_index][:10]}\n---\n")
+
+        for i in range(start_index + 1, end_index):
+            sim.step_to_time(exp.times[i])
+            xi = self.calc_xi(sim.positions(), exp.positions_all[i])
+            xi_acc += xi
+
+            print(f"i = {i} | xi = {xi} | xi_acc = {xi_acc}")
+            print(f"sim pos\n{sim.positions()[:10]}\n\nexp pos\n{exp.positions_all[i][:10]}\n---\n")
+
+        return xi_acc
+
+
+    def optimise(
+        self,
+        start_index,
+        end_index,
+        popsize = 8,
+        verbose = True,
+    ):
+        '''Start optimisation of DEM parameters against the recorded
+        experimental positions between timestep indices `start_index` and
+        `end_index` (excluding `end_index`).
+
+        This function also runs to simulation up to the current timestep (i.e.
+        `end_index - 1`) and sets the new accumulated error (`xi_acc`)
+        appropriately.
+
+        Parameters
+        ----------
+        start_index: int
+            The time index in `self.experiment.times` at which the optimisation
+            starts (inclusive). Note that the simulation is currently at this
+            timestep.
+
+        end_index: int
+            The time index in `self.experiment.times` at which the optimisation
+            ends (exclusive). When the function returns, the simulation will be
+            at the timestep index `end_index - 1`.
+
+        verbose: bool, default True
+            Print extra information to the terminal.
+
+        Raises
+        ------
+        ValueError
+            If the input `start_index` or `end_index` is invalid: either
+            smaller than 0 or larger than `len(self.experiment.times)`.
+        '''
+
+        if verbose:
+            print("\nStarting optimisation of simulation:")
+            print(self.simulation, "\n")
+
+        # If logging is on, create a new entry for this optimisation as a tuple
+        # containing:
+        #   0. A list of [start_index, end_index]
+        #   1. A list of solutions tried
+        #   2. A list of results (xi_acc) for those solutions
+        #   3. A list of [best_solution, best_result]
+        if self.save_log:
+            self.log.append(([start_index, end_index], [], [], []))
+
+        # Aliases
+        sim = self.simulation
+
+        # Minimum and maximum possible values for the DEM parameters
+        params_mins = sim.parameters["min"].to_numpy()
+        params_maxs = sim.parameters["max"].to_numpy()
+
+        # If any `sigma` value is smaller than 5% (max - min), clip it
+        p = sim.parameters
+        sigma_clipped = p["sigma"].clip(lower = 0.05 * (p["max"] - p["min"]))
+
+        # Scale sigma, bounds, solutions, results to unit variance
+        scaling = sigma_clipped.to_numpy()
+
+        # First guess, scaled
+        x0 = sim.parameters["value"].to_numpy() / scaling
+        sigma0 = 1.0
+        bounds = [
+            params_mins / scaling,
+            params_maxs / scaling
+        ]
+
+        # Instantiate CMA-ES optimiser
+        es = cma.CMAEvolutionStrategy(x0, sigma0, dict(
+            bounds = bounds,
+            ftarget = 0.0,
+            popsize = self.popsize,
+            verbose = 3 if verbose else -9
+        ))
+
+        # Start optimisation: ask the optimiser for parameter combinations
+        # (solutions), run the simulation between `start_index:end_index` and
+        # feed the results back to CMA-ES.
+        while not es.stop():
+            solutions = es.ask()
+
+            if verbose:
+                print(f"Scaled sigma: {es.sigma}")
+                print(f"Trying {len(solutions)} parameter combinations...")
+
+            results = self.try_solutions(
+                solutions * scaling,
+                start_index,
+                end_index,
+            )
+
+            es.tell(solutions, results)
+
+            if verbose:
+                cols = list(sim.parameters.index) + ["xi_acc"]
+                sols_results = np.hstack((
+                    solutions * scaling,
+                    results[:, np.newaxis]
+                ))
+
+                sols_results = pd.DataFrame(
+                    data = sols_results,
+                    columns = cols,
+                    index = None,
+                )
+
+                print(f"{sols_results}")
+                print(f"Function evaluations: {es.result.evaluations}\n---")
+
+            # If logging is on, save the solutions tried and their results
+            if self.save_log:
+                self.log[-1][1].extend(solutions * scaling)
+                self.log[-1][2].extend(results)
+
+            if es.sigma < 0.05:
+                if verbose:
+                    print("Optimal solution found within 5%:")
+                    print(f"sigma = {es.sigma} < 0.05")
+                break
+
+        solutions = es.result.xbest * scaling
+        param_names = sim.parameters.index
+
+        # Change sigma, min and max based on optimisation results
+        sim.parameters["sigma"] = es.result.stds * scaling
+
+        if verbose:
+            print(f"Best results for solutions: {solutions}\n---")
+
+        # Change parameters to the best solution
+        for i, sol_val in enumerate(solutions):
+            sim[param_names[i]] = sol_val
+
+        # Compute xi_acc for found solutions and move simulation forward in
+        # time
+        self.xi_acc = self.calc_xi_acc(start_index, end_index)
+
+        if self.save_log:
+            self.log[-1][3].extend([solutions, self.xi_acc])
+
+
+    @staticmethod
+    def sim_hash(solutions):
+        h = hash(np.array(solutions).tobytes())
+        return str(h)
+
+
+    def try_solutions(self, solutions, start_index, end_index):
+
+        # Aliases
+        sim = self.simulation
+        param_names = sim.parameters.index
+
+        if not os.path.isdir("restarts"):
+            os.mkdir("restarts")
+
+        # Save current checkpoint
+        save_name = f"restarts/simopt_{self.sim_hash(solutions)}.restart"
+        sim.save(save_name)
+
+        def try_solution(sol):
+            # Change parameters
+            for i, sol_val in enumerate(sol):
+                sim[param_names[i]] = sol_val
+
+            # Compute and save the xi_acc value
+            xi_acc = self.calc_xi_acc(start_index, end_index)
+
+            # Reload the simulation
+            sim.load(save_name)
+
+            return xi_acc
+
+        # results = Parallel(n_jobs = 8)(
+        #     delayed(try_solution)(sol)
+        #     for sol in solutions
+        # )
+
+        print(f"start_index: {start_index}")
+        print(f"exp time: {self.experiment.times[start_index]}")
+        print(f"sim time: {self.simulation.time()}")
+        print(f"For 0.75 | 0.75: {try_solution([0.75, 0.75])}")
+
+        results = np.array([try_solution(sol) for sol in solutions])
+
+        # Delete the saved checkpoint
+        os.remove(save_name)
+
+        return results
+
+
+
 
 
 
