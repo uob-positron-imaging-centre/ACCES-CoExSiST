@@ -162,6 +162,20 @@ class Parameters(pd.DataFrame):
         pd.DataFrame.__init__(self, parameters, index = variables)
 
 
+    @staticmethod
+    def empty():
+        '''Returns an empty Parameters DataFrame; useful for simulation which
+        do not have any dynamically changing parameters.
+
+        Returns
+        -------
+        coexist.Parameters
+            An empty Parameters DataFrame.
+        '''
+
+        return Parameters([], [], [], [], [])
+
+
 
 
 class Experiment:
@@ -310,20 +324,24 @@ class Simulation:
 
     def __init__(
         self,
-        simulation,
-        parameters,
+        sim_name,
+        parameters = Parameters.empty(),
         verbose = True,
         log = True,
-        log_file = "pyLiggghts.log"
+        log_file = "pyLiggghts.log",
     ):
         '''`Simulation` class constructor.
 
         Parameters
         ----------
-        simulation: path-like object or str
-            LIGGGHTS macro script for setting up a simulation - either a path
-            (relative or absolute, e.g. "../in.sim") or a `str` containing the
-            actual macro commands.
+        sim_name: path-like object or str
+            This class can work with two types of LIGGGHTS simulation formats:
+            LIGGGHTS scripts (e.g. "init.sim") or LIGGGHTS restart files (e.g.
+            "vibrofluidised_restart.sim"). First, if a file with the exact name
+            as `sim_name` exists, then it will be used as a LIGGGHTS script.
+            Otherwise, we search for two files: `{sim_name}_restart.sim` and
+            `{sim_name}_properties.sim`, which will act as restart files. Note:
+            these files are saved when using the `save()` functions.
 
         parameters: Parameters instance
             The LIGGGHTS simulation parameters that will be dynamically
@@ -350,44 +368,34 @@ class Simulation:
         # find the nex "free" log filename
         # This filename is exclusively for this single Coexist instance
         if self.log:
-            count = 0
-            finished = False
-            while not finished:
-                # test if a file exist
-                # if not, create it and give it a "unused" value
-                if not os.path.exists(self.log_file):
-                    a = open(self.log_file, "w")
-                    a.write("0\n")
-                    a.close()
-                # open the file, check if it is unused
-                # if not try new filename
-                # if it is unused empty the file and use mark
-                # as used
-                with open(self.log_file, "r+") as f:
-                    f.seek(0)
-                    line = f.readlines()[0]
-                if "1" in line:
-                    if self.verbose:
-                        print(f"{self.log_file} is currently in use. Trying ",
-                              endline="")
-                    count += 1
-                    self.log_file = log_file.split(".log")[0] + str(count) + \
-                        ".log"
-                    if self.verbose:
-                        print(f"{self.log_file}")
-                else:
-                    finished = True
-                    with open(self.log_file, "w") as f:
-                        f.write("1\n")
+            pass
+            '''
+            make the log new !
+            '''
 
         if self._verbose:
             self.simulation = liggghts()
         else:
             self.simulation = liggghts(cmdargs = ["-screen", "/dev/null"])
 
-        with open(simulation) as f:
-            self.simulation.file(simulation)
-            self.filename = simulation
+        self.sim_name = str(sim_name)
+
+        # First look for a file with the same name as `sim_name`; otherwise look
+        # for `sim_name_restart.sim` and `sim_name_properties.sim`
+        if os.path.exists(self.sim_name):
+            # It is a LIGGGHTS script!
+            self.simulation.file(self.sim_name)
+            self.create_properties(self.sim_name)
+        elif os.path.exists(f"{self.sim_name}_restart.sim") and \
+             os.path.exists(f"{self.sim_name}_properties.sim"):
+            # It is a LIGGGHTS restart file + properties file
+            self.load(self.sim_name)
+        else:
+            raise FileNotFoundError(textwrap.fill((
+                f"No LIGGGHTS input file ({self.sim_name}) or LIGGGHTS restart "
+                f"and properties file found ({self.sim_name}_restart.sim and "
+                f"{self.sim_name}_properties.sim)."
+            )))
 
         if not isinstance(parameters, Parameters):
             raise TypeError(textwrap.fill(
@@ -401,6 +409,10 @@ class Simulation:
         # Set simulation parameters to the values in `parameters`
         for idx in self.parameters.index:
             self[idx] = self.parameters.loc[idx, "value"]
+
+
+    def create_properties(self, sim_name):
+        pass
 
 
     @property
@@ -440,19 +452,27 @@ class Simulation:
         self._verbose = bool(verbose)
 
 
-    def save(self, filename = "restart.data"):
+    def save(self, filename = None):
         # write a restart file
+        if filename is None:
+            filename = self.sim_name.split(".sim")[0]
+
+        # TODO: Domenico, save the restart and property files
         cmd = f"write_restart {filename}"
         self.execute_command(cmd)
 
 
-    def load(self, filename = "restart.data"):
+    def load(self, filename = None):
         # load a new simulation based on the position data from filename and
         # the system based on self.filename
         #
         # 1st:
         # open the simulation file and search for the line where it reads the
         # restart then change the filename in this file and save
+
+        if filename is None:
+            filename = self.sim_name.split(".sim")[0]
+
         with open(self.filename, "r") as f:
             lines = f.readlines()
 
@@ -642,9 +662,8 @@ class Simulation:
             self.log
         )
 
-
+    # Custom key-value setter to change a parameter in the class *and*
     def __setitem__(self, key, value):
-        # Custom key-value setter to change a parameter in the class *and*
         # during the simulation.
         # Raises an AttributeError if the key didn't exist previously.
         if key not in self.parameters.index:
