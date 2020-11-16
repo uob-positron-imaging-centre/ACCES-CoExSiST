@@ -66,18 +66,23 @@ class Coexist:
         # for the timesteps given in an experiment
         self.optimised_times = None
 
-        self.xi = 0             # Current timestep's error
-        self.xi_acc = 0         # Multiple timesteps' (accumulated) error
+        self.xi = 0                 # Current timestep's error
+        self.xi_acc = 0             # Multiple timesteps' (accumulated) error
 
         self.diverged = False
-        self.popsize = None     # Set in `self.learn()`
+        self.num_solutions = None   # Set in `self.learn()`
+
+        # A list of simulations that will be run in parallel when trying
+        # different parameter combinations for the optimisation steps
+        self.simulation_instances = []
 
 
     def learn(
         self,
         experiment: Experiment,
         max_optimisations = 3,
-        popsize = 8,
+        num_solutions = 8,
+        max_workers = None,
         verbose = True,
     ):
         '''Start synchronising the DEM simulation against a given experimental
@@ -93,12 +98,17 @@ class Coexist:
             The maximum number of optimisation runs to execute before
             reattaching particles.
 
-        popsize: int, default 8
+        num_solutions: int, default 8
             The number of parameter combinations to try at each optimisation
             step. A larger number corresponds to a more "global" parameter
             space search, at the expense of longer runtime. The more
             parameters you optimise at the same time, the larger this
             value should be (~ 4 * num_parameters).
+
+        max_workers: int, optional
+            The maximum number of threads that can be used to run simulations
+            in parallel during the optimisation step. If undefined, the return
+            value from `os.cpu_count()` is used.
 
         verbose: bool, default True
             If True, print information about the optimisation to the terminal.
@@ -130,7 +140,12 @@ class Coexist:
             dtype = int,
         )
 
-        self.popsize = int(popsize)
+        self.num_solutions = int(num_solutions)
+
+        if max_workers is None:
+            self.max_workers = os.cpu_count()
+        else:
+            self.max_workers = int(max_workers)
 
         # Aliases
         sim = self.simulation
@@ -180,6 +195,10 @@ class Coexist:
             sim_pos = sim.positions()
             exp_pos = exp.positions_all[i]
 
+            if len(sim_pos) != 100:
+                print("Sim pos not 100!")
+                print(sim_pos)
+
             self.xi = self.calc_xi(sim_pos, exp_pos)
             self.xi_acc += self.xi
 
@@ -205,16 +224,8 @@ class Coexist:
                 ))
 
             if self.optimisable():
-                print("\nerr: ", self.calc_xi(sim.positions(),
-                                              exp.positions_all[start_index]))
-                print(f"time: {sim.time()}")
-
                 # Load previous checkpoint's simulation
                 sim.load()
-
-                print("\nerr: ", self.calc_xi(sim.positions(),
-                                              exp.positions_all[start_index]))
-                print(f"time: {sim.time()}")
 
                 # Optimise against experimental positions from
                 # start_index:end_index (excluding end_index)
@@ -299,7 +310,7 @@ class Coexist:
         distances = np.linalg.norm(sim_positions - exp_positions, axis = 1)
         self.diverged = (distances > self.experiment.resolution).any()
 
-        self.diverged = (self.xi > 2.5e-05)
+        self.diverged = (self.xi > 1.6e-05)
 
         return self.diverged
 
@@ -325,7 +336,7 @@ class Coexist:
         col = self.collisions
 
         # If all particles collided twice or any particle collided four times
-        collided = ((col >= 2).all() or (col >= 4).any())
+        collided = ((col >= 2).all() or (col >= 6).any())
 
         return (collided and self.diverged)
 
@@ -400,8 +411,8 @@ class Coexist:
         particle_indices = np.arange(self.simulation.num_atoms())
         to_detach = (self.attached & (error < resolution))
 
-        # for pid in particle_indices[to_detach]:
-        #     self.simulation.set_velocity(pid, u0[pid])
+        for pid in particle_indices[to_detach]:
+            self.simulation.set_velocity(pid, u0[pid])
 
         self.attached[to_detach] = False
 
@@ -538,16 +549,11 @@ class Coexist:
         exp = self.experiment
 
         xi_acc = self.calc_xi(sim.positions(), exp.positions_all[start_index])
-        print(f"i = {start_index} | xi = {xi_acc} | xi_acc = {xi_acc}")
-        print(f"sim pos\n{sim.positions()[:10]}\n\nexp pos\n{exp.positions_all[start_index][:10]}\n---\n")
 
         for i in range(start_index + 1, end_index):
             sim.step_to_time(exp.times[i])
             xi = self.calc_xi(sim.positions(), exp.positions_all[i])
             xi_acc += xi
-
-            print(f"i = {i} | xi = {xi} | xi_acc = {xi_acc}")
-            print(f"sim pos\n{sim.positions()[:10]}\n\nexp pos\n{exp.positions_all[i][:10]}\n---\n")
 
         return xi_acc
 
@@ -556,7 +562,6 @@ class Coexist:
         self,
         start_index,
         end_index,
-        popsize = 8,
         verbose = True,
     ):
         '''Start optimisation of DEM parameters against the recorded
@@ -605,6 +610,13 @@ class Coexist:
         # Aliases
         sim = self.simulation
 
+        # A list of LIGGGHTS instances that will be used to try different
+        # parameter combinations *in parallel*
+        self.simulation_instances = [
+            sim.copy()
+            for _ in range(self.max_workers)
+        ]
+
         # Minimum and maximum possible values for the DEM parameters
         params_mins = sim.parameters["min"].to_numpy()
         params_maxs = sim.parameters["max"].to_numpy()
@@ -628,8 +640,8 @@ class Coexist:
         es = cma.CMAEvolutionStrategy(x0, sigma0, dict(
             bounds = bounds,
             ftarget = 0.0,
-            popsize = self.popsize,
-            verbose = 3 if verbose else -9
+            popsize = self.num_solutions,
+            verbose = 3 if verbose else -9,
         ))
 
         # Start optimisation: ask the optimiser for parameter combinations
@@ -654,7 +666,7 @@ class Coexist:
                 cols = list(sim.parameters.index) + ["xi_acc"]
                 sols_results = np.hstack((
                     solutions * scaling,
-                    results[:, np.newaxis]
+                    results[:, np.newaxis],
                 ))
 
                 sols_results = pd.DataFrame(
@@ -684,7 +696,7 @@ class Coexist:
         sim.parameters["sigma"] = es.result.stds * scaling
 
         if verbose:
-            print(f"Best results for solutions: {solutions}\n---")
+            print(f"Best results for solutions: {solutions}")
 
         # Change parameters to the best solution
         for i, sol_val in enumerate(solutions):
@@ -693,6 +705,10 @@ class Coexist:
         # Compute xi_acc for found solutions and move simulation forward in
         # time
         self.xi_acc = self.calc_xi_acc(start_index, end_index)
+
+        if verbose:
+            print((f"Accumulated error (xi_acc) for solution: "
+                   f"{self.xi_acc}\n---"))
 
         if self.save_log:
             self.log[-1][3].extend([solutions, self.xi_acc])
@@ -714,12 +730,16 @@ class Coexist:
             os.mkdir("restarts")
 
         # Save current checkpoint
-        save_name = f"restarts/simopt_{self.sim_hash(solutions)}.restart"
+        save_name = f"restarts/simopt_{self.sim_hash(solutions)}"
         sim.save(save_name)
 
-        def try_solution(sol):
+        def try_solution(solution, sim_number):
+            # Use the simulation instance at index `sim_number` to run in
+            # parallel
+            sim = self.simulation_instances[sim_number]
+
             # Change parameters
-            for i, sol_val in enumerate(sol):
+            for i, sol_val in enumerate(solution):
                 sim[param_names[i]] = sol_val
 
             # Compute and save the xi_acc value
@@ -735,15 +755,18 @@ class Coexist:
         #     for sol in solutions
         # )
 
+        '''
         print(f"start_index: {start_index}")
         print(f"exp time: {self.experiment.times[start_index]}")
         print(f"sim time: {self.simulation.time()}")
-        print(f"For 0.75 | 0.75: {try_solution([0.75, 0.75])}")
+        print(f"For 0.5 | 0.5: {try_solution([0.5, 0.5])}")
+        '''
 
         results = np.array([try_solution(sol) for sol in solutions])
 
         # Delete the saved checkpoint
-        os.remove(save_name)
+        os.remove(f"{save_name}_restart.sim")
+        os.remove(f"{save_name}_properties.sim")
 
         return results
 
