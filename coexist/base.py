@@ -176,6 +176,19 @@ class Parameters(pd.DataFrame):
         return Parameters([], [], [], [], [])
 
 
+    def copy(self):
+        parameters_copy = Parameters(
+            self.index.copy(),
+            self["command"].copy(),
+            self["value"].copy(),
+            self["min"].copy(),
+            self["max"].copy(),
+            self["sigma"].copy(),
+        )
+
+        return parameters_copy
+
+
 
 
 class Experiment:
@@ -269,7 +282,9 @@ class Experiment:
         self.times = times
         self.positions_all = positions_all
         self.resolution = float(resolution)
-        self.kwargs = kwargs
+
+        for k, v in kwargs:
+            self.k = v
 
 
     def positions(self, timestep):
@@ -282,11 +297,6 @@ class Experiment:
             )))
 
         return self.positions_all[time_idx[0, 0]]
-
-
-    def __getattr__(self, name):
-        # Allow defining custom attributes (e.g. "exp.droplets = 5")
-        return self.kwargs[name]
 
 
     def __str__(self):
@@ -730,15 +740,21 @@ class Simulation:
         """
 
         if filename is None:
-            filename = self.sim_name.split(".sim")[0]
+            filename = f"simsave_{str(hash(self.__repr__()))}"
 
         self.save(filename)
 
-        return Simulation(
+        new_sim = Simulation(
             filename,
             parameters = self.parameters.copy(),
             verbose = self.verbose,
         )
+
+        os.remove(f"{filename}_restart.sim")
+        os.remove(f"{filename}_properties.sim")
+
+        return new_sim
+
 
 
     def __setitem__(self, key, value):
