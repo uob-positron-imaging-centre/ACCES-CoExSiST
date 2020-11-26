@@ -974,7 +974,7 @@ class Access:
                     history = list(history)
 
                 for sol, res in zip(solutions, results):
-                    history.append(list(sol) + [res])
+                    history.append(list(sol * scaling) + [res])
 
                 np.savetxt(history_path, history)
 
@@ -1057,7 +1057,7 @@ class Access:
         )
 
         # For every solution to try, start a separate OS process that runs the
-        # `async_access_error.py` file and captures the output value
+        # `async_access_error.py` file and saves the positions in a `.npy` file
         processes = []
         for i, sol in enumerate(solutions):
 
@@ -1080,6 +1080,7 @@ class Access:
                         str(self.start_time),
                         str(self.end_time),
                         str(self.num_checkpoints),
+                        f"restarts/simacc_{rand_hash}_{i}_positions.npy",
                     ],
                     stdout = subprocess.PIPE,
                     stderr = subprocess.PIPE,
@@ -1087,18 +1088,18 @@ class Access:
             )
 
         positions_all = []
-        for proc in processes:
+        for i, proc in enumerate(processes):
             stdout, stderr = proc.communicate()
+
             positions_all.append(
-                np.frombuffer(stdout).reshape(
-                    self.num_checkpoints, sim.num_atoms(), 3
-                )
+                np.load(f"restarts/simacc_{rand_hash}_{i}_positions.npy")
             )
 
         results = np.array([self.error(pos) for pos in positions_all])
 
         for i in range(len(solutions)):
             os.remove(f"restarts/simacc_{rand_hash}_{i}_parameters.pickle")
+            os.remove(f"restarts/simacc_{rand_hash}_{i}_positions.npy")
 
         return results
 
