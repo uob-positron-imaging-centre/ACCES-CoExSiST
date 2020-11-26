@@ -404,6 +404,7 @@ class Simulation:
             "fix",
             "timestep",
             "communicate",
+            "newton",
         ]
 
         # A compiled Regex object for finding any of the above keywords as
