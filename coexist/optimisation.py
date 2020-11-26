@@ -1032,15 +1032,17 @@ class Access:
         err = self.error(positions)
 
         if verbose:
-            print((f"Error (computed by the `error` functions) for solution: "
+            print((f"Error (computed by the `error` function) for solution: "
                    f"{err}\n---"))
 
         if self.save_log:
-            self.log[-1][3].extend([solutions, self.xi_acc])
+            self.log[-1][3].extend([solutions, err])
 
         # Delete the saved checkpoint data
         os.remove(f"restarts/simacc_{rand_hash}_restart.sim")
         os.remove(f"restarts/simacc_{rand_hash}_properties.sim")
+
+        return positions
 
 
     def try_solutions(self, rand_hash, solutions):
@@ -1084,13 +1086,16 @@ class Access:
                 )
             )
 
+        positions_all = []
         for proc in processes:
             stdout, stderr = proc.communicate()
-            positions = np.frombuffer(stdout).reshape(
-                self.num_checkpoints, sim.num_atoms(), 3
+            positions_all.append(
+                np.frombuffer(stdout).reshape(
+                    self.num_checkpoints, sim.num_atoms(), 3
+                )
             )
 
-        results = np.array([self.error(pos) for pos in positions])
+        results = np.array([self.error(pos) for pos in positions_all])
 
         for i in range(len(solutions)):
             os.remove(f"restarts/simacc_{rand_hash}_{i}_parameters.pickle")
