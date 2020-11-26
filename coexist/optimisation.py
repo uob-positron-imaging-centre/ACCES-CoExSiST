@@ -943,9 +943,9 @@ class Access:
                 ns = self.num_solutions
                 results = history[(i * ns):(i * ns + ns)]
 
-                solutions = np.array(solutions)
+                solutions = np.asarray(solutions)
 
-                if not np.isclose(solutions, results[:, :-1]).all():
+                if not np.isclose(solutions * scaling, results[:, :-2]).all():
                     warnings.warn(textwrap.fill((
                         "Historical data is different to solutions tried.\n"
                         f"Solutions:\n{solutions}\n"
@@ -974,7 +974,7 @@ class Access:
                     history = list(history)
 
                 for sol, res in zip(solutions, results):
-                    history.append(list(sol * scaling) + [res])
+                    history.append(list(sol * scaling) + [es.sigma, res])
 
                 np.savetxt(history_path, history)
 
