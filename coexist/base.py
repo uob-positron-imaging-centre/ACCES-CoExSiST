@@ -735,14 +735,18 @@ class Simulation:
 
 
     def execute_command(self, cmd):
-        self.simulation.command(cmd)
+        cmds = cmd.split("\n")
+
+        for cmd in cmds:
+            self.simulation.command(cmd)
 
         # If the command (excluding comments) contains any of our keywords,
         # save it (with comments) in the properties attribute
-        cmd_nc = cmd.split("#")[0]
-        if self.finder_kw_save.search(cmd_nc) and not \
-                self.finder_kw_ignore.search(cmd_nc):
-            self.properties.append(cmd)
+        for cmd in cmds:
+            cmd_nc = cmd.split("#")[0]
+            if self.finder_kw_save.search(cmd_nc) and not \
+                    self.finder_kw_ignore.search(cmd_nc):
+                self.properties.append(cmd)
 
 
     def copy(self, filename = None):
