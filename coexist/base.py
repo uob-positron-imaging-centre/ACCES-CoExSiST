@@ -384,7 +384,6 @@ class Simulation:
         self.log_file = log_file
 
         # TODO: Domenico, use logging?
-
         if self._verbose:
             self.simulation = liggghts()
         else:
@@ -407,10 +406,22 @@ class Simulation:
             "newton",
         ]
 
+        # A list of keywords to ignore. They are run after `save_keywords`, so
+        # for "fix ins insert/stream", if `fix` is saved and `insert/stream` is
+        # ignored, then the whole line is ignored
+        self.ignore_keywords = [
+            "insert\/stream",
+        ]
+
         # A compiled Regex object for finding any of the above keywords as
         # substrings
-        self.keyword_finder = re.compile(
+        self.finder_kw_save = re.compile(
             "|".join(self.save_keywords),
+            re.IGNORECASE
+        )
+
+        self.finder_kw_ignore = re.compile(
+            "|".join(self.ignore_keywords),
             re.IGNORECASE
         )
 
@@ -465,7 +476,8 @@ class Simulation:
             # If any of the keywords is found as a substring in the command
             # line (excluding comments), append it (including comments) to the
             # properties attribute
-            if self.keyword_finder.search(line_nc):
+            if self.finder_kw_save.search(line_nc) and not \
+                    self.finder_kw_ignore.search(line_nc):
                 self.properties.append(line)
 
             i += 1
@@ -728,7 +740,8 @@ class Simulation:
         # If the command (excluding comments) contains any of our keywords,
         # save it (with comments) in the properties attribute
         cmd_nc = cmd.split("#")[0]
-        if self.keyword_finder.search(cmd_nc):
+        if self.finder_kw_save.search(cmd_nc) and not \
+                self.finder_kw_ignore.search(cmd_nc):
             self.properties.append(cmd)
 
 
