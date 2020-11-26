@@ -11,6 +11,7 @@ from    .base           import  Simulation
 from    .base           import  Experiment
 
 from    .optimisation   import  Coexist
+from    .optimisation   import  Access
 
 
 __all__ = [
@@ -18,4 +19,5 @@ __all__ = [
     "Simulation",
     "Experiment",
     "Coexist",
+    "Access",
 ]
