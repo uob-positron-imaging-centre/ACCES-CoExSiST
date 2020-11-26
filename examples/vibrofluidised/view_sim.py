@@ -17,12 +17,12 @@ import plotly.graph_objs as go
 positions = np.load("truth/positions_short.npy")
 timesteps = np.load("truth/timesteps_short.npy")
 
-positions2 = np.load("truth/positions_short_opt.npy")
-timesteps2 = np.load("truth/timesteps_short_opt.npy")
+#positions2 = np.load("truth/positions_short_opt.npy")
+#timesteps2 = np.load("truth/timesteps_short_opt.npy")
 
-indices = np.arange(len(positions[0]))
-distances = np.linalg.norm(positions - positions2, axis = 2)
-distances[distances < 0.005 / 2] = 0    # thresholding
+#indices = np.arange(len(positions[0]))
+#distances = np.linalg.norm(positions - positions2, axis = 2)
+#distances[distances < 0.005 / 2] = 0    # thresholding
 
 max_range = positions.max(axis = 0).max(axis = 0)
 min_range = positions.min(axis = 0).min(axis = 0)
@@ -58,7 +58,7 @@ for i, t in enumerate(timesteps):
                 marker = dict(
                     opacity = 0.8,
                     size = 3,
-                    color = distances[i],
+                    color = np.arange(len(positions[i])), # distances[i],
                 )
             ),
             #go.Scatter3d(

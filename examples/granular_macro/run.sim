@@ -126,10 +126,10 @@ modify_timing on
 fix move all move/mesh mesh cad rotate origin 0. 0. 0. axis  0. 1. 0. period ${rotationPeriod}
 
 run     10000
-dump   dmp all custom/vtk 10 post/drum_*.vtk id type type x y z ix iy iz vx vy vz fx fy fz omegax omegay omegaz radius 
+#dump   dmp all custom/vtk 10 post/drum_*.vtk id type type x y z ix iy iz vx vy vz fx fy fz omegax omegay omegaz radius 
 
 
-reset_timestep 0
+#reset_timestep 0
 #restart 10000 restart.drum restart.drum
 #run    400000 upto
 #write_restart end.restart

@@ -31,10 +31,10 @@ parameters = coexist.Parameters(
         ${corPP} ${corPW} ${corPW2} \
         ${corPW} ${corPW2} ${corPW} \
         ${corPW2} ${corPW} ${corPW} "],
-    [0.35, 0.65],   # Initial WRONG values
+    [0.45, 0.55],   # Initial WRONG values
     [0.05, 0.05],   # Minimum values
     [0.95, 0.95],   # Maximum values
-    [0.2, 0.2],     # Sigma0
+    #[0.1, 0.1],     # Sigma0
 )
 
 simulation = coexist.Simulation("run.sim", parameters, verbose = False)
@@ -110,8 +110,6 @@ def try_solutions(simulation, num_steps, num_checkpoints, solutions, truth):
     return results
 
 
-
-
 def optimise(
     simulation,
     num_steps,
@@ -148,6 +146,7 @@ def optimise(
     es = cma.CMAEvolutionStrategy(x0, sigma0, dict(
         bounds = bounds,
         ftarget = 0.0,
+        popsize = 8 * len(simulation.parameters),
         # verbose = 3 if verbose else -9
     ))
 
@@ -223,6 +222,7 @@ max_optimisations = 3
 # Number of LIGGGHTS steps per checkpoint
 num_steps = 10_000
 
+num_optimisations = 0
 
 for i in range(100):
     # Run simulation up to experimental timestep t
@@ -251,7 +251,7 @@ for i in range(100):
 
     # If the accummulated erorr (Xi) is large enough, start optimisation
     if (xi_acc > radius * num_particles and
-        num_checkpoints > min_checkpoints * (num_optimisations + 1)):
+        num_checkpoints >= min_checkpoints * (num_optimisations + 1)):
 
         # Load previous checkpoint's simulation
         simulation.load()

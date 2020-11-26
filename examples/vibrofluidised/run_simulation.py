@@ -22,13 +22,14 @@ parameters = coexist.Parameters(
         ${corPP} ${corPW} ${corPW2} \
         ${corPW} ${corPW2} ${corPW} \
         ${corPW2} ${corPW} ${corPW} "],
-    [0.75, 0.75],     # Initial values
+    [0.5, 0.5],     # Initial values
     [0.0, 0.0],     # Minimum values
     [1.0, 1.0]      # Maximum values
 )
 
 simulation = coexist.Simulation("run.sim", parameters, verbose = False)
 print(simulation)
+print("step size: ", simulation.step_size)
 
 
 # 60 FPS
