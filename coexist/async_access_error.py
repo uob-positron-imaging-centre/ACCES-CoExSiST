@@ -31,7 +31,9 @@ The simulation parameters must already be set correctly by the `Parameters`.
 This script does *not* check input parameters.
 '''
 
-params = pickle.load(open(sys.argv[1], "rb"))
+with open(sys.argv[1], "rb") as f:
+    params = pickle.load(f)
+
 sim = coexist.Simulation(sys.argv[2], params, verbose = False)
 
 start_time = float(sys.argv[3])

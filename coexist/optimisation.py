@@ -895,8 +895,12 @@ class Access:
         rand_hash = str(round(rng.random() * 1e8))
 
         # Save the current simulation state in a `restarts` folder
-        if not os.path.isdir("restarts_{rand_hash}"):
-            os.mkdir("restarts_{rand_hash}")
+        if not os.path.isdir(f"restarts_{rand_hash}"):
+            os.mkdir(f"restarts_{rand_hash}")
+
+        # Save positions and parameters in a new folder inside `restarts`
+        if not os.path.isdir(f"restarts_{rand_hash}/positions"):
+            os.mkdir(f"restarts_{rand_hash}/positions")
 
         # Save current checkpoint and extra data for parallel computation
         sim.save(f"restarts_{rand_hash}/simacc")
@@ -904,7 +908,7 @@ class Access:
             now = datetime.now().strftime("%H:%M:%S - %D")
             f.writelines([
                 f"Starting ACCESS run at {now}\n",
-                f"{self.sim}\n\n",
+                f"{sim}\n\n",
                 f"start_time =          {self.start_time}\n",
                 f"end_time =            {self.end_time}\n",
                 f"target_sigma =        {self.target_sigma}\n",
@@ -912,6 +916,7 @@ class Access:
                 f"num_solutions =       {self.num_solutions}\n",
                 f"random_seed =         {random_seed}\n",
                 f"use_historical =      {use_historical}\n",
+                f"save_positions =      {save_positions}\n",
                 "--------------------------------------------------------\n\n",
             ])
 
@@ -1113,25 +1118,25 @@ class Access:
             # save them to unique paths. Otherwise overwrite the same ones.
             if save_positions is not None:
                 params_path = (
-                    f"restarts_{rand_hash}/"
+                    f"restarts_{rand_hash}/positions/"
                     f"simacc_{save_positions * self.num_solutions + i}"
                     "_parameters.pickle"
                 )
 
                 positions_path = (
-                    f"restarts_{rand_hash}/"
+                    f"restarts_{rand_hash}/positions/"
                     f"simacc_{save_positions * self.num_solutions + i}"
                     "_positions.npy"
                 )
 
             else:
                 params_path = (
-                    f"restarts_{rand_hash}/"
+                    f"restarts_{rand_hash}/positions/"
                     f"simacc_{i}_parameters.pickle"
                 )
 
                 positions_path = (
-                    f"restarts_{rand_hash}/"
+                    f"restarts_{rand_hash}/positions/"
                     f"simacc_{i}_positions.npy"
                 )
 
@@ -1168,10 +1173,10 @@ class Access:
                     "asynchronously:\n"
                     f"{stderr}\n\n"
                     "Writing error message to "
-                    f"`restarts_{rand_hash}/error.log`\n"
+                    f"`restarts_{rand_hash}/error_{i}.log`\n"
                 ))
 
-                with open("restarts_{rand_hash}/error.log", "w") as f:
+                with open("restarts_{rand_hash}/error_{i}.log", "w") as f:
                     f.write(stderr.decode("utf-8"))
 
             positions_all.append(np.load(positions_path))
@@ -1181,8 +1186,10 @@ class Access:
         # If data shouldn't be saved, remove temporary files
         if save_positions is None:
             for i in range(len(solutions)):
-                os.remove(params_path)
-                os.remove(positions_path)
+                os.remove((f"restarts_{rand_hash}/positions/"
+                           f"simacc_{i}_parameters.pickle"))
+                os.remove((f"restarts_{rand_hash}/positions/"
+                           f"simacc_{i}_positions.npy"))
 
         return results
 

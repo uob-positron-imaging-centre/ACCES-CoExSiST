@@ -1,4 +1,3 @@
-
 #constants for the simulation
 
 variable timestep       equal 1e-5
@@ -6,25 +5,33 @@ variable rotationPeriod equal 60/45 	#s per revolution
 variable N              equal 1922		#Particle number
 
 
-variable fricPW     equal 0.6		# friction particle wall
-variable fricPSW    equal 0.01		# friction particle sidewall
-variable cohPW      equal 0
-variable fric       equal 1.0		# friction value, does not matter it defines the wall-wall friction
-
-variable corPP      equal 0.85		#Coeff of restitution Particle particle
-variable fricPP     equal 0.38		# friction particle particle
-variable fricRoll   equal 0.45		#Rolling friction
-variable youngmodP  equal 9.2e6     #0.92e7
+variable youngmodP  equal 9.2e6     # Vary
 variable poissP     equal 0.3
+
+variable corPP      equal 0.85		# Vary
+variable corPW      equal 0.6       # Vary
+variable corPSW     equal 0.999
+variable cor        equal 0.5       # Dummy value, Wall-Sidewall
+
+variable fricPP     equal 0.38		# Vary
+variable fricPW     equal 0.6		# Vary
+variable fricPSW    equal 0.01
+variable fric       equal 0.5		# Dummy value, Wall-Sidewall
+
+variable cohPP      equal 0
+variable cohPW      equal 0
+variable cohPSW     equal 0
+variable coh        equal 0
+
+variable fricRoll   equal 0.45		# Rolling friction
 variable dens       equal 2800.0
-variable cohPP      equal 10000
 
 
 #Radii for the Particles. In order to make Polydispersity
 variable r1         equal 0.0015
 
 
-#MAIN CODE rotating drum 
+#MAIN CODE rotating drum
 
 atom_style 	granular
 atom_modify	map array
@@ -35,7 +42,7 @@ communicate     single vel yes
 units 		    si
 
 region		domain block -0.048 0.048 -0.002 0.0221 -0.048 0.048 units box #creates a region
-create_box     3 domain   
+create_box     3 domain
 # read_restart    start.drum
 
 
@@ -47,29 +54,29 @@ hard_particles  yes
 
 ##############Particle/Wall properties#################
 
-fix  m1 all property/global youngsModulus peratomtype ${youngmodP} ${youngmodP} ${youngmodP} 
-fix  m2 all property/global poissonsRatio peratomtype ${poissP} ${poissP} ${poissP} 
+fix  m1 all property/global youngsModulus peratomtype ${youngmodP} ${youngmodP} ${youngmodP}
+fix  m2 all property/global poissonsRatio peratomtype ${poissP} ${poissP} ${poissP}
 
 fix  m3 all property/global coefficientRestitution peratomtypepair 3 &
-${corPP}      ${corPP}      ${corPP}       &
-${corPP}      ${corPP}      ${corPP}       &
-${corPP}      ${corPP}      ${corPP}       
+${corPP}      ${corPW}      ${corPSW}      &
+${corPW}      ${cor}        ${cor}         &
+${corPSW}     ${cor}        ${cor}
 
 fix  m4 all property/global coefficientFriction peratomtypepair 3 &
 ${fricPP}           ${fricPW}           ${fricPSW}           &
 ${fricPW}           ${fric}             ${fric}              &
-${fricPSW}          ${fric}             ${fric}             
+${fricPSW}          ${fric}             ${fric}
 
 
 fix  m6 all property/global cohesionEnergyDensity peratomtypepair 3 &
- ${cohPP}       ${cohPW}        ${cohPW}         &
- ${cohPW}       ${cohPW}        ${cohPW}         &
- ${cohPW}       ${cohPW}        ${cohPW}        
+ ${cohPP}       ${cohPW}        ${cohPSW}       &
+ ${cohPW}       ${coh}          ${coh}          &
+ ${cohPSW}      ${coh}          ${coh}
 
 fix  m7 all property/global coefficientRollingFriction peratomtypepair 3 &
 ${fricRoll}         ${fricRoll}         ${fricRoll}          &
 ${fricRoll}         ${fricRoll}         ${fricRoll}          &
-${fricRoll}         ${fricRoll}         ${fricRoll}         
+${fricRoll}         ${fricRoll}         ${fricRoll}
 
 
 ####wtf is that?
@@ -77,7 +84,7 @@ fix  m5 all property/global k_finnie peratomtypepair 3  1.0 1.0 1.0 1.0 1.0 1.0 
 
 
 #New pair style
-pair_style  gran model hertz tangential history cohesion sjkr rolling_friction cdt 
+pair_style  gran model hertz tangential history cohesion sjkr rolling_friction cdt
 pair_coeff  * *
 
 timestep    ${timestep}
@@ -88,14 +95,14 @@ fix  gravi all gravity 9.81 vector 0.0 0.0 -1.0
 #the Drum/faces
 fix  cad all mesh/surface/stress file mesh/rotating_drum_mm.stl type 2 scale 0.001 wear finnie
 fix  side all mesh/surface/stress file mesh/rotating_drum_side_mm.stl type 3 scale 0.001 curvature 1e-5
-fix  inface all mesh/surface file mesh/inface_mm.stl type 3 scale 0.001 
+fix  inface all mesh/surface file mesh/inface_mm.stl type 3 scale 0.001
 fix  granwalls all wall/gran model hertz tangential history  mesh n_meshes 2 meshes cad side #rolling_friction epsd
 
 
 #distributions for insertion
 fix  pts1 all particletemplate/sphere 15485863 atom_type 1 density constant ${dens} radius constant ${r1}
 
-fix  pdd1 all particledistribution/discrete/numberbased  32452843 1  pts1 1.0 
+fix  pdd1 all particledistribution/discrete/numberbased  32452843 1  pts1 1.0
 
 #region and insertion
 group  nve_group region domain
@@ -126,14 +133,11 @@ modify_timing on
 fix move all move/mesh mesh cad rotate origin 0. 0. 0. axis  0. 1. 0. period ${rotationPeriod}
 
 run     10000
-#dump   dmp all custom/vtk 10 post/drum_*.vtk id type type x y z ix iy iz vx vy vz fx fy fz omegax omegay omegaz radius 
+dump   dmp all custom/vtk 1666 post/drum_*.vtk id type type x y z ix iy iz vx vy vz fx fy fz omegax omegay omegaz radius
 
 
 #reset_timestep 0
 #restart 10000 restart.drum restart.drum
 #run    400000 upto
 #write_restart end.restart
-
-
-
 

@@ -22,22 +22,22 @@ parameters = coexist.Parameters(
         ${corPP} ${corPP} ${corPP} \
         ${corPP} ${corPP} ${corPP} \
         ${corPP} ${corPP} ${corPP} "],
-    [0.5, 0.5],     # Initial values
+    [1.860605011242399132e-01, 6.838861196402620246e-01],     # Initial values
     [0.0, 0.0],     # Minimum values
     [1.0, 1.0]      # Maximum values
 )
 
-simulation = coexist.Simulation("run.sim", parameters, verbose = False)
+simulation = coexist.Simulation("run.sim", parameters, verbose = True)
 print(simulation)
 
 
 rpm = 45
-num_rotations = 15
+num_rotations = 4
 
 time_end = num_rotations * 60 / rpm
 
 # Recording positions at 60 FPS
-checkpoints = np.arange(0.0, time_end, 1 / 60)
+checkpoints = np.arange(1.0, time_end, 1 / 60)
 
 positions = []
 times = []
