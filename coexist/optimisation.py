@@ -13,6 +13,7 @@ import  time
 import  subprocess
 import  pickle
 import  warnings
+from    datetime            import  datetime
 
 import  numpy               as      np
 import  pandas              as      pd
@@ -844,7 +845,9 @@ class Access:
         end_time,
         num_checkpoints = 100,
         num_solutions = 10,
+        target_sigma = 0.1,
         use_historical = True,
+        save_positions = True,
         random_seed = None,
         verbose = True,
     ):
@@ -862,6 +865,7 @@ class Access:
 
         self.num_checkpoints = int(num_checkpoints)
         self.num_solutions = int(num_solutions)
+        self.target_sigma = float(target_sigma)
 
         self.rng = np.random.default_rng(random_seed)
 
@@ -869,6 +873,8 @@ class Access:
             use_historical = False
         else:
             use_historical = bool(use_historical)
+
+        save_positions = bool(save_positions)
 
         # Aliases
         sim = self.simulation
@@ -883,19 +889,42 @@ class Access:
         if self.save_log:
             self.log.append(([self.start_time, self.end_time], [], [], []))
 
+        # The random hash that represents this optimisation run. If a random
+        # seed was specified, this will make the simulation and optimisations
+        # fully deterministic (i.e. repeatable)
+        rand_hash = str(round(rng.random() * 1e8))
+
         # Save the current simulation state in a `restarts` folder
-        if not os.path.isdir("restarts"):
-            os.mkdir("restarts")
+        if not os.path.isdir("restarts_{rand_hash}"):
+            os.mkdir("restarts_{rand_hash}")
 
         # Save current checkpoint and extra data for parallel computation
-        rand_hash = str(round(rng.random() * 1e8))
-        sim.save(f"restarts/simacc_{rand_hash}")
+        sim.save(f"restarts_{rand_hash}/simacc")
+        with open(f"restarts_{rand_hash}/simacc_info.txt", "a") as f:
+            now = datetime.now().strftime("%H:%M:%S - %D")
+            f.writelines([
+                f"Starting ACCESS run at {now}\n",
+                f"{self.sim}\n\n",
+                f"start_time =          {self.start_time}\n",
+                f"end_time =            {self.end_time}\n",
+                f"target_sigma =        {self.target_sigma}\n",
+                f"num_checkpoints =     {self.num_checkpoints}\n",
+                f"num_solutions =       {self.num_solutions}\n",
+                f"random_seed =         {random_seed}\n",
+                f"use_historical =      {use_historical}\n",
+                "--------------------------------------------------------\n\n",
+            ])
 
         # Check if we have historical data about the optimisation - these are
         # pre-computed values for this exact simulation, random seed, and
         # number of solutions
-        history_path = f"restarts/history_{rand_hash}_{self.num_solutions}.csv"
+        history_path = (
+            f"restarts_{rand_hash}/"
+            f"history_{self.num_solutions}.csv"
+        )
 
+        # History columns: [param1, param2, ..., stdev_param1, stdev_param2,
+        # ..., stdev_all, error_value]
         if use_historical and os.path.isfile(history_path):
             history = np.loadtxt(history_path, dtype = float)
         elif use_historical:
@@ -944,15 +973,17 @@ class Access:
                 results = history[(i * ns):(i * ns + ns)]
 
                 solutions = np.asarray(solutions)
+                num_params = solutions.shape[1]
 
-                if not np.isclose(solutions * scaling, results[:, :-2]).all():
+                if not np.isclose(solutions * scaling,
+                                  results[:, :num_params]).all():
                     warnings.warn(textwrap.fill((
                         "Historical data is different to solutions tried.\n"
                         f"Solutions:\n{solutions}\n"
-                        f"Results:\n{results}\n---\n"
+                        f"History:\n{results}\n---\n"
                     )))
 
-                es.tell(solutions, results[:, -1])
+                es.tell(results[:, :num_params], results[:, -1])
                 i += 1
 
                 continue
@@ -964,17 +995,25 @@ class Access:
             results = self.try_solutions(
                 rand_hash,
                 solutions * scaling,
+                save_positions = i if save_positions else None,
             )
 
             es.tell(solutions, results)
             i += 1
 
+            # Save every step's historical data as function evaluations are
+            # very expensive. Save columns [param1, param2, ..., stdev_param1,
+            # stdev_param2, ..., stdev_all, error_val].
             if use_historical:
                 if not isinstance(history, list):
                     history = list(history)
 
                 for sol, res in zip(solutions, results):
-                    history.append(list(sol * scaling) + [es.sigma, res])
+                    history.append(
+                        list(sol * scaling) +
+                        list(es.result.stds * scaling) +
+                        [es.sigma, res]
+                    )
 
                 np.savetxt(history_path, history)
 
@@ -999,10 +1038,13 @@ class Access:
                 self.log[-1][1].extend(solutions * scaling)
                 self.log[-1][2].extend(results)
 
-            if es.sigma < 0.05:
+            if es.sigma < self.target_sigma:
                 if verbose:
-                    print("Optimal solution found within 5%:")
-                    print(f"sigma = {es.sigma} < 0.05")
+                    print((
+                        "Optimal solution found within `target_sigma`, i.e. "
+                        f"{self.target_sigma * 100}%:\n"
+                        f"sigma = {es.sigma} < {self.target_sigma}"
+                    ))
                 break
 
         solutions = es.result.xbest * scaling
@@ -1039,13 +1081,15 @@ class Access:
             self.log[-1][3].extend([solutions, err])
 
         # Delete the saved checkpoint data
-        os.remove(f"restarts/simacc_{rand_hash}_restart.sim")
-        os.remove(f"restarts/simacc_{rand_hash}_properties.sim")
+        os.remove(f"restarts_{rand_hash}/simacc_restart.sim")
+        os.remove(f"restarts_{rand_hash}/simacc_properties.sim")
 
         return positions
 
 
-    def try_solutions(self, rand_hash, solutions):
+    def try_solutions(self, rand_hash, solutions, save_positions = None):
+        # `save_positions` is either none or an int = optimisation solution
+        # iteration (if num_solutions = 10, after trying 30 solutions, i = 3)
         # Aliases
         sim = self.simulation
         param_names = sim.parameters.index
@@ -1065,22 +1109,48 @@ class Access:
             for j, sol_val in enumerate(sol):
                 sim[param_names[j]] = sol_val
 
-            # Save current parameter values
-            pickle.dump(sim.parameters, open(
-                f"restarts/simacc_{rand_hash}_{i}_parameters.pickle", "wb"
-            ))
+            # Save current parameter values. If `save_positions` is given, then
+            # save them to unique paths. Otherwise overwrite the same ones.
+            if save_positions is not None:
+                params_path = (
+                    f"restarts_{rand_hash}/"
+                    f"simacc_{save_positions * self.num_solutions + i}"
+                    "_parameters.pickle"
+                )
+
+                positions_path = (
+                    f"restarts_{rand_hash}/"
+                    f"simacc_{save_positions * self.num_solutions + i}"
+                    "_positions.npy"
+                )
+
+            else:
+                params_path = (
+                    f"restarts_{rand_hash}/"
+                    f"simacc_{i}_parameters.pickle"
+                )
+
+                positions_path = (
+                    f"restarts_{rand_hash}/"
+                    f"simacc_{i}_positions.npy"
+                )
+
+            with open(params_path, "wb") as f:
+                pickle.dump(sim.parameters, f)
+
+            simulation_path = f"restarts_{rand_hash}/simacc"
 
             processes.append(
                 subprocess.Popen(
                     [
                         sys.executable,     # The Python interpreter path
                         async_xi,           # The `async_access_error.py` path
-                        f"restarts/simacc_{rand_hash}_{i}_parameters.pickle",
-                        f"restarts/simacc_{rand_hash}",
+                        params_path,
+                        simulation_path,
                         str(self.start_time),
                         str(self.end_time),
                         str(self.num_checkpoints),
-                        f"restarts/simacc_{rand_hash}_{i}_positions.npy",
+                        positions_path,
                     ],
                     stdout = subprocess.PIPE,
                     stderr = subprocess.PIPE,
@@ -1091,15 +1161,28 @@ class Access:
         for i, proc in enumerate(processes):
             stdout, stderr = proc.communicate()
 
-            positions_all.append(
-                np.load(f"restarts/simacc_{rand_hash}_{i}_positions.npy")
-            )
+            # If we had errors, write them to `error.log`
+            if len(stderr):
+                print((
+                    "An error ocurred while running a simulation "
+                    "asynchronously:\n"
+                    f"{stderr}\n\n"
+                    "Writing error message to "
+                    f"`restarts_{rand_hash}/error.log`\n"
+                ))
+
+                with open("restarts_{rand_hash}/error.log", "w") as f:
+                    f.write(stderr.decode("utf-8"))
+
+            positions_all.append(np.load(positions_path))
 
         results = np.array([self.error(pos) for pos in positions_all])
 
-        for i in range(len(solutions)):
-            os.remove(f"restarts/simacc_{rand_hash}_{i}_parameters.pickle")
-            os.remove(f"restarts/simacc_{rand_hash}_{i}_positions.npy")
+        # If data shouldn't be saved, remove temporary files
+        if save_positions is None:
+            for i in range(len(solutions)):
+                os.remove(params_path)
+                os.remove(positions_path)
 
         return results
 
