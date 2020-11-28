@@ -1107,7 +1107,10 @@ class Access:
 
         # For every solution to try, start a separate OS process that runs the
         # `async_access_error.py` file and saves the positions in a `.npy` file
+        params_paths = []
+        positions_paths = []
         processes = []
+
         for i, sol in enumerate(solutions):
 
             # Change parameters
@@ -1117,30 +1120,30 @@ class Access:
             # Save current parameter values. If `save_positions` is given, then
             # save them to unique paths. Otherwise overwrite the same ones.
             if save_positions is not None:
-                params_path = (
+                params_paths.append((
                     f"restarts_{rand_hash}/positions/"
                     f"simacc_{save_positions * self.num_solutions + i}"
                     "_parameters.pickle"
-                )
+                ))
 
-                positions_path = (
+                positions_paths.append((
                     f"restarts_{rand_hash}/positions/"
                     f"simacc_{save_positions * self.num_solutions + i}"
                     "_positions.npy"
-                )
+                ))
 
             else:
-                params_path = (
+                params_paths.append((
                     f"restarts_{rand_hash}/positions/"
                     f"simacc_{i}_parameters.pickle"
-                )
+                ))
 
-                positions_path = (
+                positions_paths.append((
                     f"restarts_{rand_hash}/positions/"
                     f"simacc_{i}_positions.npy"
-                )
+                ))
 
-            with open(params_path, "wb") as f:
+            with open(params_paths[i], "wb") as f:
                 pickle.dump(sim.parameters, f)
 
             simulation_path = f"restarts_{rand_hash}/simacc"
@@ -1150,12 +1153,12 @@ class Access:
                     [
                         sys.executable,     # The Python interpreter path
                         async_xi,           # The `async_access_error.py` path
-                        params_path,
+                        params_paths[i],
                         simulation_path,
                         str(self.start_time),
                         str(self.end_time),
                         str(self.num_checkpoints),
-                        positions_path,
+                        positions_paths[i],
                     ],
                     stdout = subprocess.PIPE,
                     stderr = subprocess.PIPE,
@@ -1179,17 +1182,15 @@ class Access:
                 with open("restarts_{rand_hash}/error_{i}.log", "w") as f:
                     f.write(stderr.decode("utf-8"))
 
-            positions_all.append(np.load(positions_path))
+            positions_all.append(np.load(positions_paths[i]))
 
         results = np.array([self.error(pos) for pos in positions_all])
 
         # If data shouldn't be saved, remove temporary files
         if save_positions is None:
             for i in range(len(solutions)):
-                os.remove((f"restarts_{rand_hash}/positions/"
-                           f"simacc_{i}_parameters.pickle"))
-                os.remove((f"restarts_{rand_hash}/positions/"
-                           f"simacc_{i}_positions.npy"))
+                os.remove(params_paths[i])
+                os.remove(positions_paths[i])
 
         return results
 
