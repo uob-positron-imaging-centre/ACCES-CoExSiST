@@ -988,7 +988,7 @@ class Access:
                         f"History:\n{results}\n---\n"
                     )))
 
-                es.tell(results[:, :num_params], results[:, -1])
+                es.tell(results[:, :num_params] / scaling, results[:, -1])
                 i += 1
 
                 continue
