@@ -980,14 +980,6 @@ class Access:
                 solutions = np.asarray(solutions)
                 num_params = solutions.shape[1]
 
-                if not np.isclose(solutions * scaling,
-                                  results[:, :num_params]).all():
-                    warnings.warn(textwrap.fill((
-                        "Historical data is different to solutions tried.\n"
-                        f"Solutions:\n{solutions}\n"
-                        f"History:\n{results}\n---\n"
-                    )))
-
                 es.tell(results[:, :num_params] / scaling, results[:, -1])
                 i += 1
 
@@ -1037,6 +1029,7 @@ class Access:
 
                 print(f"{sols_results}")
                 print(f"Function evaluations: {es.result.evaluations}\n---")
+                print(flush = True)
 
             # If logging is on, save the solutions tried and their results
             if self.save_log:
@@ -1179,7 +1172,7 @@ class Access:
                     f"`restarts_{rand_hash}/error_{i}.log`\n"
                 ))
 
-                with open("restarts_{rand_hash}/error_{i}.log", "w") as f:
+                with open(f"restarts_{rand_hash}/error_{i}.log", "w") as f:
                     f.write(stderr.decode("utf-8"))
 
             positions_all.append(np.load(positions_paths[i]))
