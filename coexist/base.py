@@ -176,19 +176,6 @@ class Parameters(pd.DataFrame):
         return Parameters([], [], [], [], [])
 
 
-    def copy(self):
-        parameters_copy = Parameters(
-            self.index.copy(),
-            self["command"].copy(),
-            self["value"].copy(),
-            self["min"].copy(),
-            self["max"].copy(),
-            self["sigma"].copy(),
-        )
-
-        return parameters_copy
-
-
 
 
 class Experiment:
@@ -282,9 +269,7 @@ class Experiment:
         self.times = times
         self.positions_all = positions_all
         self.resolution = float(resolution)
-
-        for k, v in kwargs:
-            self.k = v
+        self.kwargs = kwargs
 
 
     def positions(self, timestep):
@@ -297,6 +282,11 @@ class Experiment:
             )))
 
         return self.positions_all[time_idx[0, 0]]
+
+
+    def __getattr__(self, name):
+        # Allow defining custom attributes (e.g. "exp.droplets = 5")
+        return self.kwargs[name]
 
 
     def __str__(self):
@@ -371,78 +361,47 @@ class Simulation:
                 write_restart
         '''
 
-        # Type-check input parameters
-        if not isinstance(parameters, Parameters):
-            raise TypeError(textwrap.fill(
-                f'''The input `parameters` must be an instance of the
-                `Parameters` class. Received {type(parameters)}.'''
-            ))
-
-        # Create class attributes
         self._verbose = bool(verbose)
         self.log = log
         self.log_file = log_file
 
-        # TODO: Domenico, use logging?
+        # find the nex "free" log filename
+        # This filename is exclusively for this single Coexist instance
+        if self.log:
+            pass
+            '''
+            make the log new !
+            '''
+
         if self._verbose:
             self.simulation = liggghts()
         else:
             self.simulation = liggghts(cmdargs = ["-screen", "/dev/null"])
 
         self.sim_name = str(sim_name)
-        self.properties = []
 
-        # A list of keywords that, if found in a LIGGGHTS script line, will
-        # make the class save that script line
-        self.save_keywords = [
-            "variable",
-            "pair_style",
-            "pair_coeff",
-            "neighbor",
-            "neigh_modify",
-            "fix",
-            "timestep",
-            "communicate",
-            "newton",
-        ]
-
-        # A list of keywords to ignore. They are run after `save_keywords`, so
-        # for "fix ins insert/stream", if `fix` is saved and `insert/stream` is
-        # ignored, then the whole line is ignored
-        self.ignore_keywords = [
-            "insert\/stream",
-        ]
-
-        # A compiled Regex object for finding any of the above keywords as
-        # substrings
-        self.finder_kw_save = re.compile(
-            "|".join(self.save_keywords),
-            re.IGNORECASE
-        )
-
-        self.finder_kw_ignore = re.compile(
-            "|".join(self.ignore_keywords),
-            re.IGNORECASE
-        )
-
-        # First look for a file with the same name as `sim_name`; otherwise
-        # look for `sim_name_restart.sim` and `sim_name_properties.sim`
+        # First look for a file with the same name as `sim_name`; otherwise look
+        # for `sim_name_restart.sim` and `sim_name_properties.sim`
         if os.path.exists(self.sim_name):
             # It is a LIGGGHTS script!
             self.simulation.file(self.sim_name)
             self.create_properties(self.sim_name)
-
-        elif (os.path.exists(f"{self.sim_name}_restart.sim") and
-              os.path.exists(f"{self.sim_name}_properties.sim")):
+        elif os.path.exists(f"{self.sim_name}_restart.sim") and \
+             os.path.exists(f"{self.sim_name}_properties.sim"):
             # It is a LIGGGHTS restart file + properties file
             self.load(self.sim_name)
-
         else:
             raise FileNotFoundError(textwrap.fill((
-                f"No LIGGGHTS input file (`{self.sim_name}`) or LIGGGHTS "
-                f"restart and properties file found (`{self.sim_name}_"
-                f"restart.sim` and `{self.sim_name}_properties.sim`)."
+                f"No LIGGGHTS input file ({self.sim_name}) or LIGGGHTS restart "
+                f"and properties file found ({self.sim_name}_restart.sim and "
+                f"{self.sim_name}_properties.sim)."
             )))
+
+        if not isinstance(parameters, Parameters):
+            raise TypeError(textwrap.fill(
+                f'''The input `parameters` must be an instance of the
+                `Parameters` class. Received {type(parameters)}.'''
+            ))
 
         self.parameters = parameters
         self._step_size = self.simulation.extract_global("dt", 1)
@@ -453,35 +412,21 @@ class Simulation:
 
 
     def create_properties(self, sim_name):
-        with open(sim_name) as f:
-            # Append lines without the trailing newline
-            sim_input = [line.rstrip() for line in f.readlines()]
+        pass
 
-        self.properties = []
-
-        i = 0
-        while i < len(sim_input):
-            # Select the command line at index i
-            line = sim_input[i]
-
-            # Concatenate next lines if the last character is "&"
-            while len(line) > 0 and line[-1] == "&":
-                line = line[:-1]                # Remove the last character, &
-                i += 1                          # Increment index
-                line += " " + sim_input[i]      # Concatenate next line
-
-            # Remove comments from the end of the line
-            line_nc = line.split("#")[0]
-
-            # If any of the keywords is found as a substring in the command
-            # line (excluding comments), append it (including comments) to the
-            # properties attribute
-            if self.finder_kw_save.search(line_nc) and not \
-                    self.finder_kw_ignore.search(line_nc):
-                self.properties.append(line)
-
-            i += 1
-
+    def set_time(self,time):
+        '''
+        set the in simulation time
+        '''
+        if "set_time" in dir(self.simulation):
+            self.simulation.set_time(time)
+        else:
+            raise SyntaxError(textwrap.fill(
+            ("Function \"set_time\" "
+            "is not available in your current liggghts version"
+            "You must install the specific version from:\n"
+            "https://github.com/D-werner-bham/LIGGGHTS-PUBLIC")
+            ))
 
     @property
     def step_size(self):
@@ -521,41 +466,13 @@ class Simulation:
 
 
     def save(self, filename = None):
-        '''Save a simulation's state, along with data not included in the
-        standard LIGGGHTS restart file.
-
-        This function saves two files, based on the input `filename`:
-
-        1. "{filename}_restart.sim": the standard LIGGGHTS restart file.
-        2. "{filename}_properties.sim": the additional data not included in the
-           file above.
-
-        Notice that the input `filename` is just *the prefix* of the files
-        saved; do not include file extensions (i.e. instead of
-        "vibrofluidised.sim", use just "vibrofluidised").
-
-        Parameters
-        ----------
-        filename: str, optional
-            The prefix for the two simulation files saved. If `None`, then the
-            `sim_name` class attribute is used.
-        '''
-
-        # Remove trailing ".sim", if existing in `self.sim_name`
+        # write a restart file
         if filename is None:
             filename = self.sim_name.split(".sim")[0]
 
-        # Write restart file
-        cmd = f"write_restart {filename}_restart.sim"
+        # TODO: Domenico, save the restart and property files
+        cmd = f"write_restart {filename}"
         self.execute_command(cmd)
-
-        # Add the current time to the properties file, as a comment
-        self.properties.insert(0, f"# current_time = {self.time()}")
-
-        # Write properties file. `self.properties` is a list of strings
-        # containing each command that the restart file does not save
-        with open(f"{filename}_properties.sim", "w") as f:
-            f.writelines("\n".join(self.properties))
 
 
     def load(self, filename = None):
@@ -569,19 +486,19 @@ class Simulation:
         if filename is None:
             filename = self.sim_name.split(".sim")[0]
 
-        if not os.path.exists(f"{filename}_restart.sim"):
-            raise FileNotFoundError(textwrap.fill((
-                "No LIGGGHTS restart file found based on the input filename: "
-                f"`{filename}_restart.sim`."
-            )))
+        with open(self.filename, "r") as f:
+            lines = f.readlines()
 
-        if not os.path.exists(f"{filename}_properties.sim"):
-            raise FileNotFoundError(textwrap.fill((
-                "No LIGGGHTS properties file found based on the input "
-                f"filename: `{filename}_properties.sim`."
-            )))
+        for i, line in enumerate(lines):
+            if line.split("read_restart")[0] == "":
+                lines[i] = f"read_restart {filename}\n"
 
-        # Close previous simulation and open a new one
+        temporary_fname = f"temp_{int(np.random.random() * 1000000)}.restart"
+        with open(temporary_fname, "w+") as f:
+            f.writelines(lines)
+
+        # 2nd:
+        # close current simulation and open new one
         self.simulation.close()
 
         if self._verbose:
@@ -589,21 +506,8 @@ class Simulation:
         else:
             self.simulation = liggghts(cmdargs = ["-screen", "/dev/null"])
 
-        self.execute_command(f"read_restart {filename}_restart.sim")
-
-        # Now execute all commands in the properties file
-        self.simulation.file(f"{filename}_properties.sim")
-
-        # Finally, set the time, given in a comment on the first line
-        with open(f"{filename}_properties.sim") as f:
-            line = f.readline()
-
-        # Split into a list, e.g. "#  current_time =   15   " -> ["", "15   "]
-        # Note: "[ ]*" means 0 or more spaces
-        current_time = re.split("#[ ]*current_time[ ]*=[ ]*", line)
-        current_time = float(current_time[1])
-
-        self.simulation.set_time(current_time)
+        self.simulation.file(temporary_fname)
+        os.remove(temporary_fname)
 
 
     def num_atoms(self):
@@ -735,48 +639,44 @@ class Simulation:
 
 
     def execute_command(self, cmd):
-        cmds = cmd.split("\n")
-
-        for cmd in cmds:
-            self.simulation.command(cmd)
-
-        # If the command (excluding comments) contains any of our keywords,
-        # save it (with comments) in the properties attribute
-        for cmd in cmds:
-            cmd_nc = cmd.split("#")[0]
-            if self.finder_kw_save.search(cmd_nc) and not \
-                    self.finder_kw_ignore.search(cmd_nc):
-                self.properties.append(cmd)
+        if self.log:
+            if not ("run" in cmd or "write_restart" in cmd):
+                with open(self.log_file, "a") as f:
+                    f.write(cmd + "\n")
+        self.simulation.command(cmd)
 
 
-    def copy(self, filename = None):
+    def copy(self):
         """
         copy the ligghts instance
         includes:
             - particle positions /velocitys / properties
             - system
         """
+        if not self.log:
+            raise ValueError("Log neceserry to make copy")
+        self.save("copy.restart")
 
-        if filename is None:
-            filename = f"simsave_{str(hash(self.__repr__()))}"
+        with open("new_simulation_file.in", "w") as f:
+            with open(self.filename, "r") as infile:
+                sim = infile.readlines()
+            for id, line in enumerate(sim):
+                if "read_restart" in line:
+                    sim[id] = "read_restart copy.restart"
+            with open(self.log_file, "r") as infile:
+                sim2 = infile.readlines()[1::]
+            f.writelines(sim)
+            f.writelines(sim2)
 
-        self.save(filename)
-
-        new_sim = Simulation(
-            filename,
-            parameters = self.parameters.copy(),
-            verbose = self.verbose,
+        return Simulation(
+            "new_simulation_file.in",
+            self.parameters,
+            self.verbose,
+            self.log
         )
 
-        os.remove(f"{filename}_restart.sim")
-        os.remove(f"{filename}_properties.sim")
-
-        return new_sim
-
-
-
+    # Custom key-value setter to change a parameter in the class *and*
     def __setitem__(self, key, value):
-        # Custom key-value setter to change a parameter in the class *and*
         # during the simulation.
         # Raises an AttributeError if the key didn't exist previously.
         if key not in self.parameters.index:
@@ -814,6 +714,17 @@ class Simulation:
 
         # Set inner class parameter value
         self.parameters.at[key, "value"] = value
+
+
+    def __del__(self):
+        self.simulation.close()
+        if self.log:
+            print(self.log_file)
+            with open(self.log_file, "a") as f:
+                lines = f.readlines()
+            lines[0] = "0"
+            with open(self.log_file, "a+") as f:
+                lines = f.writelines(lines)
 
 
     def __str__(self):
