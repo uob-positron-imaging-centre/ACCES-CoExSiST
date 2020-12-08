@@ -975,10 +975,9 @@ class Access:
 
             if use_historical and i * self.num_solutions < len(history):
                 ns = self.num_solutions
-                results = history[(i * ns):(i * ns + ns)]
 
-                solutions = np.asarray(solutions)
-                num_params = solutions.shape[1]
+                results = history[(i * ns):(i * ns + ns)]
+                num_params = len(sim.parameters)
 
                 es.tell(results[:, :num_params] / scaling, results[:, -1])
                 i += 1
