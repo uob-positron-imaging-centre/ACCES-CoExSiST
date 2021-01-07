@@ -9,10 +9,8 @@
 import  os
 import  sys
 import  textwrap
-import  time
 import  subprocess
 import  pickle
-import  warnings
 from    datetime            import  datetime
 
 import  numpy               as      np
@@ -59,8 +57,10 @@ class Coexist:
         self.simulation = simulation
         self.experiment = None          # Set in `self.learn()`
 
+        self.rng = None
+
         # Vector of bools corresponding to whether sim-exp particles are
-        # attached or detached (i.e. sim particles are forcibly moved)
+        # attached or detached (i.e. sim particles are forcibly moved or not)
         self.attached = np.full(self.simulation.num_atoms(), True)
 
         # The minimum number of collisions detected in the experimental dataset
@@ -71,17 +71,14 @@ class Coexist:
         # for optimising DEM parameters. Will be initialised in `self.learn`
         # for the timesteps given in an experiment
         self.optimised_times = None
+        self.optimisation_runs = 0
 
         self.xi = 0                 # Current timestep's error
         self.xi_acc = 0             # Multiple timesteps' (accumulated) error
 
         self.diverged = False
         self.num_solutions = None   # Set in `self.learn()`
-
-        # A list of simulations that will be run in parallel when trying
-        # different parameter combinations for the optimisation steps
-        self.simulation_instances = []
-        self.max_workers = None
+        self.target_sigma = None    # Set in `self.learn()`
 
 
     def learn(
@@ -89,7 +86,8 @@ class Coexist:
         experiment: Experiment,
         max_optimisations = 3,
         num_solutions = 8,
-        max_workers = None,
+        target_sigma = 0.1,
+        random_seed = None,
         verbose = True,
     ):
         '''Start synchronising the DEM simulation against a given experimental
@@ -112,22 +110,24 @@ class Coexist:
             parameters you optimise at the same time, the larger this
             value should be (~ 4 * num_parameters).
 
-        max_workers: int, optional
-            The maximum number of threads that can be used to run simulations
-            in parallel during the optimisation step. If undefined, the return
-            value from `os.cpu_count()` is used.
+        target_sigma: float, default 0.1
+            The target overall scaled standard deviation in the solution - i.e.
+            the trust interval at which to stop the optimisation. The smaller
+            the `target_sigma`, the more solutions are tried.
 
         verbose: bool, default True
             If True, print information about the optimisation to the terminal.
 
         '''
 
-        # Type-checking inputs
+        # Type-checking inputs and setting class attributes
         if not isinstance(experiment, Experiment):
             raise TypeError(textwrap.fill((
                 "The `experiment` input parameter must be an instance of "
                 f"`coexist.Experiment`. Received type `{type(experiment)}`."
             )))
+
+        self.experiment = experiment
 
         # Ensure there is the same number of particles in the sim and exp
         if self.simulation.num_atoms() != experiment.positions_all.shape[1]:
@@ -138,32 +138,40 @@ class Coexist:
                 "particles."
             )))
 
-        max_optimisations = int(max_optimisations)
+        self.max_optimisations = int(max_optimisations)
+        self.optimisation_runs = 0
 
-        # Setting class attributes
-        self.experiment = experiment
+        self.num_solutions = int(num_solutions)
+        self.target_sigma = float(target_sigma)
+
+        self.rng = np.random.default_rng(random_seed)
+        self.verbose = bool(verbose)
+
         self.optimised_times = np.zeros(
             len(self.experiment.times),
             dtype = int,
         )
 
-        self.num_solutions = int(num_solutions)
-
-        if max_workers is None:
-            self.max_workers = os.cpu_count()
-        else:
-            self.max_workers = int(max_workers)
-
         # Aliases
         sim = self.simulation
         exp = self.experiment
+
+        # Save the current simulation state in a `restarts` folder
+        if not os.path.isdir("coexist_info"):
+            os.mkdir("coexist_info")
+
+        with open("coexist_info/experiment.pickle", "wb") as f:
+            pickle.dump(exp, f)
+
+        with open("coexist_info/simulation_class.pickle", "wb") as f:
+            pickle.dump(sim.__class__, f)
 
         # First set the simulated particles' positions to the experimental ones
         # at t = t0. Note: in the beginning all particles are attached.
         self.move_attached(0)   # Sets positions of attached particles
 
         # Initial checkpoint
-        sim.save()
+        sim.save("coexist_info/main")
 
         # First try inferring the particles' initial velocities, detaching the
         # ones we can
@@ -202,10 +210,6 @@ class Coexist:
             sim_pos = sim.positions()
             exp_pos = exp.positions_all[i]
 
-            if len(sim_pos) != 100:
-                print("Sim pos not 100!")
-                print(sim_pos)
-
             self.xi = self.calc_xi(sim_pos, exp_pos)
             self.xi_acc += self.xi
 
@@ -213,7 +217,7 @@ class Coexist:
             # checkpoint is a saved simulation state that will be used for
             # optimisation (which is done over multiple timesteps)
             if not self.diverging(i):
-                sim.save()
+                sim.save("coexist_info/main")
 
                 # Keep track of the index of the last saved checkpoint for
                 # future optimisations
@@ -228,11 +232,13 @@ class Coexist:
                     f" {(i - start_index):>10} | "
                     f" {self.attached.sum():>4} / {sim.num_atoms():>4} | "
                     f" {self.collisions.max():>10}"
+                    f"    {sim.time():5.5e}"
                 ))
 
             if self.optimisable():
                 # Load previous checkpoint's simulation
-                sim.load()
+                self.simulation = self.simulation.load("coexist_info/main")
+                sim = self.simulation
 
                 # Optimise against experimental positions from
                 # start_index:end_index (excluding end_index)
@@ -248,6 +254,8 @@ class Coexist:
                 self.collisions[:] = 0
                 self.optimised_times[start_index:end_index] += 1
                 self.diverged = False
+
+                self.optimisation_runs += 1
 
             # If the last saved checkpoint was used too many times for
             # optimisation, reattach all particles and start again from the
@@ -586,42 +594,42 @@ class Coexist:
             print("\nStarting optimisation of simulation:")
             print(self.simulation, "\n")
 
-        # If logging is on, create a new entry for this optimisation as a tuple
-        # containing:
-        #   0. A list of [start_index, end_index]
-        #   1. A list of solutions tried
-        #   2. A list of results (xi_acc) for those solutions
-        #   3. A list of [best_solution, best_result]
+        # If logging is on, create a new entry for this optimisation as a dict
         if self.save_log:
-            self.log.append(([start_index, end_index], [], [], []))
+            self.log.append(
+                dict(
+                    start_index = start_index,
+                    end_index = end_index,
+                    solutions = [],
+                    results = [],
+                    best_solution = None,
+                    best_result = None,
+                )
+            )
 
         # Aliases
         sim = self.simulation
         exp = self.experiment
-
-        # Save the current simulation state in a `restarts` folder
-        if not os.path.isdir("restarts"):
-            os.mkdir("restarts")
+        rng = self.rng
 
         # Save current checkpoint and extra data for parallel computation
-        rand_hash = str(round(np.random.random() * 1e8))
-        sim.save(f"restarts/simopt_{rand_hash}")
+        rand_hash = str(round(abs(rng.random() * 1e8)))
 
-        pickle.dump(
-            exp,
-            open(f"restarts/simopt_{rand_hash}_experiment.pickle", "wb")
-        )
+        if not os.path.isdir(f"coexist_info/run_{self.optimisation_runs}"):
+            os.mkdir(f"coexist_info/run_{self.optimisation_runs}")
 
         # Minimum and maximum possible values for the DEM parameters
         params_mins = sim.parameters["min"].to_numpy()
         params_maxs = sim.parameters["max"].to_numpy()
 
         # If any `sigma` value is smaller than 5% (max - min), clip it
-        p = sim.parameters
-        sigma_clipped = p["sigma"].clip(lower = 0.05 * (p["max"] - p["min"]))
+        sim.parameters["sigma"].clip(
+            lower = 0.05 * (sim.parameters["max"] - sim.parameters["min"]),
+            inplace = True,
+        )
 
         # Scale sigma, bounds, solutions, results to unit variance
-        scaling = sigma_clipped.to_numpy()
+        scaling = sim.parameters["sigma"].to_numpy()
 
         # First guess, scaled
         x0 = sim.parameters["value"].to_numpy() / scaling
@@ -636,6 +644,7 @@ class Coexist:
             bounds = bounds,
             ftarget = 0.0,
             popsize = self.num_solutions,
+            randn = lambda *args: rng.standard_normal(args),
             verbose = 3 if verbose else -9,
         ))
 
@@ -646,8 +655,11 @@ class Coexist:
             solutions = es.ask()
 
             if verbose:
-                print(f"Scaled sigma: {es.sigma}")
-                print(f"Trying {len(solutions)} parameter combinations...")
+                print((
+                    f"Scaled overall standard deviation: {es.sigma}\n"
+                    f"Scaled individual standard deviations:\n{es.result.stds}"
+                    f"\n\nTrying {len(solutions)} parameter combinations..."
+                ))
 
             results = self.try_solutions(
                 rand_hash,
@@ -672,17 +684,24 @@ class Coexist:
                 )
 
                 print(f"{sols_results}")
-                print(f"Function evaluations: {es.result.evaluations}\n---")
+                print(f"Function evaluations: {es.result.evaluations}\n---",
+                      flush = True)
 
             # If logging is on, save the solutions tried and their results
             if self.save_log:
-                self.log[-1][1].extend(solutions * scaling)
-                self.log[-1][2].extend(results)
+                self.log[-1]["solutions"].extend(solutions * scaling)
+                self.log[-1]["results"].extend(results)
 
-            if es.sigma < 0.05:
+                with open("coexist_info/optimisation_log.pickle", "wb") as f:
+                    pickle.dump(self.log, f)
+
+            if es.sigma < self.target_sigma:
                 if verbose:
-                    print("Optimal solution found within 5%:")
-                    print(f"sigma = {es.sigma} < 0.05")
+                    print((
+                        "Optimal solution found within `target_sigma`, i.e. "
+                        f"{self.target_sigma * 100}%:\n"
+                        f"overall_sigma = {es.sigma} < {self.target_sigma}\n"
+                    ))
                 break
 
         solutions = es.result.xbest * scaling
@@ -692,7 +711,10 @@ class Coexist:
         sim.parameters["sigma"] = es.result.stds * scaling
 
         if verbose:
-            print(f"Best results for solutions: {solutions}")
+            print((
+                f"Best results for solutions: {solutions}\n"
+                f"Scaled individual standard deviations:\n{es.result.stds}\n"
+            ))
 
         # Change parameters to the best solution
         for i, sol_val in enumerate(solutions):
@@ -702,23 +724,16 @@ class Coexist:
         # time
         self.xi_acc = self.calc_xi_acc(sim, exp, start_index, end_index)
 
-        # Delete the saved checkpoint data
-        os.remove(f"restarts/simopt_{rand_hash}_restart.sim")
-        os.remove(f"restarts/simopt_{rand_hash}_properties.sim")
-        os.remove(f"restarts/simopt_{rand_hash}_experiment.pickle")
-
         if verbose:
             print((f"Accumulated error (xi_acc) for solution: "
                    f"{self.xi_acc}\n---"))
 
         if self.save_log:
-            self.log[-1][3].extend([solutions, self.xi_acc])
+            self.log[-1]["best_solution"] = solutions
+            self.log[-1]["best_result"] = self.xi_acc
 
-
-    @staticmethod
-    def sim_hash(solutions):
-        h = hash(np.array(solutions).tobytes())
-        return str(h)
+            with open("coexist_info/optimisation_log.pickle", "wb") as f:
+                pickle.dump(self.log, f)
 
 
     @staticmethod
@@ -755,49 +770,69 @@ class Coexist:
         sim = self.simulation
         param_names = sim.parameters.index
 
-        # Path to `async_calc_xi.py`
+        # Path to `async_coexist_error.py`
         async_xi = os.path.join(
             os.path.split(coexist.__file__)[0],
-            "async_calc_xi.py"
+            "async_coexist_error.py"
         )
 
         # For every solution to try, start a separate OS process that runs the
-        # `async_calc_xi.py` file and captures the output value
+        # `async_coexist_error.py` file and captures the output value
         processes = []
-        for i, sol in enumerate(solutions):
-
-            # Change parameters
-            for j, sol_val in enumerate(sol):
-                sim[param_names[j]] = sol_val
-
-            # Save current parameter values
-            pickle.dump(sim.parameters, open(
-                f"restarts/simopt_{rand_hash}_{i}_parameters.pickle", "wb"
-            ))
-
-            processes.append(
-                subprocess.Popen(
-                    [
-                        sys.executable,     # The Python interpreter path
-                        async_xi,           # The `async_calc_xi.py` path
-                        f"restarts/simopt_{rand_hash}_{i}_parameters.pickle",
-                        f"restarts/simopt_{rand_hash}",
-                        f"restarts/simopt_{rand_hash}_experiment.pickle",
-                        str(start_index),
-                        str(end_index),
-                    ],
-                    stdout = subprocess.PIPE,
-                    stderr = subprocess.PIPE,
-                )
-            )
+        sim_paths = []
 
         results = np.full(len(solutions), np.finfo(float).max)
-        for i, proc in enumerate(processes):
-            stdout, stderr = proc.communicate()
-            results[i] = float(stdout)
 
-        for i in range(len(solutions)):
-            os.remove(f"restarts/simopt_{rand_hash}_{i}_parameters.pickle")
+        # Catch the KeyboardInterrupt (Ctrl-C) signal to shut down the spawned
+        # processes before aborting.
+        try:
+            for i, sol in enumerate(solutions):
+
+                # Change simulation parameters
+                for j, sol_val in enumerate(sol):
+                    sim[param_names[j]] = sol_val
+
+                # Save current simulation (i.e. with current parameters)
+                sim_paths.append((
+                    f"coexist_info/run_{self.optimisation_runs}/"
+                    f"opt_{rand_hash}_{i}"
+                ))
+                sim.save(sim_paths[i])
+
+                processes.append(
+                    subprocess.Popen(
+                        [
+                            sys.executable,     # The Python interpreter path
+                            async_xi,           # The `async_calc_xi.py` path
+                            "coexist_info/simulation_class.pickle",
+                            sim_paths[i],
+                            "coexist_info/experiment.pickle",
+                            str(start_index),
+                            str(end_index),
+                        ],
+                        stdout = subprocess.PIPE,
+                        stderr = subprocess.PIPE,
+                    )
+                )
+
+            for i, proc in enumerate(processes):
+                stdout, stderr = proc.communicate()
+
+                # If we had errors, write them to `error.log`
+                if len(stderr):
+                    print((
+                        "An error ocurred while running a simulation "
+                        "asynchronously:\n"
+                        f"{stderr}\n\n"
+                    ))
+
+                results[i] = float(stdout)
+
+        except KeyboardInterrupt:
+            for proc in processes:
+                proc.kill()
+
+            sys.exit(130)
 
         return results
 
@@ -812,7 +847,6 @@ class Access:
     def __init__(
         self,
         simulation: Simulation,
-        save_log = False,
     ):
 
         # Type-checking inputs
@@ -821,9 +855,6 @@ class Access:
                 "The `simulation` input parameter must be an instance of "
                 f"`coexist.Simulation`. Received type `{type(simulation)}`."
             )))
-
-        self.save_log = bool(save_log)
-        self.log = [] if self.save_log else None
 
         # Setting class attributes
         self.simulation = simulation
@@ -851,7 +882,7 @@ class Access:
         random_seed = None,
         verbose = True,
     ):
-        # Type-checking input
+        # Type-checking inputs
         if not callable(error):
             raise TypeError(textwrap.fill((
                 "The input `error` must be a function (i.e. callable). "
@@ -880,31 +911,26 @@ class Access:
         sim = self.simulation
         rng = self.rng
 
-        # If logging is on, create a new entry for this optimisation as a tuple
-        # containing:
-        #   0. A list of [start_time, end_time]
-        #   1. A list of solutions tried
-        #   2. A list of results (output from `error`) for those solutions
-        #   3. A list of [best_solution, best_result]
-        if self.save_log:
-            self.log.append(([self.start_time, self.end_time], [], [], []))
-
         # The random hash that represents this optimisation run. If a random
         # seed was specified, this will make the simulation and optimisations
         # fully deterministic (i.e. repeatable)
         rand_hash = str(round(rng.random() * 1e8))
 
         # Save the current simulation state in a `restarts` folder
-        if not os.path.isdir(f"restarts_{rand_hash}"):
-            os.mkdir(f"restarts_{rand_hash}")
+        if not os.path.isdir(f"access_info_{rand_hash}"):
+            os.mkdir(f"access_info_{rand_hash}")
 
         # Save positions and parameters in a new folder inside `restarts`
-        if not os.path.isdir(f"restarts_{rand_hash}/positions"):
-            os.mkdir(f"restarts_{rand_hash}/positions")
+        if not os.path.isdir(f"access_info_{rand_hash}/positions"):
+            os.mkdir(f"access_info_{rand_hash}/positions")
+
+        with open(f"access_info_{rand_hash}/simulation_class.pickle",
+                  "wb") as f:
+            pickle.dump(sim.__class__, f)
 
         # Save current checkpoint and extra data for parallel computation
-        sim.save(f"restarts_{rand_hash}/simacc")
-        with open(f"restarts_{rand_hash}/simacc_info.txt", "a") as f:
+        sim.save(f"access_info_{rand_hash}/opt")
+        with open(f"access_info_{rand_hash}/opt_run_info.txt", "a") as f:
             now = datetime.now().strftime("%H:%M:%S - %D")
             f.writelines([
                 f"Starting ACCESS run at {now}\n",
@@ -924,12 +950,12 @@ class Access:
         # pre-computed values for this exact simulation, random seed, and
         # number of solutions
         history_path = (
-            f"restarts_{rand_hash}/"
-            f"history_{self.num_solutions}.csv"
+            f"access_info_{rand_hash}/"
+            f"opt_history_{self.num_solutions}.csv"
         )
 
-        # History columns: [param1, param2, ..., stdev_param1, stdev_param2,
-        # ..., stdev_all, error_value]
+        # History columns: [param1, param2, ..., stddev_param1, stddev_param2,
+        # ..., stddev_all, error_value]
         if use_historical and os.path.isfile(history_path):
             history = np.loadtxt(history_path, dtype = float)
         elif use_historical:
@@ -942,11 +968,13 @@ class Access:
         params_maxs = sim.parameters["max"].to_numpy()
 
         # If any `sigma` value is smaller than 5% (max - min), clip it
-        p = sim.parameters
-        sigma_clipped = p["sigma"].clip(lower = 0.05 * (p["max"] - p["min"]))
+        sim.parameters["sigma"].clip(
+            lower = 0.05 * (sim.parameters["max"] - sim.parameters["min"]),
+            inplace = True,
+        )
 
         # Scale sigma, bounds, solutions, results to unit variance
-        scaling = sigma_clipped.to_numpy()
+        scaling = sim.parameters["sigma"].to_numpy()
 
         # First guess, scaled
         x0 = sim.parameters["value"].to_numpy() / scaling
@@ -968,34 +996,37 @@ class Access:
         # Start optimisation: ask the optimiser for parameter combinations
         # (solutions), run the simulation between `start_index:end_index` and
         # feed the results back to CMA-ES.
-        i = 0
+        epoch = 0
 
         while not es.stop():
             solutions = es.ask()
 
-            if use_historical and i * self.num_solutions < len(history):
+            if use_historical and epoch * self.num_solutions < len(history):
                 ns = self.num_solutions
 
-                results = history[(i * ns):(i * ns + ns)]
+                results = history[(epoch * ns):(epoch * ns + ns)]
                 num_params = len(sim.parameters)
 
                 es.tell(results[:, :num_params] / scaling, results[:, -1])
-                i += 1
+                epoch += 1
 
                 continue
 
             if verbose:
-                print(f"Scaled sigma: {es.sigma}")
-                print(f"Trying {len(solutions)} parameter combinations...")
+                print((
+                    f"Scaled overall standard deviation: {es.sigma}\n"
+                    f"Scaled individual standard deviations:\n{es.result.stds}"
+                    f"\n\nTrying {len(solutions)} parameter combinations..."
+                ))
 
             results = self.try_solutions(
                 rand_hash,
                 solutions * scaling,
-                save_positions = i if save_positions else None,
+                save_positions = epoch if save_positions else None,
             )
 
             es.tell(solutions, results)
-            i += 1
+            epoch += 1
 
             # Save every step's historical data as function evaluations are
             # very expensive. Save columns [param1, param2, ..., stdev_param1,
@@ -1026,14 +1057,10 @@ class Access:
                     index = None,
                 )
 
-                print(f"{sols_results}")
-                print(f"Function evaluations: {es.result.evaluations}\n---")
-                print(flush = True)
-
-            # If logging is on, save the solutions tried and their results
-            if self.save_log:
-                self.log[-1][1].extend(solutions * scaling)
-                self.log[-1][2].extend(results)
+                print((
+                    f"{sols_results}\n"
+                    f"Function evaluations: {es.result.evaluations}\n---"
+                ), flush = True)
 
             if es.sigma < self.target_sigma:
                 if verbose:
@@ -1074,19 +1101,15 @@ class Access:
             print((f"Error (computed by the `error` function) for solution: "
                    f"{err}\n---"))
 
-        if self.save_log:
-            self.log[-1][3].extend([solutions, err])
-
-        # Delete the saved checkpoint data
-        os.remove(f"restarts_{rand_hash}/simacc_restart.sim")
-        os.remove(f"restarts_{rand_hash}/simacc_properties.sim")
-
         return positions
 
 
     def try_solutions(self, rand_hash, solutions, save_positions = None):
-        # `save_positions` is either none or an int = optimisation solution
-        # iteration (if num_solutions = 10, after trying 30 solutions, i = 3)
+        # `save_positions` is either None or an int => optimisation solution
+        # iteration (i.e. epoch - if num_solutions = 10, after trying 30
+        # solutions, epoch = 3)
+        epoch = save_positions
+
         # Aliases
         sim = self.simulation
         param_names = sim.parameters.index
@@ -1099,90 +1122,89 @@ class Access:
 
         # For every solution to try, start a separate OS process that runs the
         # `async_access_error.py` file and saves the positions in a `.npy` file
-        params_paths = []
+        sim_paths = []
         positions_paths = []
         processes = []
 
-        for i, sol in enumerate(solutions):
+        # Catch the KeyboardInterrupt (Ctrl-C) signal to shut down the spawned
+        # processes before aborting.
+        try:
+            for i, sol in enumerate(solutions):
 
-            # Change parameters
-            for j, sol_val in enumerate(sol):
-                sim[param_names[j]] = sol_val
+                # Change parameters
+                for j, sol_val in enumerate(sol):
+                    sim[param_names[j]] = sol_val
 
-            # Save current parameter values. If `save_positions` is given, then
-            # save them to unique paths. Otherwise overwrite the same ones.
-            if save_positions is not None:
-                params_paths.append((
-                    f"restarts_{rand_hash}/positions/"
-                    f"simacc_{save_positions * self.num_solutions + i}"
-                    "_parameters.pickle"
-                ))
+                # Save current parameter values. If `save_positions` is given,
+                # then save them to unique paths. Otherwise reuse the same ones
+                if save_positions is not None:
+                    sim_paths.append((
+                        f"access_info_{rand_hash}/positions/"
+                        f"opt_{epoch * self.num_solutions + i}"
+                    ))
 
-                positions_paths.append((
-                    f"restarts_{rand_hash}/positions/"
-                    f"simacc_{save_positions * self.num_solutions + i}"
-                    "_positions.npy"
-                ))
+                    positions_paths.append((
+                        f"access_info_{rand_hash}/positions/"
+                        f"opt_{epoch * self.num_solutions + i}_positions.npy"
+                    ))
 
-            else:
-                params_paths.append((
-                    f"restarts_{rand_hash}/positions/"
-                    f"simacc_{i}_parameters.pickle"
-                ))
+                else:
+                    sim_paths.append((
+                        f"access_info_{rand_hash}/positions/opt_{i}"
+                    ))
 
-                positions_paths.append((
-                    f"restarts_{rand_hash}/positions/"
-                    f"simacc_{i}_positions.npy"
-                ))
+                    positions_paths.append((
+                        f"access_info_{rand_hash}/positions/"
+                        f"opt_{i}_positions.npy"
+                    ))
 
-            with open(params_paths[i], "wb") as f:
-                pickle.dump(sim.parameters, f)
+                sim.save(sim_paths[i])
 
-            simulation_path = f"restarts_{rand_hash}/simacc"
-
-            processes.append(
-                subprocess.Popen(
-                    [
-                        sys.executable,     # The Python interpreter path
-                        async_xi,           # The `async_access_error.py` path
-                        params_paths[i],
-                        simulation_path,
-                        str(self.start_time),
-                        str(self.end_time),
-                        str(self.num_checkpoints),
-                        positions_paths[i],
-                    ],
-                    stdout = subprocess.PIPE,
-                    stderr = subprocess.PIPE,
+                processes.append(
+                    subprocess.Popen(
+                        [
+                            sys.executable,  # The Python interpreter path
+                            async_xi,        # The `async_access_error.py` path
+                            f"access_info_{rand_hash}/simulation_class.pickle",
+                            sim_paths[i],
+                            str(self.start_time),
+                            str(self.end_time),
+                            str(self.num_checkpoints),
+                            positions_paths[i],
+                        ],
+                        stdout = subprocess.PIPE,
+                        stderr = subprocess.PIPE,
+                    )
                 )
-            )
 
-        positions_all = []
-        for i, proc in enumerate(processes):
-            stdout, stderr = proc.communicate()
+            positions_all = []
+            for i, proc in enumerate(processes):
+                stdout, stderr = proc.communicate()
 
-            # If we had errors, write them to `error.log`
-            if len(stderr):
-                print((
-                    "An error ocurred while running a simulation "
-                    "asynchronously:\n"
-                    f"{stderr}\n\n"
-                    "Writing error message to "
-                    f"`restarts_{rand_hash}/error_{i}.log`\n"
-                ))
+                # If we had errors, write them to `error.log`
+                if len(stderr):
+                    print((
+                        "An error ocurred while running a simulation "
+                        "asynchronously:\n"
+                        f"{stderr}\n\n"
+                        "Writing error message to "
+                        f"`restarts_{rand_hash}/error_{i}.log`\n"
+                    ))
 
-                with open(f"restarts_{rand_hash}/error_{i}.log", "w") as f:
-                    f.write(stderr.decode("utf-8"))
+                    with open(
+                        f"access_info_{rand_hash}/error_{i}.log", "w"
+                    ) as f:
+                        f.write(stderr.decode("utf-8"))
 
-            positions_all.append(np.load(positions_paths[i]))
+                positions_all.append(np.load(positions_paths[i]))
+
+        except KeyboardInterrupt:
+            for proc in processes:
+                proc.kill()
+
+            sys.exit(130)
 
         results = np.array([self.error(pos) for pos in positions_all])
-
-        # If data shouldn't be saved, remove temporary files
-        if save_positions is None:
-            for i in range(len(solutions)):
-                os.remove(params_paths[i])
-                os.remove(positions_paths[i])
 
         return results
 

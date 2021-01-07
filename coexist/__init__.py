@@ -7,8 +7,10 @@
 
 
 from    .base           import  Parameters
-from    .base           import  Simulation
 from    .base           import  Experiment
+
+from    .base           import  Simulation
+from    .base           import  LiggghtsSimulation
 
 from    .optimisation   import  Coexist
 from    .optimisation   import  Access
@@ -16,8 +18,9 @@ from    .optimisation   import  Access
 
 __all__ = [
     "Parameters",
-    "Simulation",
     "Experiment",
+    "Simulation",
+    "LiggghtsSimulation",
     "Coexist",
     "Access",
 ]

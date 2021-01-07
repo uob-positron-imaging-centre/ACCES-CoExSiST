@@ -6,14 +6,16 @@
 # Date   : 01.09.2020
 
 
-import re
-import os
-import textwrap
+import  re
+import  os
+import  pickle
+import  textwrap
+from    abc         import  ABC, abstractmethod
 
-import numpy as np
-import pandas as pd
+import  numpy       as      np
+import  pandas      as      pd
 
-from liggghts import liggghts
+from    liggghts    import liggghts
 
 
 
@@ -48,17 +50,21 @@ class Parameters(pd.DataFrame):
 
     .. code-block:: python
 
-        parameters = Parameters(
-            ["corPP", "youngmodP"],
-            ["fix  m3 all property/global coefficientRestitution \
-                peratomtypepair 3 ${corPP} ${corPW} ${corPW2} \
-                                           ${corPW} ${corPW2} ${corPW} \
-                                           ${corPW2} ${corPW} ${corPW} ",
-             "fix  m1 all property/global youngsModulus peratomtype \
-                ${youngmodP} ${youngmodP} ${youngmodP}"],
-            [0.5, 0.8e9],
-            [0.0, None],
-            [1.0, None],
+        parameters = coexist.Parameters(
+            variables = ["fricPP", "corPP"],
+            commands = [
+                "fix  m4 all property/global coefficientFriction \
+                    peratomtypepair 3   ${fricPP}   ${fricPW}   ${fricPSW}  \
+                                        ${fricPW}   ${fric}     ${fric}     \
+                                        ${fricPSW}  ${fric}     ${fric}     ",
+                "fix  m3 all property/global coefficientRestitution \
+                    peratomtypepair 3   ${corPP} ${corPP} ${corPP} \
+                                        ${corPP} ${corPP} ${corPP} \
+                                        ${corPP} ${corPP} ${corPP} ",
+            ],
+            values = [0.5, 0.5],
+            minimums = [0.0, 0.0],
+            maximums = [1.0, 1.0],
         )
 
         parameters
@@ -74,56 +80,60 @@ class Parameters(pd.DataFrame):
 
     def __init__(
         self,
-        variables,
-        commands,
-        initial_values,
-        minimums,
-        maximums,
-        sigma0 = None,
+        *args,
+        variables = [],
+        commands = [],
+        values = [],
+        minimums = [],
+        maximums = [],
+        sigma = None,
+        **kwargs,
     ):
         '''`Parameters` class constructor.
 
         Parameters
         ----------
-        variables: list[str]
+        variables: list[str], default []
             An iterable containing the LIGGGHTS variable names that will be
             used for changing simulation parameters.
 
-        commands: list[str]
+        commands: list[str], default []
             An iterable containing the macro commands required to modify
             LIGGGHTS simulation parameters, containing the variable names
             as `${varname}`. E.g. `"fix  m1 all property/global youngsModulus
             peratomtype ${youngmodP} ${youngmodP} ${youngmodP}"`.
 
-        initial_values: list[float]
+        values: list[float], default []
             An iterable containing the initial values for each LIGGGHTS
             simulation parameter.
 
-        minimums: list[float]
+        minimums: list[float], default []
             An iterable containing the lower bounds for each LIGGGHTS
             parameter. For non-existing bounds, use `None`, in which case also
             define a `sigma0`.
 
-        maximums: list[float]
+        maximums: list[float], default []
             An iterable containing the upper bounds for each LIGGGHTS
             parameter. For non-existing bounds, use `None`, in which case also
             define a `sigma0`.
 
-        sigma0: list[float], optional
+        sigma: list[float], optional
             The standard deviation of the first population of solutions tried
             by the CMA-ES optimisation algorithm. If unset, it is computed as
             `0.2 * (maximum - minimum)`.
         '''
 
-        if not (len(variables) == len(commands) == len(initial_values) ==
+        pd.DataFrame.__init__(self, *args, **kwargs)
+
+        if not (len(variables) == len(commands) == len(values) ==
                 len(minimums) == len(maximums)):
             raise ValueError(textwrap.fill(
                 '''The input iterables `variables`, `commands`,
-                `initial_values`, `minimums` and `maximums` must all have the
-                same length.'''
+                `values`, `minimums` and `maximums` must all have the same
+                length.'''
             ))
 
-        initial_values = np.array(initial_values, dtype = float)
+        values = np.array(values, dtype = float)
         minimums = np.array(minimums, dtype = float)
         maximums = np.array(maximums, dtype = float)
 
@@ -133,16 +143,16 @@ class Parameters(pd.DataFrame):
                 corresponding value in `minimums`.'''
             ))
 
-        if sigma0 is None:
-            sigma0 = 0.2 * (maximums - minimums)
-        elif len(sigma0) != len(variables):
+        if sigma is None:
+            sigma = 0.2 * (maximums - minimums)
+        elif len(sigma) != len(variables):
             raise ValueError(textwrap.fill(
-                '''If defined, `sigma0` must have the same length as the other
+                '''If defined, `sigma` must have the same length as the other
                 input parameters.'''
             ))
 
         for cmd in commands:
-            if re.search("\$\{\w+\}", cmd) is None:
+            if re.search(r"\$\{\w+\}", cmd) is None:
                 raise ValueError(textwrap.fill(
                     '''The strings in the input `commands` must contain at
                     least one substring `"${varname}"` (e.g. `"fix  m2 all
@@ -151,39 +161,23 @@ class Parameters(pd.DataFrame):
                     substituted when running the LIGGGHTS command.'''
                 ))
 
-        parameters = {
-            "command": commands,
-            "value": initial_values,
-            "min": minimums,
-            "max": maximums,
-            "sigma": sigma0,
-        }
+        self["command"] = commands
+        self["value"] = values
+        self["min"] = minimums
+        self["max"] = maximums
+        self["sigma"] = sigma
 
-        pd.DataFrame.__init__(self, parameters, index = variables)
+        self.index = variables
 
 
-    @staticmethod
-    def empty():
-        '''Returns an empty Parameters DataFrame; useful for simulation which
-        do not have any dynamically changing parameters.
-
-        Returns
-        -------
-        coexist.Parameters
-            An empty Parameters DataFrame.
-        '''
-
-        return Parameters([], [], [], [], [])
-
-
-    def copy(self):
+    def copy(self, *args, **kwargs):
         parameters_copy = Parameters(
-            self.index.copy(),
-            self["command"].copy(),
-            self["value"].copy(),
-            self["min"].copy(),
-            self["max"].copy(),
-            self["sigma"].copy(),
+            variables = self.index.copy(),
+            commands = self["command"].copy(),
+            values = self["value"].copy(),
+            minimums = self["min"].copy(),
+            maximums = self["max"].copy(),
+            sigma = self["sigma"].copy(),
         )
 
         return parameters_copy
@@ -326,7 +320,163 @@ class Experiment:
 
 
 
-class Simulation:
+class Simulation(ABC):
+    '''Abstract class defining the interface a DEM simulation engine must
+    implement to be used by the `Coexist` and `Access` algorithms.
+
+    This interface is needed in order to manage a DEM simulation whose
+    parameters will be modified dynamically as the algorithms *learn* them.
+
+    Alternatively, this interface has enough features to allow setting up,
+    running, and analysing DEM simulations in Python.
+
+    Each method required is described below. As an example of an implemented
+    LIGGGHTS front-end, see `LiggghtsSimulation`.
+    '''
+
+    @property
+    @abstractmethod
+    def parameters(self):
+        '''A `coexist.Parameters` class instance containing the free simulation
+        parameters, along with their bounds.
+        '''
+        pass
+
+
+    @property
+    @abstractmethod
+    def step_size(self):
+        '''The time duration of a single simulated step.
+        '''
+        pass
+
+
+    @abstractmethod
+    def step(self, num_steps: int):
+        '''Move the simulation forward in time for `num_steps` steps.
+        '''
+        pass
+
+
+    @abstractmethod
+    def step_to(self, step: int):
+        '''Move the simulation forward in time up to timestep `step`.
+        '''
+        pass
+
+
+    @abstractmethod
+    def step_time(self, duration: float):
+        '''Move the simulation forward in time for `duration` seconds.
+        '''
+        pass
+
+
+    @abstractmethod
+    def step_to_time(self, time: float):
+        '''Move the simulation forward up to time `time`.
+        '''
+        pass
+
+
+    @abstractmethod
+    def time(self) -> float:
+        '''Return the current simulation time.
+        '''
+        pass
+
+
+    @abstractmethod
+    def timestep(self) -> int:
+        '''Return the current simulation timestep.
+        '''
+        pass
+
+
+    @abstractmethod
+    def num_atoms(self) -> int:
+        '''Return the number of simulated particles.
+        '''
+        pass
+
+
+    @abstractmethod
+    def radii(self) -> np.ndarray:
+        '''A 1D numpy array listing the radius of each particle.
+        '''
+        pass
+
+
+    @abstractmethod
+    def positions(self) -> np.ndarray:
+        '''Return a 2D numpy array of the particle positions at the current
+        timestep, where the columns represent the cartesian coordinates.
+        '''
+        pass
+
+
+    @abstractmethod
+    def velocities(self) -> np.ndarray:
+        '''Return the 2D numpy array of the particle velocities at the current
+        timestep, where the columns represent the velocity in the x-, y-, and
+        z-dimensions.
+        '''
+        pass
+
+
+    @abstractmethod
+    def set_position(self, particle_index: int, position: np.ndarray):
+        '''Set the 3D position of the particle at an index (indexed from 0).
+        '''
+        pass
+
+
+    @abstractmethod
+    def set_velocity(self, particle_index: int, velocity: np.ndarray):
+        '''Set the 3D velocity of the particle at an index (indexed from 0).
+        '''
+        pass
+
+
+    @abstractmethod
+    def copy(self):
+        '''Create a deep copy of the simulation, along with all its state. It
+        is important to be a deep copy as it will be used in asynchronous
+        contexts.
+        '''
+        pass
+
+
+    @abstractmethod
+    def save(self, filename: str):
+        '''Save the full state of a simulation to a file.
+        '''
+        pass
+
+
+    @staticmethod
+    @abstractmethod
+    def load(filename: str):      # -> Simulation
+        '''Load the full state of a simulation from a file.
+        '''
+        pass
+
+
+    @abstractmethod
+    def __setitem__(self, key, value):
+        '''A custom class attribute setter (i.e. called when using the
+        subscript notation `simulation[key] = value`) that sets a simulation's
+        free parameter value. The free parameter must already exist in the
+        `parameters` property.
+        '''
+        pass
+
+
+
+
+
+
+class LiggghtsSimulation(Simulation):
     '''Class encapsulating a single LIGGGHTS simulation whose parameters will
     be modified dynamically by a driver code.
 
@@ -335,10 +485,8 @@ class Simulation:
     def __init__(
         self,
         sim_name,
-        parameters = Parameters.empty(),
-        verbose = True,
-        log = True,
-        log_file = "pyLiggghts.log",
+        parameters = Parameters(),
+        verbose = False,
     ):
         '''`Simulation` class constructor.
 
@@ -360,15 +508,6 @@ class Simulation:
 
         verbose: bool, default `True`
             Show LIGGGHTS output while simulation is running.
-
-        log: bool, default 'True'
-            save all property changing commands that where exectuted in a log
-            file. Does not contain commands inside the default LIGGGHTS
-            macro script
-            Needed for the .copy function!
-            excluded commands:
-                run
-                write_restart
         '''
 
         # Type-check input parameters
@@ -380,10 +519,7 @@ class Simulation:
 
         # Create class attributes
         self._verbose = bool(verbose)
-        self.log = log
-        self.log_file = log_file
 
-        # TODO: Domenico, use logging?
         if self._verbose:
             self.simulation = liggghts()
         else:
@@ -410,7 +546,7 @@ class Simulation:
         # for "fix ins insert/stream", if `fix` is saved and `insert/stream` is
         # ignored, then the whole line is ignored
         self.ignore_keywords = [
-            "insert\/stream",
+            r"insert\/stream",
         ]
 
         # A compiled Regex object for finding any of the above keywords as
@@ -435,7 +571,23 @@ class Simulation:
         elif (os.path.exists(f"{self.sim_name}_restart.sim") and
               os.path.exists(f"{self.sim_name}_properties.sim")):
             # It is a LIGGGHTS restart file + properties file
-            self.load(self.sim_name)
+            # Read in the restart file
+            self.execute_command(f"read_restart {self.sim_name}_restart.sim")
+
+            # Now execute all commands in the properties file
+            self.simulation.file(f"{self.sim_name}_properties.sim")
+
+            # Finally, set the time, given in a comment on the first line
+            with open(f"{self.sim_name}_properties.sim") as f:
+                self.properties = [line.rstrip() for line in f.readlines()]
+                line = self.properties[0]
+
+            # Split into a list, e.g. "#  current_time =15  " -> ["", "15   "]
+            # Note: "[ ]*" means 0 or more spaces
+            current_time = re.split("#[ ]*current_time[ ]*=[ ]*", line)
+            current_time = float(current_time[1])
+
+            self.simulation.set_time(current_time)
 
         else:
             raise FileNotFoundError(textwrap.fill((
@@ -444,12 +596,12 @@ class Simulation:
                 f"restart.sim` and `{self.sim_name}_properties.sim`)."
             )))
 
-        self.parameters = parameters
+        self._parameters = parameters.copy()
         self._step_size = self.simulation.extract_global("dt", 1)
 
         # Set simulation parameters to the values in `parameters`
-        for idx in self.parameters.index:
-            self[idx] = self.parameters.loc[idx, "value"]
+        for idx in self._parameters.index:
+            self[idx] = self._parameters.loc[idx, "value"]
 
 
     def create_properties(self, sim_name):
@@ -484,6 +636,11 @@ class Simulation:
 
 
     @property
+    def parameters(self):
+        return self._parameters
+
+
+    @property
     def step_size(self):
         # save a step_size property of the class, so we can define the
         # step_size
@@ -501,16 +658,6 @@ class Simulation:
 
 
     @property
-    def log(self):
-        return self._log
-
-
-    @log.setter
-    def log(self, log):
-        self._log = bool(log)
-
-
-    @property
     def verbose(self):
         self._verbose
 
@@ -521,14 +668,16 @@ class Simulation:
 
 
     def save(self, filename = None):
-        '''Save a simulation's state, along with data not included in the
-        standard LIGGGHTS restart file.
+        '''Save a simulation's full state, along with data not included in the
+        standard LIGGGHTS restart file and the internal `parameters`.
 
-        This function saves two files, based on the input `filename`:
+        This function saves three files, based on the input `filename`:
 
         1. "{filename}_restart.sim": the standard LIGGGHTS restart file.
         2. "{filename}_properties.sim": the additional data not included in the
            file above.
+        3. "{filename}_parameters.pickle": the pickled `self.parameters`
+           object.
 
         Notice that the input `filename` is just *the prefix* of the files
         saved; do not include file extensions (i.e. instead of
@@ -537,8 +686,9 @@ class Simulation:
         Parameters
         ----------
         filename: str, optional
-            The prefix for the two simulation files saved. If `None`, then the
-            `sim_name` class attribute is used.
+            The prefix for the three simulation files saved. If `None`, then
+            the `sim_name` class attribute is used (i.e. the name used when
+            instantiating the class).
         '''
 
         # Remove trailing ".sim", if existing in `self.sim_name`
@@ -550,15 +700,23 @@ class Simulation:
         self.execute_command(cmd)
 
         # Add the current time to the properties file, as a comment
-        self.properties.insert(0, f"# current_time = {self.time()}")
+        if re.match("# current_time =", self.properties[0]):
+            self.properties[0] = f"# current_time = {self.time()}"
+        else:
+            self.properties.insert(0, f"# current_time = {self.time()}")
 
         # Write properties file. `self.properties` is a list of strings
         # containing each command that the restart file does not save
         with open(f"{filename}_properties.sim", "w") as f:
             f.writelines("\n".join(self.properties))
 
+        # Save the parameters as a pickled file
+        with open(f"{filename}_parameters.sim", "wb") as f:
+            pickle.dump(self.parameters, f)
 
-    def load(self, filename = None):
+
+    @staticmethod
+    def load(filename, verbose = False):
         # load a new simulation based on the position data from filename and
         # the system based on self.filename
         #
@@ -566,44 +724,16 @@ class Simulation:
         # open the simulation file and search for the line where it reads the
         # restart then change the filename in this file and save
 
-        if filename is None:
-            filename = self.sim_name.split(".sim")[0]
-
-        if not os.path.exists(f"{filename}_restart.sim"):
+        if not os.path.exists(f"{filename}_parameters.sim"):
             raise FileNotFoundError(textwrap.fill((
-                "No LIGGGHTS restart file found based on the input filename: "
-                f"`{filename}_restart.sim`."
+                "No pickled `coexist.Parameters` file found based on the "
+                f"input filename: `{filename}_parameters.sim`."
             )))
 
-        if not os.path.exists(f"{filename}_properties.sim"):
-            raise FileNotFoundError(textwrap.fill((
-                "No LIGGGHTS properties file found based on the input "
-                f"filename: `{filename}_properties.sim`."
-            )))
+        with open(f"{filename}_parameters.sim", "rb") as f:
+            parameters = pickle.load(f)
 
-        # Close previous simulation and open a new one
-        self.simulation.close()
-
-        if self._verbose:
-            self.simulation = liggghts()
-        else:
-            self.simulation = liggghts(cmdargs = ["-screen", "/dev/null"])
-
-        self.execute_command(f"read_restart {filename}_restart.sim")
-
-        # Now execute all commands in the properties file
-        self.simulation.file(f"{filename}_properties.sim")
-
-        # Finally, set the time, given in a comment on the first line
-        with open(f"{filename}_properties.sim") as f:
-            line = f.readline()
-
-        # Split into a list, e.g. "#  current_time =   15   " -> ["", "15   "]
-        # Note: "[ ]*" means 0 or more spaces
-        current_time = re.split("#[ ]*current_time[ ]*=[ ]*", line)
-        current_time = float(current_time[1])
-
-        self.simulation.set_time(current_time)
+        return LiggghtsSimulation(filename, parameters, verbose = verbose)
 
 
     def num_atoms(self):
@@ -655,7 +785,7 @@ class Simulation:
             varb = self.simulation.extract_variable(var_name, "", 0)
         except ValueError:
             raise ValueError((
-                f"[ERROR]: Tried to access non-existent variable {var_name}!"
+                f"Tried to access non-existent variable {var_name}!"
             ))
 
         return varb
@@ -774,7 +904,6 @@ class Simulation:
         return new_sim
 
 
-
     def __setitem__(self, key, value):
         # Custom key-value setter to change a parameter in the class *and*
         # during the simulation.
@@ -787,7 +916,7 @@ class Simulation:
             ))
 
         # Extracts variable LIGGGHTS substitutions, like ${corPP} => corPP
-        variable_extractor = re.compile("\$\{|\}")
+        variable_extractor = re.compile(r"\$\{|\}")
 
         # Substitute all occurences of ${varname} in the LIGGGHTS command with:
         #   1. `value` if `varname` == `key`
@@ -801,7 +930,7 @@ class Simulation:
                 return str(self.variable(var))
 
         cmd = re.sub(
-            "\$\{\w+\}",
+            r"\$\{\w+\}",
             replace_var,
             self.parameters.loc[key, "command"]
         )
@@ -837,46 +966,3 @@ class Simulation:
         )
 
         return docstr
-
-
-
-
-if __name__ == "main":
-    parameters = Parameters(
-        ["corPP", "corPW"],
-        ["fix  m3 all property/global coefficientRestitution peratomtypepair 3 \
-            ${corPP} ${corPW} ${corPW2} \
-            ${corPW} ${corPW2} ${corPW} \
-            ${corPW2} ${corPW} ${corPW} ",
-         "fix  m3 all property/global coefficientRestitution peratomtypepair 3 \
-            ${corPP} ${corPW} ${corPW2} \
-            ${corPW} ${corPW2} ${corPW} \
-            ${corPW2} ${corPW} ${corPW} "],
-        [0.5, 0.5],     # Initial values
-        [0.0, 0.0],     # Minimum values
-        [1.0, 1.0]      # Maximum values
-    )
-
-    simulation = Simulation("run.sim", parameters)
-
-    simulation.save()
-    simulation.step(200)
-
-    simulation.save("2.save")
-    simulation.step(200)
-
-    simulation.load("2.save")
-
-    simulation.step(200)
-
-
-    print("\nInitial simulation parameters:")
-    print(f"corPP: {simulation.variable('corPP')}")
-    print(f"corPW: {simulation.variable('corPW')}")
-
-    simulation["corPP"] = 0.75
-    simulation["corPW"] = 0.25
-
-    print("\nModified simulation parameters:")
-    print(f"corPP: {simulation.variable('corPP')}")
-    print(f"corPW: {simulation.variable('corPW')}")
