@@ -80,6 +80,9 @@ class Coexist:
         self.num_solutions = None   # Set in `self.learn()`
         self.target_sigma = None    # Set in `self.learn()`
 
+        # Capture what is printed to stderr by spanwed OS processes
+        self._stderr = None
+
 
     def learn(
         self,
@@ -818,8 +821,10 @@ class Coexist:
             for i, proc in enumerate(processes):
                 stdout, stderr = proc.communicate()
 
-                # If we had errors, write them to `error.log`
-                if len(stderr):
+                # If we had new errors, write them to `error.log`
+                if len(stderr) and stderr != self._stderr:
+                    self._stderr = stderr
+
                     print((
                         "An error ocurred while running a simulation "
                         "asynchronously:\n"
@@ -867,6 +872,9 @@ class Access:
 
         self.num_checkpoints = None
         self.num_solutions = None
+
+        # Message printed to the stderr by spawned OS processes
+        self._stderr = None
 
 
     def learn(
@@ -1181,10 +1189,12 @@ class Access:
             for i, proc in enumerate(processes):
                 stdout, stderr = proc.communicate()
 
-                # If we had errors, write them to `error.log`
-                if len(stderr):
+                # If we had new errors, write them to `error.log`
+                if len(stderr) and stderr != self._stderr:
+                    self._stderr = stderr
+
                     print((
-                        "An error ocurred while running a simulation "
+                        "A new error ocurred while running a simulation "
                         "asynchronously:\n"
                         f"{stderr}\n\n"
                         "Writing error message to "
