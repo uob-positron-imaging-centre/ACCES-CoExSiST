@@ -13,8 +13,8 @@ import coexist
 
 
 parameters = coexist.Parameters(
-    ["corPP", "corPW"],
-    ["fix  m3 all property/global coefficientRestitution peratomtypepair 3 \
+    variables = ["corPP", "corPW"],
+    commands = ["fix  m3 all property/global coefficientRestitution peratomtypepair 3 \
         ${corPP} ${corPW} ${corPW2} \
         ${corPW} ${corPW2} ${corPW} \
         ${corPW2} ${corPW} ${corPW} ",
@@ -22,12 +22,12 @@ parameters = coexist.Parameters(
         ${corPP} ${corPW} ${corPW2} \
         ${corPW} ${corPW2} ${corPW} \
         ${corPW2} ${corPW} ${corPW} "],
-    [0.5, 0.5],     # Initial values
-    [0.0, 0.0],     # Minimum values
-    [1.0, 1.0]      # Maximum values
+    values = [0.5, 0.5],     # Initial values
+    minimums = [0.0, 0.0],     # Minimum values
+    maximums = [1.0, 1.0]      # Maximum values
 )
 
-simulation = coexist.Simulation("run.sim", parameters, verbose = False)
+simulation = coexist.LiggghtsSimulation("run.sim", parameters, verbose = False)
 print(simulation)
 print("step size: ", simulation.step_size)
 

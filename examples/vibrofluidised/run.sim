@@ -2,7 +2,7 @@
 # Constants for the simulation
 variable timestep equal 1e-6
 
-variable N equal 10			                # Particle number
+variable N equal 100			                # Particle number
 
 variable corPP equal 0.5
 variable corPW equal 0.5
@@ -23,7 +23,7 @@ variable densPart equal 970.0               # particle density
 
 
 
-# MAIN CODE rotating drum 
+# MAIN CODE rotating drum
 
 atom_style 	granular
 atom_modify	map array
@@ -34,7 +34,7 @@ communicate    single vel yes
 units 		si
 
 region		domain block -0.11 0.01 -0.01 0.022 -0.02 0.21 units box #creates a region
-#create_box  3 domain       
+#create_box  3 domain
 read_restart restart.sim
 
 neighbor	0.003 bin #creates the neighbor-list (due to only contact models this is very short
@@ -47,9 +47,9 @@ neigh_modify	delay 0
 fix  m1 all property/global youngsModulus peratomtype ${youngmodP} ${youngmodP} ${youngmodP}
 fix  m2 all property/global poissonsRatio peratomtype ${poissP} ${poissP} ${poissP}
 fix  m3 all property/global coefficientRestitution peratomtypepair 3 &
-${corPP} ${corPW} ${corPW2} & 
+${corPP} ${corPW} ${corPW2} &
 ${corPW} ${corPW2} ${corPW} &
-${corPW2} ${corPW} ${corPW} 
+${corPW2} ${corPW} ${corPW}
 
 
 ####wtf is that?
@@ -84,7 +84,7 @@ fix  inface all mesh/surface file mesh/inface_mm.stl type 2 scale 0.001
 #distributions for insertion
 fix  pts1 all particletemplate/sphere 15485863 atom_type 1 density constant ${densPart} radius constant ${r1}
 
-fix  pdd1 all particledistribution/discrete/numberbased  32452843 1  pts1 1 
+fix  pdd1 all particledistribution/discrete/numberbased  32452843 1  pts1 1
 
 
 #apply nve integration to all particles that are inserted as single particles
@@ -109,6 +109,3 @@ modify_timing on
 fix move all move/mesh mesh cad        viblin axis 0. 0. 1 order 1 amplitude 0.004 phase 0 period 0.02
 fix move2 all move/mesh mesh front_back viblin axis 0. 0. 1 order 1 amplitude 0.004 phase 0 period 0.02
 #unfix  ins
-
-
-

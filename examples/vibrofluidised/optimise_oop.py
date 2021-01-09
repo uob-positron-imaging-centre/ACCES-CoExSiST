@@ -17,8 +17,8 @@ exp_positions = np.load("truth/positions_short.npy")
 experiment = coexist.Experiment(exp_timesteps, exp_positions, 0.0002)
 
 parameters = coexist.Parameters(
-    ["corPP", "corPW"],
-    ["fix  m3 all property/global coefficientRestitution peratomtypepair 3 \
+    variables = ["corPP", "corPW"],
+    commands = ["fix  m3 all property/global coefficientRestitution peratomtypepair 3 \
         ${corPP} ${corPW} ${corPW2} \
         ${corPW} ${corPW2} ${corPW} \
         ${corPW2} ${corPW} ${corPW} ",
@@ -26,14 +26,13 @@ parameters = coexist.Parameters(
         ${corPP} ${corPW} ${corPW2} \
         ${corPW} ${corPW2} ${corPW} \
         ${corPW2} ${corPW} ${corPW} "],
-    [0.6, 0.6],   # Initial WRONG values
-    [0.05, 0.05],   # Minimum values
-    [0.95, 0.95],   # Maximum values
-    # [0.1, 0.1],     # Sigma0
+    values = [0.5, 0.5],     # Initial values
+    minimums = [0.0, 0.0],     # Minimum values
+    maximums = [1.0, 1.0]      # Maximum values
 )
 
-simulation = coexist.Simulation("run.sim", parameters, verbose = False)
+simulation = coexist.LiggghtsSimulation("run.sim", parameters, verbose = False)
 print(simulation, "\n")
 
 opt = coexist.Coexist(simulation, save_log = True)
-opt.learn(experiment, num_solutions = 10, max_workers = 2)
+opt.learn(experiment, num_solutions = 24)
