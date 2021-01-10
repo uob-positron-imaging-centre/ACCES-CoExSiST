@@ -34,8 +34,8 @@ communicate    single vel yes
 units 		si
 
 region		domain block -0.11 0.01 -0.01 0.022 -0.02 0.21 units box #creates a region
-#create_box  3 domain
-read_restart restart.sim
+create_box  3 domain
+#read_restart restart.sim
 
 neighbor	0.003 bin #creates the neighbor-list (due to only contact models this is very short
 neigh_modify	delay 0
@@ -86,7 +86,7 @@ fix  pts1 all particletemplate/sphere 15485863 atom_type 1 density constant ${de
 
 fix  pdd1 all particledistribution/discrete/numberbased  32452843 1  pts1 1
 
-
+fix ins all insert/stream seed 123457 distributiontemplate pdd1 nparticles ${N} vel gaussian 0. 0. -1. 0.1 0.1 0.3 particlerate 10000 overlapcheck yes insertion_face inface extrude_length 0.1
 #apply nve integration to all particles that are inserted as single particles
 fix    integr all nve/sphere
 
@@ -100,12 +100,12 @@ thermo_modify lost ignore norm no
 
 
 # Don't save simulation output - we'll do that manually in the Python code
-#dump   dmp all custom/vtk 8000 sim_outputs/vib_0000_*.vtk id type type x y z ix iy iz vx vy vz radius
+dump   dmp all custom/vtk 1000 post/vib_*.vtk id type type x y z ix iy iz vx vy vz radius
 
-
+run 100
 
 modify_timing on
 #restart 10000 restart/vib restart/vib
 fix move all move/mesh mesh cad        viblin axis 0. 0. 1 order 1 amplitude 0.004 phase 0 period 0.02
 fix move2 all move/mesh mesh front_back viblin axis 0. 0. 1 order 1 amplitude 0.004 phase 0 period 0.02
-#unfix  ins
+unfix  ins
