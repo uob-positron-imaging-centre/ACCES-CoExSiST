@@ -34,8 +34,8 @@ communicate    single vel yes
 units 		si
 
 region		domain block -0.11 0.01 -0.01 0.022 -0.02 0.21 units box #creates a region
-#create_box  3 domain
-read_restart restart.sim
+create_box  3 domain
+#read_restart restart.sim
 
 neighbor	0.003 bin #creates the neighbor-list (due to only contact models this is very short
 neigh_modify	delay 0

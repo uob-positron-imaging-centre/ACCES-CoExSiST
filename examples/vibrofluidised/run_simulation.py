@@ -27,7 +27,7 @@ parameters = coexist.Parameters(
     maximums = [1.0, 1.0]      # Maximum values
 )
 
-simulation = coexist.LiggghtsSimulation("run.sim", parameters, verbose = False)
+simulation = coexist.LiggghtsSimulation("run.sim", parameters, verbose = True)
 print(simulation)
 print("step size: ", simulation.step_size)
 
