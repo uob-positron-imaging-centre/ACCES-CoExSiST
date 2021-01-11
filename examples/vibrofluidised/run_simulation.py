@@ -33,7 +33,7 @@ print("step size: ", simulation.step_size)
 
 
 # 60 FPS
-simulation_times = np.linspace(0.0, 1.0, 600)
+simulation_times = np.linspace(0.0, 1.0, 1000)
 
 positions = [simulation.positions()]
 times = [0.0]
@@ -44,12 +44,12 @@ for t in tqdm(simulation_times):
         continue
 
     simulation.step_to_time(t)
-
+    print(simulation.positions())
     positions.append(simulation.positions())
     times.append(t)
 
 positions = np.array(positions)
 times = np.array(times)
 
-np.save("truth/positions_short", positions)
-np.save("truth/timesteps_short", times)
+np.save("truth/positions", positions)
+np.save("truth/timesteps", times)
