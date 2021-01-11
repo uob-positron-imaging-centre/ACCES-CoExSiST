@@ -1,16 +1,20 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# File   : run_simulation.py
+# File   : optimise_oop.py
 # License: GNU v3.0
 # Author : Andrei Leonard Nicusan <a.l.nicusan@bham.ac.uk>
-# Date   : 03.09.2020
+# Date   : 09.11.2020
 
 
 import numpy as np
-from tqdm import tqdm
 
 import coexist
 
+
+exp_timesteps = np.load("truth/timesteps.npy")
+exp_positions = np.load("truth/positions.npy")
+
+experiment = coexist.Experiment(exp_timesteps, exp_positions, 0.0002)
 
 parameters = coexist.Parameters(
     variables = ["corPP", "corPW"],
@@ -24,32 +28,13 @@ parameters = coexist.Parameters(
             ${corPW} ${corPW2} ${corPW} \
             ${corPW2} ${corPW} ${corPW} "
     ],
-    values = [0.5, 0.5],
+    values = [0.6, 0.6],
     minimums = [0.05, 0.05],
     maximums = [0.95, 0.95],
 )
 
 simulation = coexist.LiggghtsSimulation("run.sim", parameters, verbose = False)
-print(simulation)
+print(simulation, "\n")
 
-# 60 FPS
-simulation_times = np.linspace(simulation.time(), 1.0, 600)
-
-positions = [simulation.positions()]
-times = [simulation.time()]
-
-for i, t in enumerate(tqdm(simulation_times)):
-    # Skip first timestep
-    if i == 0:
-        continue
-
-    simulation.step_to_time(t)
-
-    positions.append(simulation.positions())
-    times.append(t)
-
-positions = np.array(positions)
-times = np.array(times)
-
-np.save("truth/positions10", positions)
-np.save("truth/timesteps10", times)
+opt = coexist.Coexist(simulation, save_log = True)
+opt.learn(experiment, num_solutions = 10)

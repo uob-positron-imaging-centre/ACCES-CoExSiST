@@ -300,9 +300,6 @@ class Experiment:
             f"positions_all:\n{self.positions_all}"
         )
 
-        if self.kwargs:
-            docstr += f"\n\nkwargs:\n{self.kwargs}"
-
         return docstr
 
 
@@ -547,6 +544,8 @@ class LiggghtsSimulation(Simulation):
         # ignored, then the whole line is ignored
         self.ignore_keywords = [
             r"insert\/stream",
+            r"unfix",
+            r"reset_timestep",
         ]
 
         # A compiled Regex object for finding any of the above keywords as

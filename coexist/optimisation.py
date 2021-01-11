@@ -193,9 +193,9 @@ class Coexist:
         # Nice printing of optimisation parameters
         if verbose:
             print((
-                "    i |     xi     |   xi_acc   | checkpoints | "
+                "    i |    time    |     xi     |   xi_acc   | checkpoints | "
                 "  attached   | max_collisions \n"
-                "------+------------+------------+-------------+-"
+                "------+------------+------------+------------+-------------+-"
                 "-------------+----------------"
             ))
 
@@ -230,12 +230,12 @@ class Coexist:
             if verbose:
                 print((
                     f" {i:>4} | "
+                    f" {sim.time():5.3e} | "
                     f" {self.xi:5.3e} | "
                     f" {self.xi_acc:5.3e} | "
                     f" {(i - start_index):>10} | "
                     f" {self.attached.sum():>4} / {sim.num_atoms():>4} | "
                     f" {self.collisions.max():>10}"
-                    f"    {sim.time():5.5e}"
                 ))
 
             if self.optimisable():

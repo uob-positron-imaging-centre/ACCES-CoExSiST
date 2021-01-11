@@ -100,12 +100,14 @@ thermo_modify lost ignore norm no
 
 
 # Don't save simulation output - we'll do that manually in the Python code
-dump   dmp all custom/vtk 1000 post/vib_*.vtk id type type x y z ix iy iz vx vy vz radius
+# dump   dmp all custom/vtk 1000 post/vib_*.vtk id type type x y z ix iy iz vx vy vz radius
 
-run 100
+run 1000
+reset_timestep 0
 
 modify_timing on
 #restart 10000 restart/vib restart/vib
 fix move all move/mesh mesh cad        viblin axis 0. 0. 1 order 1 amplitude 0.004 phase 0 period 0.02
 fix move2 all move/mesh mesh front_back viblin axis 0. 0. 1 order 1 amplitude 0.004 phase 0 period 0.02
-unfix  ins
+unfix   ins
+unfix   inface
