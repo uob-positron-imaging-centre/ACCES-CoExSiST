@@ -890,10 +890,12 @@ class LiggghtsSimulation(Simulation):
 
 
     def radii(self):
-        # TODO Dominik - return radii of all particles in the system
-        # That is, a 1D numpy array with the radius for each particle
-        return np.ones(self.num_atoms()) * 0.0025
+        radii = self.simulation.gather_atoms("radius", 1, 1)
+        return np.array(list(radii)).reshape(self.num_atoms(), -1)
 
+    def set_density(self, particle_id, density):
+        cmd = (f"set atom {particle_id + 1} density {density}")
+        self.execute_command(cmd)
 
     def positions(self):
         # get particle positions
