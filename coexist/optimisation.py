@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# File   : optimisation.py
+# File   : access.py
 # License: GNU v3.0
 # Author : Andrei Leonard Nicusan <a.l.nicusan@bham.ac.uk>
 # Date   : 03.09.2020
@@ -15,11 +15,12 @@ from    datetime            import  datetime
 
 import  numpy               as      np
 import  pandas              as      pd
-import  sympy
 import  cma
 
 import  coexist
 from    coexist             import  Simulation, Experiment
+
+
 
 
 class Coexist:
@@ -64,8 +65,9 @@ class Coexist:
         self.attached = np.full(self.simulation.num_atoms(), True)
 
         # The minimum number of collisions detected in the experimental dataset
-        # based on the particle positions across multiple timesteps
-        self.collisions = np.zeros(self.simulation.num_atoms(), dtype = int)
+        # based on the particle positions across multiple timesteps.
+        # Have a counter at each timestep
+        self.collisions = None      # Set in `self.learn()`
 
         # A vector counting how many times an experimental time was used
         # for optimising DEM parameters. Will be initialised in `self.learn`
@@ -77,8 +79,9 @@ class Coexist:
         self.xi_acc = 0             # Multiple timesteps' (accumulated) error
 
         self.diverged = False
-        self.num_solutions = None   # Set in `self.learn()`
-        self.target_sigma = None    # Set in `self.learn()`
+        self.num_solutions = None       # Set in `self.learn()`
+        self.target_sigma = None        # Set in `self.learn()`
+        self.min_checkpoints = None     # Set in `self.learn()`
 
         # Capture what is printed to stderr by spanwed OS processes
         self._stderr = None
@@ -90,6 +93,7 @@ class Coexist:
         max_optimisations = 3,
         num_solutions = 8,
         target_sigma = 0.1,
+        min_checkpoints = 5,
         random_seed = None,
         verbose = True,
     ):
@@ -146,9 +150,15 @@ class Coexist:
 
         self.num_solutions = int(num_solutions)
         self.target_sigma = float(target_sigma)
+        self.min_checkpoints = int(min_checkpoints)
 
         self.rng = np.random.default_rng(random_seed)
         self.verbose = bool(verbose)
+
+        self.collisions =  np.zeros(
+            (len(self.experiment.times), self.simulation.num_atoms()),
+            dtype = int,
+        )
 
         self.optimised_times = np.zeros(
             len(self.experiment.times),
@@ -235,13 +245,18 @@ class Coexist:
                     f" {self.xi_acc:5.3e} | "
                     f" {(i - start_index):>10} | "
                     f" {self.attached.sum():>4} / {sim.num_atoms():>4} | "
-                    f" {self.collisions.max():>10}"
+                    f" {self.collisions[i].max():>10}"
                 ))
 
-            if self.optimisable():
+            if self.optimisable(i, start_index):
                 # Load previous checkpoint's simulation
+                parameters_save = self.simulation.parameters
+
                 self.simulation = self.simulation.load("coexist_info/main")
                 sim = self.simulation
+
+                sim.parameters["value"] = parameters_save["value"]
+                sim.parameters["sigma"] = parameters_save["sigma"]
 
                 # Optimise against experimental positions from
                 # start_index:end_index (excluding end_index)
@@ -254,7 +269,7 @@ class Coexist:
 
                 # After optimisation, reset `collisions`, increment
                 # `optimised_times` and reset the `diverged` flag
-                self.collisions[:] = 0
+                self.collisions[i:, :] = 0
                 self.optimised_times[start_index:end_index] += 1
                 self.diverged = False
 
@@ -328,12 +343,10 @@ class Coexist:
         distances = np.linalg.norm(sim_positions - exp_positions, axis = 1)
         self.diverged = (distances > self.experiment.resolution).any()
 
-        self.diverged = (self.xi > 1.6e-05)
-
         return self.diverged
 
 
-    def optimisable(self):
+    def optimisable(self, time_index, save_index):
         '''Check whether the simulation is in the optimum state to learn the
         DEM parameters.
 
@@ -343,6 +356,20 @@ class Coexist:
            least four times.
         2. The accumulated error (`xi_acc`) is larger than the sum of particle
            radii.
+        3. More than `min_checkpoints` checkpoints were saved.
+
+        Because the collisions are checked three timesteps in advance, only
+        start optimising three timesteps after the conditions above are true.
+
+        Parameters
+        ----------
+        time_index: int
+            The time index in `self.experiment.times` for which to check
+            whether the simulation is optimisable.
+
+        save_index: int
+            The time index for the last saved simulation state (one before the
+            first checkpoint).
 
         Returns
         -------
@@ -350,13 +377,23 @@ class Coexist:
             True if simulation is optimisable, False otherwise.
         '''
 
+        # Check input `time_index` is valid
+        time_index = int(time_index)
+        if time_index >= len(self.experiment.times) or time_index < 0:
+            raise ValueError(textwrap.fill((
+                "The `time_index` input parameter must be between 0 and "
+                f"`len(experiment.times)` = {len(self.experiment.times)}. "
+                f"Received {time_index}."
+            )))
+
         # Aliases
-        col = self.collisions
+        col = self.collisions[time_index]
 
         # If all particles collided twice or any particle collided four times
         collided = ((col >= 2).all() or (col >= 6).any())
 
-        return (collided and self.diverged)
+        return (self.diverged and collided and
+                time_index - save_index >= self.min_checkpoints)
 
 
     def try_detach(self, time_index):
@@ -440,7 +477,11 @@ class Coexist:
             # If the positional error is large, at least a collision has
             # ocurred in the timesteps we looked at. We only care about
             # collisions for the detached particles.
-            self.collisions[(error >= resolution) & (~self.attached)] += 1
+            self.collisions[time_index + 3] = self.collisions[time_index + 2]
+            self.collisions[
+                time_index + 3,
+                (error >= resolution) & (~self.attached),
+            ] += 1
 
 
     @staticmethod
@@ -450,7 +491,7 @@ class Coexist:
         t2, p2,
         t3,
         g = 9.81,
-        rho_p = 2500,
+        rho_p = 1000,
         rho_f = 1.225,
     ):
 
@@ -486,6 +527,7 @@ class Coexist:
             return t - t0
 
         # The LHS of the system of 2 equations to solve *for a single particle*
+        # to get the acceleration (ad) and initial velocity (u0)
         lhs_eq = np.array([
             [A(t1), B(t1)],
             [A(t2), B(t2)],
@@ -513,7 +555,8 @@ class Coexist:
         # Now sub back into equation to find x, y, z at t3
         x3 = p0[:, 0] + adx_ux0[:, 0] * A(t3) + adx_ux0[:, 1] * B(t3)
         y3 = p0[:, 1] + ady_uy0[:, 0] * A(t3) + ady_uy0[:, 1] * B(t3)
-        z3 = p0[:, 2] + adz_uz0[:, 0] * A(t3) + adz_uz0[:, 1] * B(t3)
+        z3 = p0[:, 2] + adz_uz0[:, 0] * A(t3) + adz_uz0[:, 1] * B(t3) + \
+            g * (1 - rho_f / rho_p) * A(t3)
 
         p3 = np.vstack((x3, y3, z3)).T
         u0 = np.vstack((adx_ux0[:, 1], ady_uy0[:, 1], adz_uz0[:, 1])).T
@@ -594,7 +637,10 @@ class Coexist:
         '''
 
         if verbose:
-            print("\nStarting optimisation of simulation:")
+            print((
+                "\nStarting optimisation of simulation between timestep "
+                f"indices {start_index}:{end_index}."
+            ))
             print(self.simulation, "\n")
 
         # If logging is on, create a new entry for this optimisation as a dict
@@ -603,7 +649,11 @@ class Coexist:
                 dict(
                     start_index = start_index,
                     end_index = end_index,
+                    num_solutions = self.num_solutions,
+                    scaling = None,
                     solutions = [],
+                    standard_deviations = [],
+                    standard_deviation = [],
                     results = [],
                     best_solution = None,
                     best_result = None,
@@ -633,6 +683,9 @@ class Coexist:
 
         # Scale sigma, bounds, solutions, results to unit variance
         scaling = sim.parameters["sigma"].to_numpy()
+
+        if self.save_log:
+            self.log[-1]["scaling"] = scaling
 
         # First guess, scaled
         x0 = sim.parameters["value"].to_numpy() / scaling
@@ -693,6 +746,11 @@ class Coexist:
             # If logging is on, save the solutions tried and their results
             if self.save_log:
                 self.log[-1]["solutions"].extend(solutions * scaling)
+                self.log[-1]["standard_deviation"].extend([es.sigma])
+                self.log[-1]["standard_deviations"].extend(
+                    es.result.stds * scaling
+                )
+
                 self.log[-1]["results"].extend(results)
 
                 with open("coexist_info/optimisation_log.pickle", "wb") as f:
@@ -715,7 +773,7 @@ class Coexist:
 
         if verbose:
             print((
-                f"Best results for solutions: {solutions}\n"
+                f"Best results for solutions:\n{solutions}\n\n"
                 f"Scaled individual standard deviations:\n{es.result.stds}\n"
             ))
 
@@ -728,8 +786,7 @@ class Coexist:
         self.xi_acc = self.calc_xi_acc(sim, exp, start_index, end_index)
 
         if verbose:
-            print((f"Accumulated error (xi_acc) for solution: "
-                   f"{self.xi_acc}\n---"))
+            print(f"Accumulated error (xi_acc) for solution: {self.xi_acc}")
 
         if self.save_log:
             self.log[-1]["best_solution"] = solutions
@@ -737,6 +794,13 @@ class Coexist:
 
             with open("coexist_info/optimisation_log.pickle", "wb") as f:
                 pickle.dump(self.log, f)
+
+            if verbose:
+                print((
+                    "Saved optimisation log as a pickled list of `dict`s in "
+                    "coexist_info/optimisation_log.pickle.\n"
+                    "---\n"
+                ))
 
 
     @staticmethod
@@ -828,7 +892,7 @@ class Coexist:
                     print((
                         "An error ocurred while running a simulation "
                         "asynchronously:\n"
-                        f"{stderr}\n\n"
+                        f"{stderr.decode('utf-8')}\n\n"
                     ))
 
                 results[i] = float(stdout)
@@ -840,9 +904,6 @@ class Coexist:
             sys.exit(130)
 
         return results
-
-
-
 
 
 
@@ -922,7 +983,7 @@ class Access:
         # The random hash that represents this optimisation run. If a random
         # seed was specified, this will make the simulation and optimisations
         # fully deterministic (i.e. repeatable)
-        rand_hash = str(round(rng.random() * 1e8))
+        rand_hash = str(round(abs(rng.random() * 1e8)))
 
         # Save the current simulation state in a `restarts` folder
         if not os.path.isdir(f"access_info_{rand_hash}"):
@@ -932,6 +993,8 @@ class Access:
         if not os.path.isdir(f"access_info_{rand_hash}/positions"):
             os.mkdir(f"access_info_{rand_hash}/positions")
 
+        # Serialize the simulation's concrete class so that it can be
+        # reconstructed even if it is a `coexist.Simulation` subclass
         with open(f"access_info_{rand_hash}/simulation_class.pickle",
                   "wb") as f:
             pickle.dump(sim.__class__, f)
@@ -1217,175 +1280,3 @@ class Access:
         results = np.array([self.error(pos) for pos in positions_all])
 
         return results
-
-
-
-
-
-
-
-def ballistic():
-    '''Derive the analytical expression of a single particle's trajectory
-    when only gravity, buoyancy and drag act on it.
-
-    For the z-dimension, its solution is implicit and computationally expensive
-    to find - you can copy and run this code with `uzt = ...` commented out.
-    '''
-
-    from sympy import Symbol, Function, Eq
-
-    # Nice printing to terminal
-    sympy.init_printing()
-
-    # Define symbols and functions used in integration
-    t = Symbol("t")
-    t0 = Symbol("t0")
-
-    ux = Function('ux')
-    ux0 = Symbol("ux0")
-    dux_dt = ux(t).diff(t)
-
-    uy = Function('uy')
-    uy0 = Symbol("uy0")
-    duy_dt = uy(t).diff(t)
-
-    uz = Function('uz')
-    uz0 = Symbol("uz0")
-    duz_dt = uz(t).diff(t)
-
-    cd = Symbol("cd")           # Drag coefficient
-    d = Symbol("d")             # Particle diameter
-    g = Symbol("g")             # Gravitational acceleration
-    rho_p = Symbol("rho_p")     # Particle density
-    rho_f = Symbol("rho_f")     # Fluid density
-
-    # Define expressions to integrate for velocities in each dimension
-    # Eq: d(ux) / dt = expr...
-    ux_eq = Eq(dux_dt, -3 / (4 * d) * cd * ux(t) ** 2)
-    uy_eq = Eq(duy_dt, -3 / (4 * d) * cd * uy(t) ** 2)
-    uz_eq = Eq(duz_dt, -3 / (4 * d) * cd * uz(t) ** 2 - g + rho_f * g / rho_p)
-
-    uxt = sympy.dsolve(
-        ux_eq,
-        ics = {ux(t0): ux0},
-    )
-
-    uyt = sympy.dsolve(
-        uy_eq,
-        ics = {uy(t0): uy0},
-    )
-
-    # This takes a few minutes and returns a nasty implicit solution!
-    uzt = sympy.dsolve(
-        uz_eq,
-        ics = {uz(t0): uz0},
-    )
-
-    return uxt, uyt, uzt
-
-
-
-
-def ballistic_approx():
-    '''Derive the analytical expression of a single particle's trajectory
-    when only gravity, buoyancy and *constant drag* act on it.
-
-    For small changes in velocity, the drag is effectively constant,
-    simplifying the solution tremendously. Given three points, it would be
-    possible to infer the value of drag.
-    '''
-
-    from sympy import Symbol, Function, Eq
-
-    # Nice printing to terminal
-    sympy.init_printing()
-
-    # Define symbols and functions used in integration
-    t = Symbol("t")
-    t0 = Symbol("t_0")
-
-    ux = Function('u_x')
-    ux0 = Symbol("u_x0")
-    dux_dt = ux(t).diff(t)
-
-    uy = Function('u_y')
-    uy0 = Symbol("u_y0")
-    duy_dt = uy(t).diff(t)
-
-    uz = Function('u_z')
-    uz0 = Symbol("u_z0")
-    duz_dt = uz(t).diff(t)
-
-    adx = Symbol("a_dx")        # Acceleration due to drag in the x-direction
-    ady = Symbol("a_dy")        # Acceleration due to drag in the y-direction
-    adz = Symbol("a_dz")        # Acceleration due to drag in the z-direction
-
-    g = Symbol("g")             # Gravitational acceleration
-    rho_p = Symbol("rho_p")     # Particle density
-    rho_f = Symbol("rho_f")     # Fluid density
-
-    # Define expressions to integrate for velocities in each dimension
-    # Eq: d(ux) / dt = expr...
-    ux_eq = Eq(dux_dt, -adx)        # Some constant acceleration due to drag
-    uy_eq = Eq(duy_dt, -ady)
-    uz_eq = Eq(duz_dt, -adz - g + rho_f * g / rho_p)
-
-    # Solve equations of motion to find analytical expressions for velocities
-    # in each dimension as functions of time
-    uxt = sympy.dsolve(
-        ux_eq,
-        ics = {ux(t0): ux0},
-    )
-
-    uyt = sympy.dsolve(
-        uy_eq,
-        ics = {uy(t0): uy0},
-    )
-
-    uzt = sympy.dsolve(
-        uz_eq,
-        ics = {uz(t0): uz0},
-    )
-
-    # Use expressions for velocities to derive positions as functions of time
-    x = Function("x")
-    x0 = Symbol("x_0")
-    dx_dt = x(t).diff(t)
-
-    y = Function("y")
-    y0 = Symbol("y_0")
-    dy_dt = y(t).diff(t)
-
-    z = Function("z")
-    z0 = Symbol("z_0")
-    dz_dt = z(t).diff(t)
-
-    # Define expressions to integrate for positions in each dimension
-    # Eq: d(x) / dt = expr...
-    x_eq = Eq(dx_dt, uxt.rhs)
-    y_eq = Eq(dy_dt, uyt.rhs)
-    z_eq = Eq(dz_dt, uzt.rhs)
-
-    # Solve to find particle positions wrt. time
-    xt = sympy.dsolve(
-        x_eq,
-        ics = {x(t0): x0},
-    )
-
-    yt = sympy.dsolve(
-        y_eq,
-        ics = {y(t0): y0},
-    )
-
-    zt = sympy.dsolve(
-        z_eq,
-        ics = {z(t0): z0},
-    )
-
-    return xt, yt, zt
-
-
-
-
-if __name__ == "__main__":
-    pass

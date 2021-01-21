@@ -9,13 +9,119 @@
 import  re
 import  os
 import  pickle
+import  pathlib
 import  textwrap
 from    abc         import  ABC, abstractmethod
 
 import  numpy       as      np
 import  pandas      as      pd
 
-from    liggghts    import liggghts
+from    tqdm        import  tqdm
+from    pyevtk.hl   import  pointsToVTK
+
+from    liggghts    import  liggghts
+
+
+
+
+def to_vtk(
+    dirname,
+    positions,
+    times = None,
+    velocities = None,
+    radii = None,
+    verbose = True,
+):
+    # Type-checking inputs
+    positions = np.asarray(positions)
+    if positions.ndim != 3 or positions.shape[2] < 3:
+        raise ValueError(textwrap.fill((
+            "The input `positions` must be a list of the simulated particles' "
+            "locations - that is, a 3D array-like with axes (T, P, C), "
+            "where T is the number of timesteps, P is the number of particles"
+            ", and C are the (x, y, z) coordinates. Received an array with "
+            f"shape `{positions.shape}`."
+        )))
+
+    if times is not None:
+        times = np.asarray(times, order = "C")
+        if times.ndim != 1 or len(times) != len(positions):
+            raise ValueError(textwrap.fill((
+                "The input `times` must be a 1D list of the times at which "
+                "the particle locations were recorded. It should have the "
+                "same length as the input `positions` array (= "
+                f"{len(positions)}). Received an array with shape "
+                f"`{times.shape}`."
+            )))
+
+    if velocities is not None:
+        velocities = np.asarray(velocities)
+        if velocities.ndim != 3 or velocities.shape[2] < 3 or \
+                len(velocities) != len(positions):
+            raise ValueError(textwrap.fill((
+                "The input `velocities` must be a list of the simulated "
+                "particles' dimension-wise velocities - that is, a 3D "
+                "array-like with axes (T, P, V), where T is the number of "
+                "timesteps (same as for the input `positions`), P is the "
+                "number of particles, and V are the (v_x, v_y, v_z) "
+                f"velocities. Received an array with shape "
+                f"`{velocities.shape}`."
+            )))
+
+    if radii is not None:
+        if hasattr(radii, "__iter__"):
+            radii = np.asarray(radii)
+        else:
+            radii = np.ones(positions.shape[1]) * radii
+
+        if radii.ndim != 1 or len(radii) != positions.shape[1]:
+            raise ValueError(textwrap.fill((
+                "The input `radii` must either be a single value for all the "
+                "simulated particles, or a list of radii for each particle. "
+                "In the latter case, it should have the same length as axis "
+                f"1 of the input `positions` (= {positions.shape[1]}). "
+                f"Received an array with shape {radii.shape}."
+            )))
+
+    # Create folder to save VTK files
+    if not os.path.isdir(dirname):
+        # Create folder recursively if folder is nested
+        pathlib.Path(dirname).mkdir(parents = True, exist_ok = True)
+
+    # Compute absolute velocities
+    velocities_abs = np.linalg.norm(velocities, axis = 2)
+
+    # Save each timestep in a file
+    if verbose:
+        positions = tqdm(positions)
+
+    for i, pos in enumerate(positions):
+        properties = dict()
+
+        if times is not None:
+            properties["time"] = np.ones(len(pos)) * times[i]
+
+        if velocities is not None:
+            vel = velocities
+            properties["velocity"] = velocities_abs[i]
+            properties["velocity_x"] = np.ascontiguousarray(vel[i][:, 0]),
+            properties["velocity_y"] = np.ascontiguousarray(vel[i][:, 1]),
+            properties["velocity_z"] = np.ascontiguousarray(vel[i][:, 2]),
+
+        if radii is not None:
+            properties["radius"] = radii
+
+        pointsToVTK(
+            os.path.join(dirname, f"locations_{i}"),
+            np.ascontiguousarray(pos[:, 0]),
+            np.ascontiguousarray(pos[:, 1]),
+            np.ascontiguousarray(pos[:, 2]),
+            data = properties,
+        )
+
+
+
+
 
 
 
@@ -483,6 +589,7 @@ class LiggghtsSimulation(Simulation):
         self,
         sim_name,
         parameters = Parameters(),
+        save_vtk = None,
         verbose = False,
     ):
         '''`Simulation` class constructor.
@@ -502,6 +609,12 @@ class LiggghtsSimulation(Simulation):
             The LIGGGHTS simulation parameters that will be dynamically
             modified, encapsulated in a `Parameters` class instance. Check its
             documentation for further information and example instantiation.
+
+        save_vtk: str, optional
+            If defined, save particle data (positions, velocity, etc.) as VTK
+            files for each timestep. This parameter should be the *directory
+            name* for saving files in the format
+            `{save_vtk}/locations_{timestep_index}.vtk`.
 
         verbose: bool, default `True`
             Show LIGGGHTS output while simulation is running.
@@ -602,6 +715,30 @@ class LiggghtsSimulation(Simulation):
         for idx in self._parameters.index:
             self[idx] = self._parameters.loc[idx, "value"]
 
+        if save_vtk is not None:
+            self._save_vtk = str(save_vtk)
+
+            # If there's a previous simulation saved in the folder, delete it
+            if os.path.isdir(self._save_vtk):
+                vtk_finder = re.compile(r"locations_.*\.vtu")
+
+                for file in os.listdir(self._save_vtk):
+                    if vtk_finder.search(file):
+                        os.remove(os.path.join(self._save_vtk, file))
+            else:
+                # Create folder recursively if folder is nested
+                pathlib.Path(self._save_vtk).mkdir(
+                    parents = True,
+                    exist_ok = True,
+                )
+
+
+
+            self.write_vtk()
+
+        else:
+            self._save_vtk = None
+
 
     def create_properties(self, sim_name):
         with open(sim_name) as f:
@@ -664,6 +801,19 @@ class LiggghtsSimulation(Simulation):
     @verbose.setter
     def verbose(self, verbose):
         self._verbose = bool(verbose)
+
+
+    @property
+    def save_vtk(self):
+        return self._save_vtk
+
+
+    @save_vtk.setter
+    def save_vtk(self, save_vtk):
+        if save_vtk is not None:
+            self._save_vtk = str(save_vtk)
+        else:
+            self._save_vtk = None
 
 
     def save(self, filename = None):
@@ -797,6 +947,9 @@ class LiggghtsSimulation(Simulation):
         else:
             self.execute_command(f"run {num_steps} post no")
 
+        if self.save_vtk:
+            self.write_vtk()
+
 
     def step_to(self, timestamp):
         # run simulation up to timestep = `timestamp`
@@ -811,6 +964,9 @@ class LiggghtsSimulation(Simulation):
         else:
             self.execute_command(f"run {timestamp} upto post no")
 
+        if self.save_vtk:
+            self.write_vtk()
+
 
     def step_time(self, time):
         # find timestep which can run exectly to time
@@ -820,8 +976,22 @@ class LiggghtsSimulation(Simulation):
 
         old_dt = self.step_size
         self.step_size = new_dt
-        self.step(steps)
+
+        # Only save to VTK once (if defined), even though we're calling `step`
+        # twice
+        if self.save_vtk:
+            old_save_vtk = self._save_vtk
+            self._save_vtk = None
+
+            self.step(steps)
+            self._save_vtk = old_save_vtk
+        else:
+            self.step(steps)
+
         self.step_size = old_dt
+
+        if self.save_vtk:
+            self.write_vtk()
 
 
     def step_to_time(self, time):
@@ -836,17 +1006,30 @@ class LiggghtsSimulation(Simulation):
 
         n_steps = (time - self.time() - rest_time) / self.step_size
 
-        self.step(n_steps)
-        if rest_time != 0.0:
-            # Now run 1 single timestep with a smaller timestep
-            old_dt = self.step_size
+        def remainder_stepping():
+            self.step(n_steps)
+            if rest_time != 0.0:
+                # Now run 1 single timestep with a smaller timestep
+                old_dt = self.step_size
 
-            # set step size to the rest time
-            self.step_size = rest_time
-            self.step(1)
+                # set step size to the rest time
+                self.step_size = rest_time
+                self.step(1)
 
-            # reset to normal dt
-            self.step_size = old_dt
+                # reset to normal dt
+                self.step_size = old_dt
+
+        if self.save_vtk:
+            old_save_vtk = self._save_vtk
+            self._save_vtk = None
+
+            remainder_stepping()
+            self._save_vtk = old_save_vtk
+        else:
+            remainder_stepping()
+
+        if self.save_vtk:
+            self.write_vtk()
 
 
     def reset_time(self):
@@ -901,6 +1084,61 @@ class LiggghtsSimulation(Simulation):
         os.remove(f"{filename}_properties.sim")
 
         return new_sim
+
+
+    def write_vtk(self, dirname = None):
+        if dirname is None and self.save_vtk is None:
+            raise ValueError(textwrap.fill((
+                "The input `dirname` was not set, in which case the value of "
+                "`save_vtk` should be used. However, the attribute `save_vtk` "
+                "was not set when instantiating this class. Set either the "
+                "`dirname` input parameter or `save_vtk` class attribute."
+            )))
+
+        if dirname is not None:
+            dirname = str(dirname)
+        else:
+            dirname = self.save_vtk
+
+        # Find the current maximum VTK file index
+        vtk_files = os.listdir(dirname)
+
+        if len(vtk_files):
+            index_splitter = re.compile(r"locations_|\.vtu")
+
+            vtk_indices = []
+
+            for f in vtk_files:
+                vtk_split = index_splitter.split(f)
+
+                if len(vtk_split) == 3:
+                    vtk_indices.append(int(vtk_split[1]))
+
+            if len(vtk_indices):
+                vtk_index = np.array(vtk_indices).max()
+            else:
+                vtk_index = 0
+
+        else:
+            vtk_index = 0
+
+        positions = np.asarray(self.positions(), order = "F")
+        velocities = np.asarray(self.velocities(), order = "F")
+
+        pointsToVTK(
+            f"{dirname}/locations_{vtk_index + 1}",
+            positions[:, 0],
+            positions[:, 1],
+            positions[:, 2],
+            data = dict(
+                time = np.full(len(positions), self.time()),
+                radius = self.radii(),
+                velocity = np.linalg.norm(velocities, axis = 1),
+                velocity_x = velocities[:, 0],
+                velocity_y = velocities[:, 1],
+                velocity_z = velocities[:, 2],
+            )
+        )
 
 
     def __setitem__(self, key, value):

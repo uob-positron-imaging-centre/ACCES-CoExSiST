@@ -12,6 +12,7 @@ from tqdm import tqdm
 import coexist
 
 
+# Define the user-changeable / free simulation parameters
 parameters = coexist.Parameters(
     variables = ["corPP", "corPW"],
     commands = [
@@ -22,19 +23,24 @@ parameters = coexist.Parameters(
         "fix  m3 all property/global coefficientRestitution peratomtypepair 3 \
             ${corPP} ${corPW} ${corPW2} \
             ${corPW} ${corPW2} ${corPW} \
-            ${corPW2} ${corPW} ${corPW} "
+            ${corPW2} ${corPW} ${corPW} ",
     ],
     values = [0.5, 0.5],
     minimums = [0.05, 0.05],
     maximums = [0.95, 0.95],
 )
 
-simulation = coexist.LiggghtsSimulation("run.sim", parameters, verbose = False)
+simulation = coexist.LiggghtsSimulation("vibrofluidised.sim", parameters)
 print(simulation)
 
-# 60 FPS
-simulation_times = np.linspace(simulation.time(), 1.0, 600)
+# Save particle locations at a 120 Hz sampling rate up to t = 1.0 s
+start_time = simulation.time()
+end_time = 1.0
+sampling_rate = 1 / 120
 
+simulation_times = np.arange(start_time, end_time, sampling_rate)
+
+# Save initial particle locations
 positions = [simulation.positions()]
 times = [simulation.time()]
 
@@ -48,8 +54,9 @@ for i, t in enumerate(tqdm(simulation_times)):
     positions.append(simulation.positions())
     times.append(t)
 
+# Save the particle locations as numpy arrays in binary format
 positions = np.array(positions)
 times = np.array(times)
 
-np.save("truth/positions10", positions)
-np.save("truth/timesteps10", times)
+np.save("truth/positions", positions)
+np.save("truth/timesteps", times)
