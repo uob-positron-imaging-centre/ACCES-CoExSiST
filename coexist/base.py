@@ -89,7 +89,8 @@ def to_vtk(
         pathlib.Path(dirname).mkdir(parents = True, exist_ok = True)
 
     # Compute absolute velocities
-    velocities_abs = np.linalg.norm(velocities, axis = 2)
+    if velocities is not None:
+        velocities_abs = np.linalg.norm(velocities, axis = 2)
 
     # Save each timestep in a file
     if verbose:
