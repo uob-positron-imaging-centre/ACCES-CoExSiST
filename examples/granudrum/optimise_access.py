@@ -245,7 +245,7 @@ parameters = coexist.Parameters(
 )
 
 print("Loading simulation...", flush = True)
-simulation = coexist.Simulation("granudrum.sim", parameters)
+simulation = coexist.LiggghtsSimulation("granudrum.sim", parameters)
 print(simulation, flush = True)
 
 # Simulate GD for 3 rotations (it usually reaches steady state within one
@@ -256,7 +256,7 @@ num_rotations = 3
 start_time = (num_rotations - 1) * 60 / rpm
 end_time = num_rotations * 60 / rpm
 
-
+# Use ACCESS to learn the simulation parameters
 access = coexist.Access(simulation)
 
 positions = access.learn(
