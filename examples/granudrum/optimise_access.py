@@ -255,7 +255,7 @@ print(simulation, flush = True)
 
 # Simulate GD for 3 rotations (it usually reaches steady state within one
 # rotation) and use the last one for computing the surface
-rpm = 45
+rpm = 30
 num_rotations = 3
 
 start_time = (num_rotations - 1) * 60 / rpm
