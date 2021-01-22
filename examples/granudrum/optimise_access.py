@@ -245,12 +245,7 @@ parameters = coexist.Parameters(
 )
 
 print("Loading simulation...", flush = True)
-simulation = coexist.Simulation(
-    "run.sim",
-    parameters,
-    verbose = False
-)
-
+simulation = coexist.Simulation("granudrum.sim", parameters)
 print(simulation, flush = True)
 
 # Simulate GD for 3 rotations (it usually reaches steady state within one
