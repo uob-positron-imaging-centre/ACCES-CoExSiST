@@ -162,10 +162,10 @@ def plot_polynom( surface_poly, surface = None, fig=None, plot = True):
 
 if __name__ == "__main__":
     n = particlenumber_from_image(
-        image = "400_mu.bmp",
+        image = "mcc-30rpm.jpg",
         radius_drum= 42e-3,
         depth_drum = 20.1e-3,
-        radius_particle = 1.6e-3,
+        radius_particle = 1.2e-3 / 2,
         particle_fraction = 0.3
     )
     print("Number of particles required = ", n)

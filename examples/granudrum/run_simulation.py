@@ -14,28 +14,46 @@ import coexist
 
 # Define the user-changeable / free simulation parameters
 parameters = coexist.Parameters(
-    variables = ["fricPP", "corPP"],
-    commands = [
-        "fix  m4 all property/global coefficientFriction peratomtypepair 3 \
-            ${fricPP}   ${fricPW}   ${fricPSW}  \
-            ${fricPW}   ${fric}     ${fric}     \
-            ${fricPSW}  ${fric}     ${fric}     ",
-        "fix  m3 all property/global coefficientRestitution peratomtypepair 3 \
-            ${corPP} ${corPP} ${corPP} \
-            ${corPP} ${corPP} ${corPP} \
-            ${corPP} ${corPP} ${corPP} ",
+    variables = [
+        "dens", "youngmodP", "cohPP", "corPP", "corPW", "fricPP", "fricPW"
     ],
-    values = [0.2, 0.7],
-    minimums = [0.05, 0.05],
-    maximums = [0.95, 0.95],
+    commands = [
+        "set type 1 density ${dens}",
+        "fix  m1 all property/global youngsModulus peratomtype \
+            ${youngmodP}    ${youngmodP}    ${youngmodP}",
+        "fix  m6 all property/global cohesionEnergyDensity peratomtypepair 3 \
+            ${cohPP}        ${cohPW}        ${cohPSW}   \
+            ${cohPW}        ${coh}          ${coh}      \
+            ${cohPSW}       ${coh}          ${coh}      ",
+        "fix  m3 all property/global coefficientRestitution peratomtypepair 3 \
+            ${corPP}        ${corPW}        ${corPSW}   \
+            ${corPW}        ${cor}          ${cor}      \
+            ${corPSW}       ${cor}          ${cor}      ",
+        "fix  m3 all property/global coefficientRestitution peratomtypepair 3 \
+            ${corPP}        ${corPW}        ${corPSW}   \
+            ${corPW}        ${cor}          ${cor}      \
+            ${corPSW}       ${cor}          ${cor}      ",
+        "fix  m4 all property/global coefficientFriction peratomtypepair 3 \
+            ${fricPP}       ${fricPW}       ${fricPSW}  \
+            ${fricPW}       ${fric}         ${fric}     \
+            ${fricPSW}      ${fric}         ${fric}     ",
+        "fix  m4 all property/global coefficientFriction peratomtypepair 3 \
+            ${fricPP}       ${fricPW}       ${fricPSW}  \
+            ${fricPW}       ${fric}         ${fric}     \
+            ${fricPSW}      ${fric}         ${fric}     ",
+    ],
+    values =    [1580.0,   9.2e6, 0,   0.61, 0.61, 0.42, 0.42],
+    minimums =  [100.0,    5e6,   0,   0.05, 0.05, 0.05, 0.05],
+    maximums =  [10_000.0, 1e9,   1e5, 0.95, 0.95, 0.95, 0.95],
 )
 
+print("Loading simulation...")
 simulation = coexist.LiggghtsSimulation("granudrum.sim", parameters)
-print(simulation)
+print(simulation, flush = True)
 
 # Drum speed, used to calculate the time needed for a given number of rotations
-rpm = 45
-num_rotations = 4
+rpm = 30
+num_rotations = 3
 
 # Save particle locations at a 120 Hz sampling rate after the system reached
 # steady state, from t = 1.0 s

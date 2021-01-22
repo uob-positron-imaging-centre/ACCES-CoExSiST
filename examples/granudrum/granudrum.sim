@@ -2,8 +2,8 @@
 
 # Simulation constants
 variable timestep       equal 1e-5
-variable rotationPeriod equal 60/45 	# s per revolution
-variable N              equal 1922		# number of particles
+variable rotationPeriod equal 60/30 	# s per revolution
+variable N              equal 35157		# number of particles
 
 
 variable youngmodP  equal 9.2e6         # Vary
@@ -25,11 +25,11 @@ variable cohPSW     equal 0
 variable coh        equal 0
 
 variable fricRoll   equal 0.45		    # Rolling friction
-variable dens       equal 2800.0
+variable dens       equal 1400.0
 
 
 # Particles' radius
-variable r1         equal 0.0015
+variable r1         equal 0.0006
 
 
 # Setting up system

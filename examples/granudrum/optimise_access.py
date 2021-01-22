@@ -13,76 +13,179 @@ from scipy.integrate import quad
 
 import cv2
 
-import pept
 import pept.processing as pp
-
 import coexist
 
 
-def extract_surface(occupancy):
-    '''Extract the surface from a 2D occupancy plot (which is given as cells)
-    and return a fitted 3rd order polynomial with the zeroth order coefficient
-    set to 0.
+class GranuDrum:
+    '''Class encapsulating a GranuTools GranuDrum system dimensions.
 
-    Parameters
+    The GranuDrum is assumed to be centred at (0, 0).
+
+    Attributes
     ----------
-    occupancy: pept.Pixels
-        Input occupancy plot.
+    xlim : (2,) numpy.ndarray
+        The system limits in the x-dimension (i.e. horizontally).
 
-    Returns
-    -------
-    xpos
-        X coordinates of the surface.
+    ylim : (2,) numpy.ndarray
+        The system limits in the y-dimension (i.e. vertically).
 
-    ypos
-        Y coordinates of the surface.
-
-    numpy.polynomial.Polynomial
-        The fitted 3rd order Polynomial.
+    radius : float
+        The GranuDrum's radius, typically 42 mm.
 
     '''
 
-    # Aliases
-    img = occupancy
+    def __init__(
+        self,
+        xlim = [-0.042, +0.042],
+        ylim = [-0.042, +0.042],
+        radius = None,
+    ):
+        self.xlim = np.array(xlim)
+        self.ylim = np.array(ylim)
 
-    # Threshold against 10% of largest value
-    maxval = float(img.max())
-    img[img < maxval * 0.1] = 0.
-
-    # Loop over occupancy and extract highest value in height (along columns)
-    # Find indices of last nonzero elements
-    ypos = np.zeros(img.shape[1])
-
-    for i, row in enumerate(img):
-        nz = row.nonzero()[0]
-        ypos[i] = nz[-1] if len(nz) else np.nan
-
-    # Multiply them by the cell length to get x and y points
-    xpos = img.xlim[0] + img.pixel_size[0] * (0.5 + np.arange(img.shape[0]))
-    ypos = img.ylim[0] + img.pixel_size[1] * (0.5 + ypos)
-
-    # Take the highest point on the occupancy and clip its sides
-    max_idx = np.nanargmax(ypos)
-
-    xpos_clip = xpos[max_idx:-max_idx]
-    ypos_clip = ypos[max_idx:-max_idx]
-
-    # Fit a 3rd order polynomial to the clipped occupancy
-    occupancy_polynomial = Polynomial.fit(xpos_clip, ypos_clip, 3)
-
-    return xpos, ypos, occupancy_polynomial
+        if radius is None:
+            self.radius = xlim[1]
+        else:
+            self.radius = float(radius)
 
 
-def error(positions):
-    '''Error function for granular drum, quantifying the difference between an
-    experimental free surface shape (from an image) and a simulated one (from
-    an occupancy grid).
+def encode_u8(image):
+    '''Convert occupancy from doubles to uint8 - i.e. encode real values to
+    the [0-255] range.
+    '''
+
+    u8min = np.iinfo(np.uint8).min
+    u8max = np.iinfo(np.uint8).max
+
+    img_min = float(image.min())
+    img_max = float(image.max())
+
+    img_bw = (image - img_min) / (img_max - img_min) * (u8max - u8min) + u8min
+    img_bw = np.array(img_bw, dtype = np.uint8)
+
+    return img_bw
+
+
+def surface_image(image_path, granudrum):
+    '''Extract the free surface from a granular drum's image and return a
+    fitted 3rd order polynomial.
+    '''
+
+    # Read in image and run the Canny edge detection algorithm
+    img = 255 - cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)[::-1]
+    img_edges = cv2.Canny(img, 200, 400)
+
+    # Extract edges as [x, y] point pairs
+    img_edges = np.argwhere(img_edges)
+    img_edges = img_edges[:, [1, 0]]
+
+    # Physical dimension of each pixel
+    xlim = granudrum.xlim
+    ylim = granudrum.ylim
+    radius = granudrum.radius
+
+    dx = (xlim[1] - xlim[0]) / img.shape[0]
+    dy = (ylim[1] - ylim[0]) / img.shape[1]
+
+    # Transform edges from pixels to physical dimensions
+    img_edges = img_edges * [dx, dy]
+    img_edges += [xlim[0], ylim[0]]
+
+    # Remove enclosing circle to extract free surface
+    img_surface = img_edges[
+        (img_edges ** 2).sum(axis = 1) < 0.95 * radius ** 2
+    ]
+
+    # Fit third order polynomial to free surface extracted from image
+    img_poly = Polynomial.fit(img_surface[:, 0], img_surface[:, 1], 3)
+
+    return img_poly
+
+
+def surface_simulation(positions, particle_radii, granudrum):
+    '''Extract the free surface from a granular drum simulation and return a
+    fitted 3rd order polynomial.
+    '''
+
+    # Concatenate positions from multiple timesteps
+    positions = np.concatenate(positions)
+
+    # Physical dimension of each pixel
+    xlim = granudrum.xlim
+    ylim = granudrum.ylim
+    radius = granudrum.radius
+
+    # Number of pixels in the image
+    shape = (808, 808)
+
+    dx = (xlim[1] - xlim[0]) / shape[0]
+    dy = (ylim[1] - ylim[0]) / shape[1]
+
+    # Compute occupancy grid from the XZ plane (i.e. granular drum side)
+    sim_occupancy = pp.occupancy2d(
+        positions[:, [0, 2]],
+        shape,
+        radii = particle_radii,
+        xlim = xlim,
+        ylim = ylim,
+    )
+
+    # Inflate then deflate the uint8-encoded image
+    kernel = np.ones((10, 10), np.uint8)
+    sim = cv2.morphologyEx(
+        encode_u8(sim_occupancy),
+        cv2.MORPH_CLOSE,
+        kernel,
+    )
+
+    # Otsu thresholding + binarisation
+    _, sim = cv2.threshold(sim, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+
+    # Canny edge detection
+    sim_edges = cv2.Canny(sim, 30, 40)
+
+    # Extract edges as [x, y] point pairs
+    sim_edges = np.argwhere(sim_edges)
+
+    # Transform edges from pixels to physical dimensions
+    sim_edges = sim_edges * [dx, dy]
+    sim_edges += [xlim[0], ylim[0]]
+
+    # Remove enclosing circle to extract free surface
+    sim_surface = sim_edges[
+        (sim_edges ** 2).sum(axis = 1) < 0.95 * radius ** 2
+    ]
+
+    # Fit third order polynomial
+    sim_poly = Polynomial.fit(sim_surface[:, 0], sim_surface[:, 1], 3)
+
+    return sim_poly
+
+
+def integrate_surfaces(image_path, positions, particle_radii = 0):
+    '''Error function for a GranuTools GranuDrum, quantifying the difference
+    between an experimental free surface shape (from an image) and a simulated
+    one (from an occupancy grid).
+
+    The error function represents the integrated area between the two free
+    surfaces, both computed as 3rd order polynomials fitted to OpenCV-processed
+    images.
 
     Parameters
     ----------
+    image_path: str
+        A path to a GranuTools GranuDrum image.
+
     positions: (T, P, 3) numpy.ndarray
         A numpy array of stacked 2D particle positions arrays (num_particles *
         3 columns for [x, y, z]) for all timesteps.
+
+    particle_radii: float or (P,) list-like, default 0
+        The radius of each particle. If zero, every particle is considered as a
+        discrete point. If a single float, all particles are considered to have
+        the same radius. If it is a numpy array, it specifies each particle’s
+        radius, and must have the same length as positions.
 
     Returns
     -------
@@ -92,86 +195,27 @@ def error(positions):
 
     '''
 
-    # GranuDrum side picture path
-    image_path = "test.bmp"
+    # Rotating drum system dimensions
+    granudrum = GranuDrum()
 
-    # Read in experimental image and threshold it using OpenCV
-    original_image = cv2.imread(image_path)
-    gray_image = cv2.cvtColor(original_image, cv2.COLOR_BGR2GRAY)
+    img_poly = surface_image(image_path, granudrum)
+    sim_poly = surface_simulation(positions, particle_radii, granudrum)
 
-    thresh, bw_image = cv2.threshold(
-        gray_image,
-        40,
-        255,
-        cv2.THRESH_BINARY
-    )
+    # Integrate the absolute difference over the image's interval
+    x0 = img_poly.domain[0]
+    x1 = img_poly.domain[1]
 
-    # Extract circle to get the GranuDrum diameter and shape
-    circles = cv2.HoughCircles(gray_image, cv2.HOUGH_GRADIENT, 1.2, 100)
-
-    if len(circles) > 1:
-        raise ValueError("Too many circles detected!")
-
-    x, y, r = circles[0][0]
-    image = 255 - bw_image
-
-    xlim = [-0.042, 0.042]
-    ylim = [-0.042, 0.042]
-
-    # Save image in a pixel grid (that also stores system dimensions) from the
-    # `pept` package, then extract the free surface shape (as x-y pairs) and
-    # a fitted 3rd order polynomial
-    image = pept.Pixels(
-        np.rot90(image, 3),
-        xlim = xlim,
-        ylim = ylim,
-    )
-
-    img_xpos, img_ypos, img_poly = extract_surface(image)
-
-    # Extract the free surface shapes from the recorded simulated positions by
-    # creating a 2D occupancy grid
-    radii = 1.5e-3
-    number_of_pixels = (1000, 1000)
-
-    pixels = pp.occupancy2d(
-        positions[0][:, [0, 2]],
-        number_of_pixels,
-        radii,
-        xlim = xlim,
-        ylim = ylim,
-    )
-
-    # Superimpose the pixel grids from multiple simulation timesteps
-    for i in range(1, len(positions)):
-        pixels += pp.occupancy2d(
-            positions[i][:, [0, 2]],
-            number_of_pixels,
-            radii,
-            xlim = xlim,
-            ylim = ylim,
-            verbose = False
-        )
-
-    # Extract free surface and fitted polynomial
-    pix_xpos, pix_ypos, pix_poly = extract_surface(pixels)
-
-    # The two fitted free surface polynomials
-    p1 = img_poly
-    p2 = pix_poly
-
-    # Integrate the difference over the largest common interval
-    x0 = max(p1.domain[0], p2.domain[0])
-    x1 = min(p1.domain[1], p2.domain[1])
-
-    err = quad(lambda x: np.abs(p1(x) - p2(x)), x0, x1)
+    err = quad(lambda x: np.abs(img_poly(x) - sim_poly(x)), x0, x1)
     return err[0]
 
 
-
+# Define the user-changeable / free simulation parameters
 parameters = coexist.Parameters(
-    parameters = ["youngmodP", "cohPP", "corPP", "corPW", "fricPP", "fricPW"],
+    variables = [
+        "dens", "youngmodP", "cohPP", "corPP", "corPW", "fricPP", "fricPW"
+    ],
     commands = [
+        "set type 1 density ${dens}",
         "fix  m1 all property/global youngsModulus peratomtype \
             ${youngmodP}    ${youngmodP}    ${youngmodP}",
         "fix  m6 all property/global cohesionEnergyDensity peratomtypepair 3 \
@@ -195,36 +239,37 @@ parameters = coexist.Parameters(
             ${fricPW}       ${fric}         ${fric}     \
             ${fricPSW}      ${fric}         ${fric}     ",
     ],
-    values =    [5.2e8, 1e2, 0.79, 0.58, 0.20, 0.71],
-    minimums =  [5e6,   0,   0.05, 0.05, 0.05, 0.05],
-    maximums =  [1e9,   1e5, 0.95, 0.95, 0.95, 0.95],
+    values =    [1580.0,   9.2e6, 0,   0.61, 0.61, 0.42, 0.42],
+    minimums =  [100.0,    5e6,   0,   0.05, 0.05, 0.05, 0.05],
+    maximums =  [10_000.0, 1e9,   1e5, 0.95, 0.95, 0.95, 0.95],
 )
 
-print("Loading simulation...")
+print("Loading simulation...", flush = True)
 simulation = coexist.Simulation(
     "run.sim",
     parameters,
     verbose = False
 )
 
-print(simulation)
+print(simulation, flush = True)
 
-# Simulate GD for 4 rotations and use the last one for computing the surface
+# Simulate GD for 3 rotations (it usually reaches steady state within one
+# rotation) and use the last one for computing the surface
 rpm = 45
 num_rotations = 3
 
-time_start = (num_rotations - 1) * 60 / rpm
-time_end = num_rotations * 60 / rpm
+start_time = (num_rotations - 1) * 60 / rpm
+end_time = num_rotations * 60 / rpm
 
 
 access = coexist.Access(simulation)
 
 positions = access.learn(
-    error,
-    time_start,
-    time_end,
-    num_solutions = 20,
-    target_sigma = 0.05,
+    error = lambda pos: integrate_surfaces("30rpm_avg.jpg", pos, 1.2e-3 / 2),
+    start_time = start_time,
+    end_time = end_time,
+    num_solutions = 14,
+    target_sigma = 0.1,
     use_historical = True,
     save_positions = True,
     random_seed = 19937,
