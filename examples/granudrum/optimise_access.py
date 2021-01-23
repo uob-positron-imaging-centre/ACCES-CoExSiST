@@ -129,6 +129,7 @@ def surface_simulation(positions, particle_radii, granudrum):
         radii = particle_radii,
         xlim = xlim,
         ylim = ylim,
+        verbose = False,
     )
 
     # Inflate then deflate the uint8-encoded image

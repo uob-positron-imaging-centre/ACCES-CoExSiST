@@ -3,7 +3,7 @@
 # Simulation constants
 variable timestep       equal 1e-5
 variable rotationPeriod equal 60/30 	# s per revolution
-variable N              equal 35157		# number of particles
+variable N              equal 35100		# number of particles
 
 
 variable youngmodP  equal 9.2e6         # Vary
