@@ -249,7 +249,7 @@ parameters = coexist.Parameters(
             ${fricPW}       ${fric}         ${fric}     \
             ${fricPSW}      ${fric}         ${fric}     ",
     ],
-    values =    [1580.0,   9.2e6, 0.35, 0,   0.61, 0.61, 0.42, 0.42],
+    values =    [1580.0,   9.2e6, 0.30, 0,   0.61, 0.61, 0.42, 0.42],
     minimums =  [100.0,    5e6,   0.05, 0,   0.05, 0.05, 0.05, 0.05],
     maximums =  [10_000.0, 1e9,   0.49, 1e5, 0.95, 0.95, 0.95, 0.95],
 )
@@ -273,7 +273,7 @@ positions = access.learn(
     error = lambda pos: integrate_surfaces("30rpm_avg.jpg", pos, 1.2e-3 / 2),
     start_time = start_time,
     end_time = end_time,
-    num_solutions = 14,
+    num_solutions = 15,
     target_sigma = 0.1,
     use_historical = True,
     save_positions = True,
