@@ -59,18 +59,21 @@ positions = np.array(positions)
 times = np.array(times)
 
 
-
-##### Test auto timesteps
-
-ts = coexist.AutoTimestep(
-                    simulation.variable("youngmodP"),
-                    simulation.variable("r1") * 2,
-                    simulation.variable("poissP"),
-                    simulation.variable("densPart"),
+# Test auto timesteps
+timestep = coexist.AutoTimestep(
+    simulation.variable("youngmodP"),
+    simulation.variable("r1") * 2,
+    simulation.variable("poissP"),
+    simulation.variable("densPart"),
 )
 
+simulation = coexist.LiggghtsSimulation(
+    "vibrofluidised.sim",
+    parameters,
+    timestep = timestep,
+    verbose = True,
+)
 
-simulation = coexist.LiggghtsSimulation("vibrofluidised.sim", parameters, timestep = ts, verbose = True)
 print(simulation)
 
 # Save particle locations at a 120 Hz sampling rate up to t = 1.0 s

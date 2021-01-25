@@ -123,9 +123,6 @@ def to_vtk(
 
 
 
-
-
-
 class Parameters(pd.DataFrame):
     '''Pandas DataFrame subclass with a custom constructor for LIGGGHTS
     simulation parameters.
@@ -578,8 +575,6 @@ class Simulation(ABC):
 
 
 
-
-
 class LiggghtsSimulation(Simulation):
     '''Class encapsulating a single LIGGGHTS simulation whose parameters will
     be modified dynamically by a driver code.
@@ -613,7 +608,7 @@ class LiggghtsSimulation(Simulation):
             documentation for further information and example instantiation.
 
         timestep: AutoTimestep, int, float or None, optional
-            Variable that determines how the timestep in the LIGGGHTS simulation
+            Variable that determines how the LIGGGHTS simulation timestep
             is managed. If it is `AutoTimestep`, it will be computed from the
             Rayleigh formula; if it is an `int` or `float`, that value will be
             used. Otherwise, the default value from the LIGGGHTS script is
@@ -725,13 +720,17 @@ class LiggghtsSimulation(Simulation):
 
         # Check if timestep is auto/none/a number
         if isinstance(timestep, AutoTimestep):
-                self._step_size = timestep.timestep()
-                if verbose:
-                    print(f"AUTOTIMESTEP: Setting timestep to {timestep.timestep()}")
+            self._step_size = timestep.timestep()
+
+            if verbose:
+                print(f"Auto timestep: setting step size to {self._step_size}")
+
         elif isinstance(timestep, (int, float)):
-                self.step_size = float(timestep)
+            self.step_size = float(timestep)
+
         elif timestep is None:
-                self._step_size = self.simulation.extract_global("dt", 1)
+            self._step_size = self.simulation.extract_global("dt", 1)
+
         else:
             raise TypeError(textwrap.fill((
                 "The input `timestep` must be either an `AutoTimestep` "
@@ -1231,13 +1230,15 @@ class LiggghtsSimulation(Simulation):
         return docstr
 
 
+
+
 class AutoTimestep():
     def __init__(
         self,
         youngs_modulus,
         particle_diameter,
         poissons_ratio,
-        particle_density
+        particle_density,
     ):
         self.youngs_modulus = float(youngs_modulus)
         self.particle_diameter = float(particle_diameter)
@@ -1246,8 +1247,14 @@ class AutoTimestep():
 
 
     def timestep(self):
-        timestep =  np.pi * self.particle_diameter / 2 \
-            / (0.8766 + 0.163 * self.poissons_ratio) \
-            * np.sqrt(2 * self.particle_density \
-            * (1 + self.poissons_ratio) / self.youngs_modulus)
+        # Aliases
+        r = 0.5 * self.particle_diameter
+        pr = self.poissons_ratio
+        rho = self.particle_density
+        ym = self.youngs_modulus
+
+        timestep = np.pi * r / (0.8766 + 0.163 * pr) * np.sqrt(
+            2 * rho * (1 + pr) / ym
+        )
+
         return timestep
