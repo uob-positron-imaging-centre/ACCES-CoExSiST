@@ -590,6 +590,7 @@ class LiggghtsSimulation(Simulation):
         self,
         sim_name,
         parameters = Parameters(),
+        timestep = None,
         save_vtk = None,
         verbose = False,
     ):
@@ -610,6 +611,13 @@ class LiggghtsSimulation(Simulation):
             The LIGGGHTS simulation parameters that will be dynamically
             modified, encapsulated in a `Parameters` class instance. Check its
             documentation for further information and example instantiation.
+
+        timestep: AutoTimestep, int, float or None, optional
+            Variable that determines how the timestep in the LIGGGHTS simulation
+            is managed. If it is `AutoTimestep`, it will be computed from the
+            Rayleigh formula; if it is an `int` or `float`, that value will be
+            used. Otherwise, the default value from the LIGGGHTS script is
+            used.
 
         save_vtk: str, optional
             If defined, save particle data (positions, velocity, etc.) as VTK
@@ -708,13 +716,28 @@ class LiggghtsSimulation(Simulation):
                 f"restart and properties file found (`{self.sim_name}_"
                 f"restart.sim` and `{self.sim_name}_properties.sim`)."
             )))
-
         self._parameters = parameters.copy()
         self._step_size = self.simulation.extract_global("dt", 1)
 
         # Set simulation parameters to the values in `parameters`
         for idx in self._parameters.index:
             self[idx] = self._parameters.loc[idx, "value"]
+
+        # Check if timestep is auto/none/a number
+        if isinstance(timestep, AutoTimestep):
+                self._step_size = timestep.timestep()
+                if verbose:
+                    print(f"AUTOTIMESTEP: Setting timestep to {timestep.timestep()}")
+        elif isinstance(timestep, (int, float)):
+                self.step_size = float(timestep)
+        elif timestep is None:
+                self._step_size = self.simulation.extract_global("dt", 1)
+        else:
+            raise TypeError(textwrap.fill((
+                "The input `timestep` must be either an `AutoTimestep` "
+                "instance, a number (int / float), or None (the default). "
+                f"Received `{type(timestep)}`."
+            )))
 
         if save_vtk is not None:
             self._save_vtk = str(save_vtk)
@@ -732,8 +755,6 @@ class LiggghtsSimulation(Simulation):
                     parents = True,
                     exist_ok = True,
                 )
-
-
 
             self.write_vtk()
 
@@ -894,9 +915,11 @@ class LiggghtsSimulation(Simulation):
         radii = self.simulation.gather_atoms("radius", 1, 1)
         return np.array(list(radii)).reshape(self.num_atoms(), -1)
 
+
     def set_density(self, particle_id, density):
         cmd = (f"set atom {particle_id + 1} density {density}")
         self.execute_command(cmd)
+
 
     def positions(self):
         # get particle positions
@@ -1206,3 +1229,25 @@ class LiggghtsSimulation(Simulation):
         )
 
         return docstr
+
+
+class AutoTimestep():
+    def __init__(
+        self,
+        youngs_modulus,
+        particle_diameter,
+        poissons_ratio,
+        particle_density
+    ):
+        self.youngs_modulus = float(youngs_modulus)
+        self.particle_diameter = float(particle_diameter)
+        self.poissons_ratio = float(poissons_ratio)
+        self.particle_density = float(particle_density)
+
+
+    def timestep(self):
+        timestep =  np.pi * self.particle_diameter / 2 \
+            / (0.8766 + 0.163 * self.poissons_ratio) \
+            * np.sqrt(2 * self.particle_density \
+            * (1 + self.poissons_ratio) / self.youngs_modulus)
+        return timestep

@@ -15,6 +15,8 @@ from    .base           import  Experiment
 from    .base           import  Simulation
 from    .base           import  LiggghtsSimulation
 
+from    .base           import  AutoTimestep
+
 from    .optimisation   import  Coexist
 from    .optimisation   import  Access
 
@@ -33,5 +35,6 @@ __all__ = [
     "Coexist",
     "Access",
     "ballistics",
+    "AutoTimestep",
     "__version__",
 ]
