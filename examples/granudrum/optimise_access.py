@@ -250,8 +250,8 @@ parameters = coexist.Parameters(
             ${fricPSW}      ${fric}         ${fric}     ",
     ],
     values =    [1580.0,   9.2e6, 0.35, 0,   0.61, 0.61, 0.42, 0.42],
-    minimums =  [100.0,    5e6, , 0.05, 0,   0.05, 0.05, 0.05, 0.05],
-    maximums =  [10_000.0, 1e9, , 0.95, 1e5, 0.95, 0.95, 0.95, 0.95],
+    minimums =  [100.0,    5e6,   0.05, 0,   0.05, 0.05, 0.05, 0.05],
+    maximums =  [10_000.0, 1e9,   0.95, 1e5, 0.95, 0.95, 0.95, 0.95],
 )
 
 print("Loading simulation...", flush = True)
