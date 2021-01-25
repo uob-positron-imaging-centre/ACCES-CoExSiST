@@ -1,13 +1,13 @@
 # Granuar drum simulation LIGGGHTS script
 
 # Simulation constants
-variable timestep       equal 1e-5
+variable timestep       equal 4e-6
 variable rotationPeriod equal 60/30 	# s per revolution
 variable N              equal 35100		# number of particles
 
 
 variable youngmodP  equal 9.2e6         # Vary
-variable poissP     equal 0.3
+variable poissP     equal 0.3           # Vary
 
 variable corPP      equal 0.85		    # Vary
 variable corPW      equal 0.6           # Vary
