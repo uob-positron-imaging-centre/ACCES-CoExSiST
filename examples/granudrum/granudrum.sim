@@ -19,13 +19,13 @@ variable fricPW     equal 0.6		    # Vary
 variable fricPSW    equal 0.01
 variable fric       equal 0.5		    # Dummy value, Wall-Sidewall
 
-variable cohPP      equal 0
+variable cohPP      equal 0             # Vary
 variable cohPW      equal 0
 variable cohPSW     equal 0
 variable coh        equal 0
 
 variable fricRoll   equal 0.45		    # Rolling friction
-variable dens       equal 1580.0
+variable dens       equal 1580.0        # Vary
 
 
 # Particles' radius
