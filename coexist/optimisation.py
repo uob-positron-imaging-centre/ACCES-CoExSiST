@@ -1088,7 +1088,7 @@ class Access:
                     f"Scaled overall standard deviation: {es.sigma}\n"
                     f"Scaled individual standard deviations:\n{es.result.stds}"
                     f"\n\nTrying {len(solutions)} parameter combinations..."
-                ))
+                ), flush = True)
 
             results = self.try_solutions(
                 rand_hash,
@@ -1139,7 +1139,7 @@ class Access:
                         "Optimal solution found within `target_sigma`, i.e. "
                         f"{self.target_sigma * 100}%:\n"
                         f"sigma = {es.sigma} < {self.target_sigma}"
-                    ))
+                    ), flush = True)
                 break
 
         solutions = es.result.xbest * scaling
@@ -1149,7 +1149,7 @@ class Access:
         sim.parameters["sigma"] = es.result.stds * scaling
 
         if verbose:
-            print(f"Best results for solutions: {solutions}")
+            print(f"Best results for solutions: {solutions}", flush = True)
 
         # Change parameters to the best solution
         for i, sol_val in enumerate(solutions):
@@ -1163,14 +1163,14 @@ class Access:
         positions = []
         for t in checkpoints:
             sim.step_to_time(t)
-            positions.append(sim.positions)
+            positions.append(sim.positions())
 
         positions = np.array(positions, dtype = float)
         err = self.error(positions)
 
         if verbose:
             print((f"Error (computed by the `error` function) for solution: "
-                   f"{err}\n---"))
+                   f"{err}\n---"), flush = True)
 
         return positions
 
