@@ -15,36 +15,45 @@ import coexist
 # Define the user-changeable / free simulation parameters
 parameters = coexist.Parameters(
     variables = [
-        "dens", "youngmodP", "cohPP", "corPP", "corPW", "fricPP", "fricPW"
+        "dens",
+        "youngmodP",
+        "poissP",
+        "cohPP",
+        "corPP",
+        "corPW",
+        "fricPP",
+        "fricPW",
     ],
     commands = [
         "set type 1 density ${dens}",
-        "fix  m1 all property/global youngsModulus peratomtype \
+        "fix m1 all property/global youngsModulus peratomtype \
             ${youngmodP}    ${youngmodP}    ${youngmodP}",
-        "fix  m6 all property/global cohesionEnergyDensity peratomtypepair 3 \
+        "fix m2 all property/global poissonsRatio peratomtype \
+            ${poissP}       ${poissP}       ${poissP}    ",
+        "fix m6 all property/global cohesionEnergyDensity peratomtypepair 3 \
             ${cohPP}        ${cohPW}        ${cohPSW}   \
             ${cohPW}        ${coh}          ${coh}      \
             ${cohPSW}       ${coh}          ${coh}      ",
-        "fix  m3 all property/global coefficientRestitution peratomtypepair 3 \
+        "fix m3 all property/global coefficientRestitution peratomtypepair 3 \
             ${corPP}        ${corPW}        ${corPSW}   \
             ${corPW}        ${cor}          ${cor}      \
             ${corPSW}       ${cor}          ${cor}      ",
-        "fix  m3 all property/global coefficientRestitution peratomtypepair 3 \
+        "fix m3 all property/global coefficientRestitution peratomtypepair 3 \
             ${corPP}        ${corPW}        ${corPSW}   \
             ${corPW}        ${cor}          ${cor}      \
             ${corPSW}       ${cor}          ${cor}      ",
-        "fix  m4 all property/global coefficientFriction peratomtypepair 3 \
+        "fix m4 all property/global coefficientFriction peratomtypepair 3 \
             ${fricPP}       ${fricPW}       ${fricPSW}  \
             ${fricPW}       ${fric}         ${fric}     \
             ${fricPSW}      ${fric}         ${fric}     ",
-        "fix  m4 all property/global coefficientFriction peratomtypepair 3 \
+        "fix m4 all property/global coefficientFriction peratomtypepair 3 \
             ${fricPP}       ${fricPW}       ${fricPSW}  \
             ${fricPW}       ${fric}         ${fric}     \
             ${fricPSW}      ${fric}         ${fric}     ",
     ],
-    values =    [1580.0,   9.2e6, 0,   0.61, 0.61, 0.42, 0.42],
-    minimums =  [100.0,    5e6,   0,   0.05, 0.05, 0.05, 0.05],
-    maximums =  [10_000.0, 1e9,   1e5, 0.95, 0.95, 0.95, 0.95],
+    values =    [1580.0,   9.2e6, 0.30, 0,   0.61, 0.61, 0.42, 0.42],
+    minimums =  [400.0,    5e6,   0.05, 0,   0.05, 0.05, 0.05, 0.05],
+    maximums =  [10_000.0, 20e6,  0.49, 1e5, 0.95, 0.95, 0.95, 0.95],
 )
 
 print("Loading simulation...")

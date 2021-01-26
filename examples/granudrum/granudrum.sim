@@ -1,7 +1,7 @@
-# Granuar drum simulation LIGGGHTS script
+# Granular drum simulation LIGGGHTS script
 
 # Simulation constants
-variable timestep       equal 4e-6
+variable timestep       equal 1e-5
 variable rotationPeriod equal 60/30 	# s per revolution
 variable N              equal 35100		# number of particles
 
@@ -25,7 +25,7 @@ variable cohPSW     equal 0
 variable coh        equal 0
 
 variable fricRoll   equal 0.45		    # Rolling friction
-variable dens       equal 1400.0
+variable dens       equal 1580.0
 
 
 # Particles' radius
