@@ -985,37 +985,9 @@ class Access:
         # fully deterministic (i.e. repeatable)
         rand_hash = str(round(abs(rng.random() * 1e8)))
 
-        # Save the current simulation state in a `restarts` folder
-        if not os.path.isdir(f"access_info_{rand_hash}"):
-            os.mkdir(f"access_info_{rand_hash}")
-
-        # Save positions and parameters in a new folder inside `restarts`
-        if not os.path.isdir(f"access_info_{rand_hash}/positions"):
-            os.mkdir(f"access_info_{rand_hash}/positions")
-
-        # Serialize the simulation's concrete class so that it can be
-        # reconstructed even if it is a `coexist.Simulation` subclass
-        with open(f"access_info_{rand_hash}/simulation_class.pickle",
-                  "wb") as f:
-            pickle.dump(sim.__class__, f)
-
-        # Save current checkpoint and extra data for parallel computation
-        sim.save(f"access_info_{rand_hash}/opt")
-        with open(f"access_info_{rand_hash}/opt_run_info.txt", "a") as f:
-            now = datetime.now().strftime("%H:%M:%S - %D")
-            f.writelines([
-                f"Starting ACCESS run at {now}\n",
-                f"{sim}\n\n",
-                f"start_time =          {self.start_time}\n",
-                f"end_time =            {self.end_time}\n",
-                f"target_sigma =        {self.target_sigma}\n",
-                f"num_checkpoints =     {self.num_checkpoints}\n",
-                f"num_solutions =       {self.num_solutions}\n",
-                f"random_seed =         {random_seed}\n",
-                f"use_historical =      {use_historical}\n",
-                f"save_positions =      {save_positions}\n",
-                "--------------------------------------------------------\n\n",
-            ])
+        self.create_directories(
+            random_seed, rand_hash, use_historical, save_positions
+        )
 
         # Check if we have historical data about the optimisation - these are
         # pre-computed values for this exact simulation, random seed, and
@@ -1023,6 +995,11 @@ class Access:
         history_path = (
             f"access_info_{rand_hash}/"
             f"opt_history_{self.num_solutions}.csv"
+        )
+
+        history_scaled_path = (
+            f"access_info_{rand_hash}/"
+            f"opt_history_{self.num_solutions}_scaled.csv"
         )
 
         # History columns: [param1, param2, ..., stddev_param1, stddev_param2,
@@ -1033,6 +1010,15 @@ class Access:
             history = []
         else:
             history = None
+
+        # Scaling and unscaling parameter values introduce numerical errors
+        # that confuses the optimiser. Thus save unscaled values separately
+        if use_historical and os.path.isfile(history_scaled_path):
+            history_scaled = np.loadtxt(history_scaled_path, dtype = float)
+        elif use_historical:
+            history_scaled = []
+        else:
+            history_scaled = None
 
         # Minimum and maximum possible values for the DEM parameters
         params_mins = sim.parameters["min"].to_numpy()
@@ -1072,23 +1058,20 @@ class Access:
         while not es.stop():
             solutions = es.ask()
 
-            if use_historical and epoch * self.num_solutions < len(history):
-                ns = self.num_solutions
+            # If we have historical data, inject it for each epoch
+            if use_historical and \
+                    epoch * self.num_solutions < len(history_scaled):
 
-                results = history[(epoch * ns):(epoch * ns + ns)]
-                num_params = len(sim.parameters)
-
-                es.tell(results[:, :num_params] / scaling, results[:, -1])
+                self.inject_historical(es, history_scaled, epoch)
                 epoch += 1
+
+                if self.finished(es, verbose):
+                    break
 
                 continue
 
             if verbose:
-                print((
-                    f"Scaled overall standard deviation: {es.sigma}\n"
-                    f"Scaled individual standard deviations:\n{es.result.stds}"
-                    f"\n\nTrying {len(solutions)} parameter combinations..."
-                ), flush = True)
+                self.print_before_eval(es, solutions)
 
             results = self.try_solutions(
                 rand_hash,
@@ -1115,31 +1098,23 @@ class Access:
 
                 np.savetxt(history_path, history)
 
+                # Save scaled values separately to avoid numerical errors
+                if not isinstance(history_scaled, list):
+                    history_scaled = list(history_scaled)
+
+                for sol, res in zip(solutions, results):
+                    history_scaled.append(
+                        list(sol) +
+                        list(es.result.stds) +
+                        [es.sigma, res]
+                    )
+
+                np.savetxt(history_scaled_path, history_scaled)
+
             if verbose:
-                cols = list(sim.parameters.index) + ["error"]
-                sols_results = np.hstack((
-                    solutions * scaling,
-                    results[:, np.newaxis],
-                ))
+                self.print_after_eval(es, solutions, scaling, results)
 
-                sols_results = pd.DataFrame(
-                    data = sols_results,
-                    columns = cols,
-                    index = None,
-                )
-
-                print((
-                    f"{sols_results}\n"
-                    f"Function evaluations: {es.result.evaluations}\n---"
-                ), flush = True)
-
-            if es.sigma < self.target_sigma:
-                if verbose:
-                    print((
-                        "Optimal solution found within `target_sigma`, i.e. "
-                        f"{self.target_sigma * 100}%:\n"
-                        f"sigma = {es.sigma} < {self.target_sigma}"
-                    ), flush = True)
+            if self.finished(es, verbose):
                 break
 
         solutions = es.result.xbest * scaling
@@ -1173,6 +1148,123 @@ class Access:
                    f"{err}\n---"), flush = True)
 
         return positions
+
+
+    def create_directories(
+        self,
+        random_seed,
+        rand_hash,
+        use_historical,
+        save_positions,
+    ):
+        sim = self.simulation
+
+        # Save the current simulation state in a `restarts` folder
+        if not os.path.isdir(f"access_info_{rand_hash}"):
+            os.mkdir(f"access_info_{rand_hash}")
+
+        # Save positions and parameters in a new folder inside `restarts`
+        if not os.path.isdir(f"access_info_{rand_hash}/positions"):
+            os.mkdir(f"access_info_{rand_hash}/positions")
+
+        # Serialize the simulation's concrete class so that it can be
+        # reconstructed even if it is a `coexist.Simulation` subclass
+        with open(f"access_info_{rand_hash}/simulation_class.pickle",
+                  "wb") as f:
+            pickle.dump(sim.__class__, f)
+
+        # Save current checkpoint and extra data for parallel computation
+        sim.save(f"access_info_{rand_hash}/opt")
+        with open(f"access_info_{rand_hash}/opt_run_info.txt", "a") as f:
+            now = datetime.now().strftime("%H:%M:%S - %D")
+            f.writelines([
+                f"Starting ACCESS run at {now}\n",
+                f"{sim}\n\n",
+                f"start_time =          {self.start_time}\n",
+                f"end_time =            {self.end_time}\n",
+                f"target_sigma =        {self.target_sigma}\n",
+                f"num_checkpoints =     {self.num_checkpoints}\n",
+                f"num_solutions =       {self.num_solutions}\n",
+                f"random_seed =         {random_seed}\n",
+                f"use_historical =      {use_historical}\n",
+                f"save_positions =      {save_positions}\n",
+                "--------------------------------------------------------\n\n",
+            ])
+
+
+    def inject_historical(self, es, history_scaled, epoch):
+        '''Inject the CMA-ES optimiser with pre-computed (historical) results.
+        The solutions must have a Gaussian distribution in each problem
+        dimension - though the standard deviation can vary for each of them.
+        Ideally, this should only use historical values that CMA-ES asked for
+        in a previous ACCESS run.
+        '''
+
+        ns = self.num_solutions
+        num_params = len(self.simulation.parameters)
+
+        results_scaled = history_scaled[(epoch * ns):(epoch * ns + ns)]
+
+        es.tell(results_scaled[:, :num_params], results_scaled[:, -1])
+
+
+    def print_before_eval(self, es, solutions):
+        print((
+            f"Scaled overall standard deviation: {es.sigma}\n"
+            f"Scaled individual standard deviations:\n{es.result.stds}"
+            f"\n\nTrying {len(solutions)} parameter combinations..."
+        ), flush = True)
+
+
+    def print_after_eval(
+        self,
+        es,
+        solutions,
+        scaling,
+        results,
+    ):
+        # Display evaluation results: solutions, error values, etc.
+        cols = list(self.simulation.parameters.index) + ["error"]
+        sols_results = np.hstack((
+            solutions * scaling,
+            results[:, np.newaxis],
+        ))
+
+        # Store solutions and results in a DataFrame for easy pretty printing
+        sols_results = pd.DataFrame(
+            data = sols_results,
+            columns = cols,
+            index = None,
+        )
+
+        # Display all the DataFrame columns and rows
+        old_max_columns = pd.get_option("display.max_columns")
+        old_max_rows = pd.get_option("display.max_rows")
+
+        pd.set_option("display.max_columns", None)
+        pd.set_option("display.max_rows", None)
+
+        print((
+            f"{sols_results}\n"
+            f"Function evaluations: {es.result.evaluations}\n---"
+        ), flush = True)
+
+        pd.set_option("display.max_columns", old_max_columns)
+        pd.set_option("display.max_rows", old_max_rows)
+
+
+    def finished(self, es, verbose = True):
+        if es.sigma < self.target_sigma:
+            if verbose:
+                print((
+                    "Optimal solution found within `target_sigma`, i.e. "
+                    f"{self.target_sigma * 100}%:\n"
+                    f"sigma = {es.sigma} < {self.target_sigma}"
+                ), flush = True)
+
+            return True
+
+        return False
 
 
     def try_solutions(self, rand_hash, solutions, save_positions = None):
