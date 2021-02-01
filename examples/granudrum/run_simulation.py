@@ -15,21 +15,15 @@ import coexist
 # Define the user-changeable / free simulation parameters
 parameters = coexist.Parameters(
     variables = [
-        "dens",
-        "youngmodP",
-        "poissP",
         "cohPP",
         "corPP",
         "corPW",
         "fricPP",
         "fricPW",
+        "fricRollPP",
+        "fricRollPW",
     ],
     commands = [
-        "set type 1 density ${dens}",
-        "fix m1 all property/global youngsModulus peratomtype \
-            ${youngmodP}    ${youngmodP}    ${youngmodP}",
-        "fix m2 all property/global poissonsRatio peratomtype \
-            ${poissP}       ${poissP}       ${poissP}    ",
         "fix m6 all property/global cohesionEnergyDensity peratomtypepair 3 \
             ${cohPP}        ${cohPW}        ${cohPSW}   \
             ${cohPW}        ${coh}          ${coh}      \
@@ -50,10 +44,18 @@ parameters = coexist.Parameters(
             ${fricPP}       ${fricPW}       ${fricPSW}  \
             ${fricPW}       ${fric}         ${fric}     \
             ${fricPSW}      ${fric}         ${fric}     ",
+        "fix m7 all property/global coefficientRollingFriction peratomtypepair 3 \
+            ${fricRollPP}   ${fricRollPW}   ${fricRollPSW}  \
+            ${fricRollPW}   ${fricRoll}     ${fricRoll}     \
+            ${fricRollPSW}  ${fricRoll}     ${fricRoll}     ",
+        "fix m7 all property/global coefficientRollingFriction peratomtypepair 3 \
+            ${fricRollPP}   ${fricRollPW}   ${fricRollPSW}  \
+            ${fricRollPW}   ${fricRoll}     ${fricRoll}     \
+            ${fricRollPSW}  ${fricRoll}     ${fricRoll}     ",
     ],
-    values =    [1580.0,   9.2e6, 0.30, 0,   0.61, 0.61, 0.42, 0.42],
-    minimums =  [400.0,    5e6,   0.05, 0,   0.05, 0.05, 0.05, 0.05],
-    maximums =  [10_000.0, 20e6,  0.49, 1e5, 0.95, 0.95, 0.95, 0.95],
+    values =    [0.0, 0.90, 0.70, 0.20, 0.25, 0.40, 0.60],
+    minimums =  [0.0, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05],
+    maximums =  [1e5, 0.95, 0.95, 2.00, 2.00, 2.00, 2.00],
 )
 
 print("Loading simulation...")

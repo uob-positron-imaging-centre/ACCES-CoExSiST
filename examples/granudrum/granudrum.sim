@@ -3,33 +3,37 @@
 # Simulation constants
 variable timestep       equal 1e-5
 variable rotationPeriod equal 60/30 	# s per revolution
-variable N              equal 35100		# number of particles
+variable N              equal 37000		# number of particles
 
 
-variable youngmodP  equal 9.2e6         # Vary
-variable poissP     equal 0.3           # Vary
+variable youngmodP      equal 9.2e6
+variable poissP         equal 0.4
 
-variable corPP      equal 0.85		    # Vary
-variable corPW      equal 0.6           # Vary
-variable corPSW     equal 0.999
-variable cor        equal 0.5           # Dummy value, Wall-Sidewall
+variable corPP          equal 0.9		    # Vary
+variable corPW          equal 0.7           # Vary
+variable corPSW         equal 0.999
+variable cor            equal 0.5           # Dummy value, Wall-Sidewall
 
-variable fricPP     equal 0.38		    # Vary
-variable fricPW     equal 0.6		    # Vary
-variable fricPSW    equal 0.01
-variable fric       equal 0.5		    # Dummy value, Wall-Sidewall
+variable fricPP         equal 0.4		    # Vary
+variable fricPW         equal 0.6		    # Vary
+variable fricPSW        equal 0.01
+variable fric           equal 0.5		    # Dummy value, Wall-Sidewall
 
-variable cohPP      equal 0             # Vary
-variable cohPW      equal 0
-variable cohPSW     equal 0
-variable coh        equal 0
+variable fricRollPP     equal 0.6		    # Vary
+variable fricRollPW     equal 0.6		    # Vary
+variable fricRollPSW    equal 0.01
+variable fricRoll       equal 0.45		    # Dummy value, Wall-Sidewall
 
-variable fricRoll   equal 0.45		    # Rolling friction
-variable dens       equal 1580.0        # Vary
+variable cohPP          equal 0             # Vary
+variable cohPW          equal 0             # Vary
+variable cohPSW         equal 0
+variable coh            equal 0
+
+variable dens           equal 1580.0
 
 
 # Particles' radius
-variable r1         equal 0.0006
+variable r1             equal 0.0006
 
 
 # Setting up system
@@ -76,10 +80,9 @@ fix m6 all property/global cohesionEnergyDensity peratomtypepair 3 &
     ${cohPSW}       ${coh}          ${coh}
 
 fix m7 all property/global coefficientRollingFriction peratomtypepair 3 &
-    ${fricRoll}     ${fricRoll}     ${fricRoll}     &
-    ${fricRoll}     ${fricRoll}     ${fricRoll}     &
-    ${fricRoll}     ${fricRoll}     ${fricRoll}
-
+    ${fricRollPP}   ${fricRollPW}   ${fricRollPSW}  &
+    ${fricRollPW}   ${fricRoll}     ${fricRoll}     &
+    ${fricRollPSW}  ${fricRoll}     ${fricRoll}
 
 fix m5 all property/global k_finnie peratomtypepair 3 1.0 1.0 1.0 1.0 1.0 1.0 1.0 1.0 1.0
 
@@ -103,7 +106,7 @@ fix side all mesh/surface/stress file   mesh/rotating_drum_side_mm.stl  type 3 s
 fix inface all mesh/surface file        mesh/inface_mm.stl              type 3 scale 0.001
 
 # Wall contact models
-fix granwalls all wall/gran model hertz tangential history  mesh n_meshes 2 meshes cad side
+fix granwalls all wall/gran model hertz tangential history cohesion sjkr rolling_friction cdt mesh n_meshes 2 meshes cad side
 
 
 # Particle insertion region
