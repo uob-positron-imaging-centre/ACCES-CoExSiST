@@ -101,9 +101,9 @@ fix gravi all gravity 9.81 vector 0.0 0.0 -1.0
 
 
 # Create drum geometry from STL files
-fix cad all mesh/surface/stress file    mesh/rotating_drum_mm.stl       type 2 scale 0.001 wear finnie
-fix side all mesh/surface/stress file   mesh/rotating_drum_side_mm.stl  type 3 scale 0.001 curvature 1e-5
-fix inface all mesh/surface file        mesh/inface_mm.stl              type 3 scale 0.001
+fix cad all mesh/surface/stress file        mesh/rotating_drum_mm.stl       type 2 scale 0.001 wear finnie
+fix side all mesh/surface/stress file       mesh/rotating_drum_side_mm.stl  type 3 scale 0.001 curvature 1e-5
+fix inface all mesh/surface/planar file     mesh/inface_mm.stl              type 3 scale 0.001
 
 # Wall contact models
 fix granwalls all wall/gran model hertz tangential history cohesion sjkr rolling_friction cdt mesh n_meshes 2 meshes cad side

@@ -294,7 +294,7 @@ class Parameters(pd.DataFrame):
             minimums = self["min"].copy(),
             maximums = self["max"].copy(),
             sigma = self["sigma"].copy(),
-            integers = [i for i, n in enumerate(self["integer"]) if n == 1.],
+            integers = np.where(self["integer"] == 1.0)[0],
         )
 
         return parameters_copy
