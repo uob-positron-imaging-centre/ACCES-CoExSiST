@@ -1046,7 +1046,7 @@ class Access:
             bounds = bounds,
             popsize = self.num_solutions,
             randn = lambda *args: rng.standard_normal(args),
-            integer_variables = np.where(sim.parameters["integer"] == 1.0),
+            integer_variables = np.where(sim.parameters["integer"] == 1.0)[0],
             verbose = 3 if verbose else -9,
         ))
 
