@@ -1294,9 +1294,9 @@ class Access:
         try:
             for i, sol in enumerate(solutions):
 
-                # Change parameters
+                # Change parameter values. Will be saved with `sim.save`
                 for j, sol_val in enumerate(sol):
-                    sim[param_names[j]] = sol_val
+                    sim.parameters.at[param_names[j], "value"] = sol_val
 
                 # Save current parameter values. If `save_positions` is given,
                 # then save them to unique paths. Otherwise reuse the same ones
