@@ -1044,9 +1044,9 @@ class Access:
         # Instantiate CMA-ES optimiser
         es = cma.CMAEvolutionStrategy(x0, sigma0, dict(
             bounds = bounds,
-            ftarget = 0.0,
             popsize = self.num_solutions,
             randn = lambda *args: rng.standard_normal(args),
+            integer_variables = np.where(sim.parameters["integer"] == 1.0),
             verbose = 3 if verbose else -9,
         ))
 

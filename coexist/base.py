@@ -191,6 +191,7 @@ class Parameters(pd.DataFrame):
         minimums = [],
         maximums = [],
         sigma = None,
+        integers = [],
         **kwargs,
     ):
         '''`Parameters` class constructor.
@@ -225,6 +226,11 @@ class Parameters(pd.DataFrame):
             The standard deviation of the first population of solutions tried
             by the CMA-ES optimisation algorithm. If unset, it is computed as
             `0.2 * (maximum - minimum)`.
+
+        integers: list[int], optional
+            A list of the parameter indices that will be treated as integers.
+            E.g. if the second parameter should be an integer, set `integers`
+            to `[1]` (indexed from 0).
         '''
 
         pd.DataFrame.__init__(self, *args, **kwargs)
@@ -240,6 +246,11 @@ class Parameters(pd.DataFrame):
         values = np.array(values, dtype = float)
         minimums = np.array(minimums, dtype = float)
         maximums = np.array(maximums, dtype = float)
+
+        # Save which variables are integers as 1. and 0.
+        integer_variables = np.zeros(len(values))
+        for i in np.array(integers, dtype = int):
+            integer_variables[i] = 1.
 
         if (minimums >= maximums).any():
             raise ValueError(textwrap.fill(
@@ -270,6 +281,7 @@ class Parameters(pd.DataFrame):
         self["min"] = minimums
         self["max"] = maximums
         self["sigma"] = sigma
+        self["integer"] = integer_variables
 
         self.index = variables
 
@@ -282,6 +294,7 @@ class Parameters(pd.DataFrame):
             minimums = self["min"].copy(),
             maximums = self["max"].copy(),
             sigma = self["sigma"].copy(),
+            integers = [i for i, n in enumerate(self["integer"]) if n == 1.],
         )
 
         return parameters_copy
@@ -585,6 +598,7 @@ class LiggghtsSimulation(Simulation):
         self,
         sim_name,
         parameters = Parameters(),
+        set_parameters = True,
         timestep = None,
         save_vtk = None,
         verbose = False,
@@ -606,6 +620,12 @@ class LiggghtsSimulation(Simulation):
             The LIGGGHTS simulation parameters that will be dynamically
             modified, encapsulated in a `Parameters` class instance. Check its
             documentation for further information and example instantiation.
+
+        set_parameters: bool, default True
+            If `True`, set the simulation parameter values when instantiating
+            the class. Set to `False` to change values later; this is useful if
+            some parameters can only be set once, e.g. particle insertion
+            command for ACCESS.
 
         timestep: AutoTimestep, int, float or None, optional
             Variable that determines how the LIGGGHTS simulation timestep
@@ -715,8 +735,9 @@ class LiggghtsSimulation(Simulation):
         self._step_size = self.simulation.extract_global("dt", 1)
 
         # Set simulation parameters to the values in `parameters`
-        for idx in self._parameters.index:
-            self[idx] = self._parameters.loc[idx, "value"]
+        if set_parameters:
+            for idx in self._parameters.index:
+                self[idx] = self._parameters.loc[idx, "value"]
 
         # Check if timestep is auto/none/a number
         if isinstance(timestep, AutoTimestep):
