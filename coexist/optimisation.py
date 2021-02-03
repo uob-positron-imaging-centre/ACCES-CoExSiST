@@ -12,6 +12,7 @@ import  textwrap
 import  subprocess
 import  pickle
 from    datetime            import  datetime
+from    concurrent.futures  import  ThreadPoolExecutor
 
 import  numpy               as      np
 import  pandas              as      pd
@@ -1267,6 +1268,42 @@ class Access:
         return False
 
 
+    def std_outputs(self, rand_hash, proc_index, stdout, stderr):
+        # If we had new errors, write them to `error.log`
+        if len(stderr) and stderr != self._stderr:
+            self._stderr = stderr.decode("utf-8")
+
+            print((
+                "A new error ocurred while running a simulation "
+                "asynchronously:\n"
+                f"{self._stderr}\n\n"
+                "Writing error message to "
+                f"`restarts_{rand_hash}/error_{proc_index}.log`\n"
+            ))
+
+            with open(
+                f"access_info_{rand_hash}/error_{proc_index}.log", "w"
+            ) as f:
+                f.write(self._stderr)
+
+        # If we had new outputs, write them to `output.log`
+        if len(stdout) and stdout != self._stdout:
+            self._stdout = stdout.decode("utf-8")
+
+            print((
+                "A new message was outputted while running a "
+                "simulation asynchronously:\n"
+                f"{self._stdout}\n\n"
+                "Writing output message to "
+                f"`restarts_{rand_hash}/error_{proc_index}.log`\n"
+            ))
+
+            with open(
+                f"access_info_{rand_hash}/output_{proc_index}.log", "w"
+            ) as f:
+                f.write(self._stdout)
+
+
     def try_solutions(self, rand_hash, solutions, save_positions = None):
         # `save_positions` is either None or an int => optimisation solution
         # iteration (i.e. epoch - if num_solutions = 10, after trying 30
@@ -1343,25 +1380,26 @@ class Access:
             positions_all = []
             for i, proc in enumerate(processes):
                 stdout, stderr = proc.communicate()
+                self.std_outputs(
+                    rand_hash,
+                    epoch if epoch is not None else i,
+                    stdout,
+                    stderr,
+                )
 
-                # If we had new errors, write them to `error.log`
-                if len(stderr) and stderr != self._stderr:
-                    self._stderr = stderr
+                # Only load simulations if they exist - i.e. no errors occurred
+                if os.path.isfile(positions_paths[i]):
+                    positions_all.append(np.load(positions_paths[i]))
+                else:
+                    positions_all.append(None)
 
                     print((
-                        "A new error ocurred while running a simulation "
-                        "asynchronously:\n"
-                        f"{stderr}\n\n"
-                        "Writing error message to "
-                        f"`restarts_{rand_hash}/error_{i}.log`\n"
+                        f"The particle locations file {positions_paths[i]} "
+                        "was not found; the simulation most likely crashed. "
+                        "Check the error, output and LIGGGHTS logs for what "
+                        "happened. The error value for this simulation is "
+                        "set to `NaN`."
                     ))
-
-                    with open(
-                        f"access_info_{rand_hash}/error_{i}.log", "w"
-                    ) as f:
-                        f.write(stderr.decode("utf-8"))
-
-                positions_all.append(np.load(positions_paths[i]))
 
         except KeyboardInterrupt:
             for proc in processes:
@@ -1369,6 +1407,20 @@ class Access:
 
             sys.exit(130)
 
-        results = np.array([self.error(pos) for pos in positions_all])
+        # Compute the error function values in at thread-parallel environment.
+        # Crashed solutions will have np.nan as a value.
+        results = np.full(len(solutions), np.nan)
+
+        with ThreadPoolExecutor(max_workers = len(solutions)) as executor:
+            futures = []
+            for pos in positions_all:
+                if pos is not None:
+                    futures.append(executor.submit(self.error, pos))
+                else:
+                    futures.append(None)
+
+            for i, f in enumerate(futures):
+                if f is not None:
+                    results[i] = f.result()
 
         return results
