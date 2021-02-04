@@ -2,8 +2,8 @@
 
 # Simulation constants
 variable timestep       equal 2e-5
-variable rotationPeriod equal 60/30 	# s per revolution
-variable N              equal 2100		# number of particles
+variable rotationPeriod equal 60/30 	    # s per revolution
+variable N              equal 2100		    # number of particles
 
 
 variable youngmodP      equal 9.2e6
@@ -33,11 +33,11 @@ variable dens           equal 1580.0
 
 
 # Particles' radius
-variable r1             equal 0.0015
-variable r2             equal 0.0015
-variable r3             equal 0.0015
-variable r4             equal 0.0015
-variable r5             equal 0.0015
+variable r1             equal 2.6e-3
+variable r2             equal 2.8e3
+variable r3             equal 3.0e-3
+variable r4             equal 3.2e-3
+variable r5             equal 3.4e-3
 
 
 # Setting up system
@@ -113,8 +113,7 @@ fix inface all mesh/surface file        mesh/inface_mm.stl              type 3 s
 fix granwalls all wall/gran model hertz tangential history cohesion sjkr rolling_friction cdt mesh n_meshes 2 meshes cad side
 
 
-# Particle insertion region
-# Particle templates for insertion
+# Particle templates and insertion region
 fix pts1 all particletemplate/sphere 15485863 atom_type 1 density constant ${dens} radius constant ${r1}
 fix pdd1 all particledistribution/discrete/numberbased 32452843 1 pts1 1.0
 
