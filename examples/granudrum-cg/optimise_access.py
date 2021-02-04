@@ -108,9 +108,6 @@ def surface_simulation(positions, particle_radii, granudrum):
     fitted 3rd order polynomial.
     '''
 
-    # Concatenate positions from multiple timesteps
-    positions = np.concatenate(positions)
-
     # Physical dimension of each pixel
     xlim = granudrum.xlim
     ylim = granudrum.ylim
@@ -218,7 +215,7 @@ def integrate_surfaces(radii_path, positions_path, velocities_path):
     # Load the particle radii and positions
     positions_all = np.load(positions_path)
 
-    radii = np.concatenate(np.load(radii_path), len(positions_all))
+    radii = np.tile(np.load(radii_path), len(positions_all))
     positions = np.concatenate(positions_all)
 
     # Rotating drum system dimensions

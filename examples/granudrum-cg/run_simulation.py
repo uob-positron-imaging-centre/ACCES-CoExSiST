@@ -43,9 +43,9 @@ parameters = coexist.Parameters(
             ${fricRollPW}   ${fricRoll}     ${fricRoll}     \
             ${fricRollPSW}  ${fricRoll}     ${fricRoll}     ",
     ],
-    values =    [2300, 0.20, 0.25, 0.40, 0.60],
-    minimums =  [1600, 0.05, 0.05, 0.05, 0.05],
-    maximums =  [3200, 10.0, 10.0, 10.0, 10.0],
+    values =    [2000, 0.20, 0.25, 0.40, 0.60],
+    minimums =  [1500, 0.05, 0.05, 0.05, 0.05],
+    maximums =  [2500, 10.0, 10.0, 10.0, 10.0],
 )
 
 print("Loading simulation...")
