@@ -22,7 +22,7 @@ parameters = coexist.Parameters(
         "fricRollPW",
     ],
     commands = [
-        "fix ins all insert/stream seed 32452867 distributiontemplate pdd1 \
+        "fix ins all insert/stream seed 67867967 distributiontemplate pdd \
             nparticles ${N} particlerate 1000000 overlapcheck yes all_in no \
             vel constant 0.0 0.0 -1.0 insertion_face inface extrude_length \
             0.03                                            ",
@@ -43,7 +43,7 @@ parameters = coexist.Parameters(
             ${fricRollPW}   ${fricRoll}     ${fricRoll}     \
             ${fricRollPSW}  ${fricRoll}     ${fricRoll}     ",
     ],
-    values =    [2200, 0.20, 0.25, 0.40, 0.60],
+    values =    [2300, 0.20, 0.25, 0.40, 0.60],
     minimums =  [1600, 0.05, 0.05, 0.05, 0.05],
     maximums =  [3200, 10.0, 10.0, 10.0, 10.0],
 )
@@ -52,7 +52,6 @@ print("Loading simulation...")
 simulation = coexist.LiggghtsSimulation(
     "granudrum.sim",
     parameters,
-    set_parameters = False,
 )
 print(simulation, flush = True)
 

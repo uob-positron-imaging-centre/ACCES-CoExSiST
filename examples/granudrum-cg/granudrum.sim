@@ -34,7 +34,7 @@ variable dens           equal 1580.0
 
 # Particles' radius
 variable r1             equal 2.6e-3/2
-variable r2             equal 2.8e3/2
+variable r2             equal 2.8e-3/2
 variable r3             equal 3.0e-3/2
 variable r4             equal 3.2e-3/2
 variable r5             equal 3.4e-3/2
@@ -115,38 +115,19 @@ fix granwalls all wall/gran model hertz tangential history cohesion sjkr rolling
 
 # Particle templates and insertion region
 fix pts1 all particletemplate/sphere 15485863 atom_type 1 density constant ${dens} radius constant ${r1}
-fix pdd1 all particledistribution/discrete/numberbased 32452843 1 pts1 1.0
+fix pts2 all particletemplate/sphere 15485867 atom_type 1 density constant ${dens} radius constant ${r2}
+fix pts3 all particletemplate/sphere 32452843 atom_type 1 density constant ${dens} radius constant ${r3}
+fix pts4 all particletemplate/sphere 32452867 atom_type 1 density constant ${dens} radius constant ${r4}
+fix pts5 all particletemplate/sphere 49979687 atom_type 1 density constant ${dens} radius constant ${r5}
 
-fix pts2 all particletemplate/sphere 15485863 atom_type 1 density constant ${dens} radius constant ${r2}
-fix pdd2 all particledistribution/discrete/numberbased 32452843 1 pts1 1.0
-
-fix pts3 all particletemplate/sphere 15485863 atom_type 1 density constant ${dens} radius constant ${r3}
-fix pdd3 all particledistribution/discrete/numberbased 32452843 1 pts1 1.0
-
-fix pts4 all particletemplate/sphere 15485863 atom_type 1 density constant ${dens} radius constant ${r4}
-fix pdd4 all particledistribution/discrete/numberbased 32452843 1 pts1 1.0
-
-fix pts5 all particletemplate/sphere 15485863 atom_type 1 density constant ${dens} radius constant ${r5}
-fix pdd5 all particledistribution/discrete/numberbased 32452843 1 pts1 1.0
+# Log-normal distribution of particle sizes: mu = 1.1, sigma = 0.1
+fix pdd all particledistribution/discrete/numberbased 49979693 5 pts1 0.10514151 pts2 0.23071864 pts3 0.2927151 pts4 0.23768321 pts5 0.13374154
 
 group nve_group region domain
 
 # Particle insertion command; this is used by the Python driver code to change the number of particles
-# fix ins1 all insert/stream seed 32452867 distributiontemplate pdd1 nparticles ${N1} particlerate 1000000 &
+# fix ins all insert/stream seed 32452867 distributiontemplate pdd nparticles ${N} particlerate 1000000 &
 #     overlapcheck yes all_in no vel constant 0.0 0.0 -1.0 insertion_face inface extrude_length 0.03
-
-# fix ins2 all insert/stream seed 32452867 distributiontemplate pdd2 nparticles ${N2} particlerate 1000000 &
-#     overlapcheck yes all_in no vel constant 0.0 0.0 -1.0 insertion_face inface extrude_length 0.03
-
-# fix ins3 all insert/stream seed 32452867 distributiontemplate pdd3 nparticles ${N3} particlerate 1000000 &
-#     overlapcheck yes all_in no vel constant 0.0 0.0 -1.0 insertion_face inface extrude_length 0.03
-
-# fix ins4 all insert/stream seed 32452867 distributiontemplate pdd4 nparticles ${N4} particlerate 1000000 &
-#     overlapcheck yes all_in no vel constant 0.0 0.0 -1.0 insertion_face inface extrude_length 0.03
-
-# fix ins5 all insert/stream seed 32452867 distributiontemplate pdd5 nparticles ${N5} particlerate 1000000 &
-#     overlapcheck yes all_in no vel constant 0.0 0.0 -1.0 insertion_face inface extrude_length 0.03
-
 
 # Integration scheme
 fix integr all nve/sphere

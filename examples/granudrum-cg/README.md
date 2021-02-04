@@ -15,4 +15,4 @@ Simulation settings:
 
 - GranuDrum (TM) simulated at 30 RPM for 3 rotations.
 - Last rotation is used to compute the occupancy grid.
-- Variable number of MCC particles with 3 mm diameter.
+- Variable number of MCC particles with 5 particle fractions between 2.6 mm and 3.4 mm, split according to a log-normal distribution.

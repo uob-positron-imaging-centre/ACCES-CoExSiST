@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# File   : optimise.py
+# File   : optimise_access.py
 # License: GNU v3.0
 # Author : Andrei Leonard Nicusan <a.l.nicusan@bham.ac.uk>
 # Date   : 03.09.2020
@@ -132,8 +132,19 @@ def surface_simulation(positions, particle_radii, granudrum):
         verbose = False,
     )
 
+    # Pixellise / discretise the GranuDrum circular outline
+    xgrid = np.linspace(xlim[0], xlim[1], shape[0])
+    ygrid = np.linspace(ylim[0], ylim[1], shape[1])
+
+    # Physical coordinates of all pixels
+    xx, yy = np.meshgrid(xgrid, ygrid)
+    sim_occupancy[
+        (xx ** 2 + yy ** 2 > 0.99 * radius ** 2) &
+        (xx ** 2 + yy ** 2 < 1.01 * radius ** 2)
+    ] = float(sim_occupancy.max())
+
     # Inflate then deflate the uint8-encoded image
-    kernel = np.ones((10, 10), np.uint8)
+    kernel = np.ones((30, 30), np.uint8)
     sim = cv2.morphologyEx(
         encode_u8(sim_occupancy),
         cv2.MORPH_CLOSE,
@@ -164,7 +175,7 @@ def surface_simulation(positions, particle_radii, granudrum):
     return sim_poly
 
 
-def integrate_surfaces(image_path, positions, particle_radii = 0):
+def integrate_surfaces(radii_path, positions_path, velocities_path):
     '''Error function for a GranuTools GranuDrum, quantifying the difference
     between an experimental free surface shape (from an image) and a simulated
     one (from an occupancy grid).
@@ -175,18 +186,24 @@ def integrate_surfaces(image_path, positions, particle_radii = 0):
 
     Parameters
     ----------
-    image_path: str
-        A path to a GranuTools GranuDrum image.
+    radii_path: str
+        The path to a `.npy` NumPy binary file (saved with `numpy.save`)
+        containing the radius of each particle in the system. If needed, load
+        it with `numpy.load(radii_path)`.
 
-    positions: (T, P, 3) numpy.ndarray
-        A numpy array of stacked 2D particle positions arrays (num_particles *
-        3 columns for [x, y, z]) for all timesteps.
+    positions_path: str
+        The path to a `.npy` NumPy binary file (saved with `numpy.save`)
+        containing the stacked particle positions arrays (num_particles *
+        3 columns for [x, y, z]) for all timesteps; i.e. shape (T, P, 3), where
+        T is the number of timesteps, P is the number of particles. If needed,
+        load it with `numpy.load(positions_path)`.
 
-    particle_radii: float or (P,) list-like, default 0
-        The radius of each particle. If zero, every particle is considered as a
-        discrete point. If a single float, all particles are considered to have
-        the same radius. If it is a numpy array, it specifies each particle’s
-        radius, and must have the same length as positions.
+    velocities_path: str
+        The path to a `.npy` NumPy binary file (saved with `numpy.save`)
+        containing the stacked particle velocities arrays (num_particles *
+        3 columns for [vx, vy, vz]) for all timesteps; i.e. shape (T, P, 3),
+        where T is the number of timesteps, P is the number of particles. If
+        needed, load it with `numpy.load(velocities_path)`.
 
     Returns
     -------
@@ -196,11 +213,19 @@ def integrate_surfaces(image_path, positions, particle_radii = 0):
 
     '''
 
+    image_path = "30rpm_avg.jpg"
+
+    # Load the particle radii and positions
+    positions_all = np.load(positions_path)
+
+    radii = np.concatenate(np.load(radii_path), len(positions_all))
+    positions = np.concatenate(positions_all)
+
     # Rotating drum system dimensions
     granudrum = GranuDrum()
 
     img_poly = surface_image(image_path, granudrum)
-    sim_poly = surface_simulation(positions, particle_radii, granudrum)
+    sim_poly = surface_simulation(positions, radii, granudrum)
 
     # Integrate the absolute difference over the image's interval
     x0 = img_poly.domain[0]
@@ -220,7 +245,7 @@ parameters = coexist.Parameters(
         "fricRollPW",
     ],
     commands = [
-        "fix ins all insert/stream seed 32452867 distributiontemplate pdd1 \
+        "fix ins all insert/stream seed 67867967 distributiontemplate pdd \
             nparticles ${N} particlerate 1000000 overlapcheck yes all_in no \
             vel constant 0.0 0.0 -1.0 insertion_face inface extrude_length \
             0.03                                            ",
@@ -241,9 +266,9 @@ parameters = coexist.Parameters(
             ${fricRollPW}   ${fricRoll}     ${fricRoll}     \
             ${fricRollPSW}  ${fricRoll}     ${fricRoll}     ",
     ],
-    values =    [2200, 0.20, 0.25, 0.40, 0.60],
-    minimums =  [1600, 0.05, 0.05, 0.05, 0.05],
-    maximums =  [3200, 10.0, 10.0, 10.0, 10.0],
+    values =    [2000, 0.20, 0.25, 0.40, 0.60],
+    minimums =  [1500, 0.05, 0.05, 0.05, 0.05],
+    maximums =  [2500, 10.0, 10.0, 10.0, 10.0],
 )
 
 print("Loading simulation...", flush = True)
@@ -266,7 +291,7 @@ end_time = num_rotations * 60 / rpm
 access = coexist.Access(simulation)
 
 positions = access.learn(
-    error = lambda pos: integrate_surfaces("30rpm_avg.jpg", pos, 1.5e-3),
+    error = integrate_surfaces,
     start_time = start_time,
     end_time = end_time,
     num_solutions = 10,

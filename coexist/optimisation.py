@@ -12,7 +12,7 @@ import  textwrap
 import  subprocess
 import  pickle
 from    datetime            import  datetime
-from    concurrent.futures  import  ThreadPoolExecutor
+from    concurrent.futures  import  ProcessPoolExecutor
 
 import  numpy               as      np
 import  pandas              as      pd
@@ -1047,7 +1047,6 @@ class Access:
             bounds = bounds,
             popsize = self.num_solutions,
             randn = lambda *args: rng.standard_normal(args),
-            integer_variables = np.where(sim.parameters["integer"] == 1.0)[0],
             verbose = 3 if verbose else -9,
         ))
 
@@ -1304,10 +1303,64 @@ class Access:
                 f.write(self._stdout)
 
 
+    def save_paths(self, rand_hash, save_positions = None):
+        epoch = save_positions          # Either the epoch (int) or None
+
+        sim_paths = []
+        radii_paths = []
+        positions_paths = []
+        velocities_paths = []
+
+        for i in range(self.num_solutions):
+            # Save current parameter values. If `save_positions` is given,
+            # then save them to unique paths. Otherwise reuse the same ones
+            if save_positions is not None:
+                sim_paths.append((
+                    f"access_info_{rand_hash}/positions/"
+                    f"opt_{epoch * self.num_solutions + i}"
+                ))
+
+                radii_paths.append((
+                    f"access_info_{rand_hash}/positions/"
+                    f"opt_{epoch * self.num_solutions + i}_radii.npy"
+                ))
+
+                positions_paths.append((
+                    f"access_info_{rand_hash}/positions/"
+                    f"opt_{epoch * self.num_solutions + i}_positions.npy"
+                ))
+
+                velocities_paths.append((
+                    f"access_info_{rand_hash}/positions/"
+                    f"opt_{epoch * self.num_solutions + i}_velocities.npy"
+                ))
+
+            else:
+                sim_paths.append((
+                    f"access_info_{rand_hash}/positions/opt_{i}"
+                ))
+
+                radii_paths.append((
+                    f"access_info_{rand_hash}/positions/"
+                    f"opt_{i}_radii.npy"
+                ))
+
+                positions_paths.append((
+                    f"access_info_{rand_hash}/positions/"
+                    f"opt_{i}_positions.npy"
+                ))
+
+                velocities_paths.append((
+                    f"access_info_{rand_hash}/positions/"
+                    f"opt_{i}_velocities.npy"
+                ))
+
+        return sim_paths, radii_paths, positions_paths, velocities_paths
+
+
     def try_solutions(self, rand_hash, solutions, save_positions = None):
         # `save_positions` is either None or an int => optimisation solution
-        # iteration (i.e. epoch - if num_solutions = 10, after trying 30
-        # solutions, epoch = 3)
+        # iteration (i.e. epoch)
         epoch = save_positions
 
         # Aliases
@@ -1322,41 +1375,20 @@ class Access:
 
         # For every solution to try, start a separate OS process that runs the
         # `async_access_error.py` file and saves the positions in a `.npy` file
-        sim_paths = []
-        positions_paths = []
         processes = []
+
+        sim_paths, radii_paths, positions_paths, velocities_paths = \
+            self.save_paths(rand_hash, save_positions)
 
         # Catch the KeyboardInterrupt (Ctrl-C) signal to shut down the spawned
         # processes before aborting.
         try:
             for i, sol in enumerate(solutions):
 
-                # Change parameter values. Will be saved with `sim.save`
+                # Change parameter values to save them along with the full
+                # simulation state
                 for j, sol_val in enumerate(sol):
                     sim.parameters.at[param_names[j], "value"] = sol_val
-
-                # Save current parameter values. If `save_positions` is given,
-                # then save them to unique paths. Otherwise reuse the same ones
-                if save_positions is not None:
-                    sim_paths.append((
-                        f"access_info_{rand_hash}/positions/"
-                        f"opt_{epoch * self.num_solutions + i}"
-                    ))
-
-                    positions_paths.append((
-                        f"access_info_{rand_hash}/positions/"
-                        f"opt_{epoch * self.num_solutions + i}_positions.npy"
-                    ))
-
-                else:
-                    sim_paths.append((
-                        f"access_info_{rand_hash}/positions/opt_{i}"
-                    ))
-
-                    positions_paths.append((
-                        f"access_info_{rand_hash}/positions/"
-                        f"opt_{i}_positions.npy"
-                    ))
 
                 sim.save(sim_paths[i])
 
@@ -1370,57 +1402,69 @@ class Access:
                             str(self.start_time),
                             str(self.end_time),
                             str(self.num_checkpoints),
+                            radii_paths[i],
                             positions_paths[i],
+                            velocities_paths[i],
                         ],
                         stdout = subprocess.PIPE,
                         stderr = subprocess.PIPE,
                     )
                 )
 
-            positions_all = []
-            for i, proc in enumerate(processes):
-                stdout, stderr = proc.communicate()
-                self.std_outputs(
-                    rand_hash,
-                    epoch if epoch is not None else i,
-                    stdout,
-                    stderr,
-                )
+            # Compute the error function values in a parallel environment.
+            with ProcessPoolExecutor(max_workers = len(solutions)) as executor:
+                futures = []
 
-                # Only load simulations if they exist - i.e. no errors occurred
-                if os.path.isfile(positions_paths[i]):
-                    positions_all.append(np.load(positions_paths[i]))
-                else:
-                    positions_all.append(None)
+                # Get the output from each OS process / simulation
+                for i, proc in enumerate(processes):
+                    stdout, stderr = proc.communicate()
+                    self.std_outputs(
+                        rand_hash,
+                        epoch if epoch is not None else i,
+                        stdout,
+                        stderr,
+                    )
 
-                    print((
-                        f"The particle locations file {positions_paths[i]} "
-                        "was not found; the simulation most likely crashed. "
-                        "Check the error, output and LIGGGHTS logs for what "
-                        "happened. The error value for this simulation is "
-                        "set to `NaN`."
-                    ))
+                    # Only load simulations if they exist - i.e. no errors
+                    # occurred
+                    if os.path.isfile(radii_paths[i]) and \
+                            os.path.isfile(positions_paths[i]) and \
+                            os.path.isfile(velocities_paths[i]):
+
+                        futures.append(
+                            executor.submit(
+                                self.error,
+                                radii_paths[i],
+                                positions_paths[i],
+                                velocities_paths[i],
+                            )
+                        )
+
+                    else:
+                        futures.append(None)
+
+                        print((
+                            "At least one of the simulation files "
+                            f"{radii_paths[i]}, {positions_paths[i]} or "
+                            f"{velocities_paths[i]}, was not found; the "
+                            "simulation most likely crashed. Check the error, "
+                            "output and LIGGGHTS logs for what went wrong. "
+                            "The error value for this simulation is set to "
+                            "`NaN`."
+                        ))
+
+                # Crashed solutions will have np.nan as a value.
+                results = np.full(len(solutions), np.nan)
+
+                for i, f in enumerate(futures):
+                    if f is not None:
+                        results[i] = f.result()
+
 
         except KeyboardInterrupt:
             for proc in processes:
                 proc.kill()
 
             sys.exit(130)
-
-        # Compute the error function values in at thread-parallel environment.
-        # Crashed solutions will have np.nan as a value.
-        results = np.full(len(solutions), np.nan)
-
-        with ThreadPoolExecutor(max_workers = len(solutions)) as executor:
-            futures = []
-            for pos in positions_all:
-                if pos is not None:
-                    futures.append(executor.submit(self.error, pos))
-                else:
-                    futures.append(None)
-
-            for i, f in enumerate(futures):
-                if f is not None:
-                    results[i] = f.result()
 
         return results

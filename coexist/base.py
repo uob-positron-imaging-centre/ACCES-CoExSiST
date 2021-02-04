@@ -191,7 +191,6 @@ class Parameters(pd.DataFrame):
         minimums = [],
         maximums = [],
         sigma = None,
-        integers = [],
         **kwargs,
     ):
         '''`Parameters` class constructor.
@@ -227,10 +226,6 @@ class Parameters(pd.DataFrame):
             by the CMA-ES optimisation algorithm. If unset, it is computed as
             `0.2 * (maximum - minimum)`.
 
-        integers: list[int], optional
-            A list of the parameter indices that will be treated as integers.
-            E.g. if the second parameter should be an integer, set `integers`
-            to `[1]` (indexed from 0).
         '''
 
         pd.DataFrame.__init__(self, *args, **kwargs)
@@ -246,11 +241,6 @@ class Parameters(pd.DataFrame):
         values = np.array(values, dtype = float)
         minimums = np.array(minimums, dtype = float)
         maximums = np.array(maximums, dtype = float)
-
-        # Save which variables are integers as 1. and 0.
-        integer_variables = np.zeros(len(values))
-        for i in np.array(integers, dtype = int):
-            integer_variables[i] = 1.
 
         if (minimums >= maximums).any():
             raise ValueError(textwrap.fill(
@@ -281,7 +271,6 @@ class Parameters(pd.DataFrame):
         self["min"] = minimums
         self["max"] = maximums
         self["sigma"] = sigma
-        self["integer"] = integer_variables
 
         self.index = variables
 
@@ -294,7 +283,6 @@ class Parameters(pd.DataFrame):
             minimums = self["min"].copy(),
             maximums = self["max"].copy(),
             sigma = self["sigma"].copy(),
-            integers = np.where(self["integer"] == 1.0)[0],
         )
 
         return parameters_copy
@@ -933,7 +921,7 @@ class LiggghtsSimulation(Simulation):
 
     def radii(self):
         radii = self.simulation.gather_atoms("radius", 1, 1)
-        return np.array(list(radii)).reshape(self.num_atoms(), -1)
+        return np.array(list(radii))
 
 
     def set_density(self, particle_id, density):
@@ -1198,6 +1186,23 @@ class LiggghtsSimulation(Simulation):
                 {key}.'''
             ))
 
+        # Modify the global variable name to reflect the change
+        self.execute_command(f"variable {key} equal {value}")
+
+        # First run any "variable ... equal ..." subcommands saved in the
+        # Parameters.command column to save variables that might be substituted
+        # in later
+        commands = self.parameters.loc[key, "command"].split("\n")
+        variable_command = re.compile(r"\s*variable.+equal.+")
+
+        commands_nonvariable = []
+
+        for cmd in commands:
+            if variable_command.search(cmd):
+                self.execute_command(cmd)
+            else:
+                commands_nonvariable.append(cmd)
+
         # Extracts variable LIGGGHTS substitutions, like ${corPP} => corPP
         variable_extractor = re.compile(r"\$\{|\}")
 
@@ -1215,14 +1220,11 @@ class LiggghtsSimulation(Simulation):
         cmd = re.sub(
             r"\$\{\w+\}",
             replace_var,
-            self.parameters.loc[key, "command"]
+            "\n".join(commands_nonvariable)
         )
 
         # Run the command with replaced varnames
         self.execute_command(cmd)
-
-        # Modify the global variable name to reflect the change
-        self.execute_command(f"variable {key} equal {value}")
 
         # Set inner class parameter value
         self.parameters.at[key, "value"] = value
