@@ -33,11 +33,11 @@ variable dens           equal 1580.0
 
 
 # Particles' radius
-variable r1             equal 2.6e-3
-variable r2             equal 2.8e3
-variable r3             equal 3.0e-3
-variable r4             equal 3.2e-3
-variable r5             equal 3.4e-3
+variable r1             equal 2.6e-3/2
+variable r2             equal 2.8e3/2
+variable r3             equal 3.0e-3/2
+variable r4             equal 3.2e-3/2
+variable r5             equal 3.4e-3/2
 
 
 # Setting up system
