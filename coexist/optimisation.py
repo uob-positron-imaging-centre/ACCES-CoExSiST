@@ -943,6 +943,8 @@ class Access:
         self.num_checkpoints = None
         self.num_solutions = None
 
+        self.verbose = None
+
         # Message printed to the stderr by spawned OS processes
         self._stderr = None
 
@@ -982,6 +984,8 @@ class Access:
             use_historical = False
         else:
             use_historical = bool(use_historical)
+
+        self.verbose = bool(verbose)
 
         save_positions = bool(save_positions)
 
@@ -1055,7 +1059,7 @@ class Access:
             bounds = bounds,
             popsize = self.num_solutions,
             randn = lambda *args: rng.standard_normal(args),
-            verbose = 3 if verbose else -9,
+            verbose = 3 if self.verbose else -9,
         ))
 
         # Start optimisation: ask the optimiser for parameter combinations
@@ -1073,12 +1077,12 @@ class Access:
                 self.inject_historical(es, history_scaled, epoch)
                 epoch += 1
 
-                if self.finished(es, verbose):
+                if self.finished(es):
                     break
 
                 continue
 
-            if verbose:
+            if self.verbose:
                 self.print_before_eval(es, solutions)
 
             results = self.try_solutions(
@@ -1119,10 +1123,10 @@ class Access:
 
                 np.savetxt(history_scaled_path, history_scaled)
 
-            if verbose:
+            if self.verbose:
                 self.print_after_eval(es, solutions, scaling, results)
 
-            if self.finished(es, verbose):
+            if self.finished(es):
                 break
 
         solutions = es.result.xbest * scaling
@@ -1131,7 +1135,7 @@ class Access:
         # Change sigma, min and max based on optimisation results
         sim.parameters["sigma"] = es.result.stds * scaling
 
-        if verbose:
+        if self.verbose:
             print(f"Best results for solutions: {solutions}", flush = True)
 
         # Change parameters to the best solution
@@ -1151,7 +1155,7 @@ class Access:
         positions = np.array(positions, dtype = float)
         err = self.error(positions)
 
-        if verbose:
+        if self.verbose:
             print((f"Error (computed by the `error` function) for solution: "
                    f"{err}\n---"), flush = True)
 
@@ -1215,6 +1219,12 @@ class Access:
 
         es.tell(results_scaled[:, :num_params], results_scaled[:, -1])
 
+        if self.verbose:
+            print((
+                f"Injected {len(results_scaled)} / {len(history_scaled)} "
+                "historical solutions."
+            ))
+
 
     def print_before_eval(self, es, solutions):
         print((
@@ -1261,9 +1271,9 @@ class Access:
         pd.set_option("display.max_rows", old_max_rows)
 
 
-    def finished(self, es, verbose = True):
+    def finished(self, es):
         if es.sigma < self.target_sigma:
-            if verbose:
+            if self.verbose:
                 print((
                     "Optimal solution found within `target_sigma`, i.e. "
                     f"{self.target_sigma * 100}%:\n"
