@@ -1312,7 +1312,7 @@ class Access:
                 "simulation asynchronously:\n"
                 f"{self._stdout}\n\n"
                 "Writing output message to "
-                f"`restarts_{rand_hash}/error_{proc_index}.log`\n"
+                f"`restarts_{rand_hash}/output_{proc_index}.log`\n"
             ))
 
             with open(
@@ -1329,49 +1329,33 @@ class Access:
         positions_paths = []
         velocities_paths = []
 
+        # Save current parameter values. If `save_positions` is given, then
+        # save them to unique paths. Otherwise reuse the same ones
+        if save_positions is not None:
+            start_index = epoch * self.num_solutions
+        else:
+            start_index = 0
+
         for i in range(self.num_solutions):
-            # Save current parameter values. If `save_positions` is given,
-            # then save them to unique paths. Otherwise reuse the same ones
-            if save_positions is not None:
-                sim_paths.append((
-                    f"access_info_{rand_hash}/positions/"
-                    f"opt_{epoch * self.num_solutions + i}"
-                ))
+            sim_paths.append((
+                f"access_info_{rand_hash}/positions/"
+                f"opt_{start_index + i}"
+            ))
 
-                radii_paths.append((
-                    f"access_info_{rand_hash}/positions/"
-                    f"opt_{epoch * self.num_solutions + i}_radii.npy"
-                ))
+            radii_paths.append((
+                f"access_info_{rand_hash}/positions/"
+                f"opt_{start_index + i}_radii.npy"
+            ))
 
-                positions_paths.append((
-                    f"access_info_{rand_hash}/positions/"
-                    f"opt_{epoch * self.num_solutions + i}_positions.npy"
-                ))
+            positions_paths.append((
+                f"access_info_{rand_hash}/positions/"
+                f"opt_{start_index + i}_positions.npy"
+            ))
 
-                velocities_paths.append((
-                    f"access_info_{rand_hash}/positions/"
-                    f"opt_{epoch * self.num_solutions + i}_velocities.npy"
-                ))
-
-            else:
-                sim_paths.append((
-                    f"access_info_{rand_hash}/positions/opt_{i}"
-                ))
-
-                radii_paths.append((
-                    f"access_info_{rand_hash}/positions/"
-                    f"opt_{i}_radii.npy"
-                ))
-
-                positions_paths.append((
-                    f"access_info_{rand_hash}/positions/"
-                    f"opt_{i}_positions.npy"
-                ))
-
-                velocities_paths.append((
-                    f"access_info_{rand_hash}/positions/"
-                    f"opt_{i}_velocities.npy"
-                ))
+            velocities_paths.append((
+                f"access_info_{rand_hash}/positions/"
+                f"opt_{start_index + i}_velocities.npy"
+            ))
 
         return sim_paths, radii_paths, positions_paths, velocities_paths
 
@@ -1436,12 +1420,13 @@ class Access:
                 # Get the output from each OS process / simulation
                 for i, proc in enumerate(processes):
                     stdout, stderr = proc.communicate()
-                    self.std_outputs(
-                        rand_hash,
-                        epoch if epoch is not None else i,
-                        stdout,
-                        stderr,
-                    )
+
+                    if epoch is not None:
+                        proc_index = epoch * self.num_solutions + i
+                    else:
+                        proc_index = i
+
+                    self.std_outputs(rand_hash, proc_index, stdout, stderr)
 
                     # Only load simulations if they exist - i.e. no errors
                     # occurred
