@@ -914,6 +914,8 @@ class Access:
     def __init__(
         self,
         simulation: Simulation,
+        scheduler = [sys.executable],
+        max_workers = None,
     ):
 
         # Type-checking inputs
@@ -925,6 +927,12 @@ class Access:
 
         # Setting class attributes
         self.simulation = simulation
+        self.scheduler = list(scheduler)
+
+        if max_workers is None:
+            self.max_workers = len(os.sched_getaffinity(0))
+        else:
+            self.max_workers = int(max_workers)
 
         self.rng = None
         self.error = None
@@ -1394,9 +1402,8 @@ class Access:
 
                 processes.append(
                     subprocess.Popen(
-                        [
-                            sys.executable,  # The Python interpreter path
-                            async_xi,        # The `async_access_error.py` path
+                        self.scheduler + [  # The Python interpreter path
+                            async_xi,       # The `async_access_error.py` path
                             f"access_info_{rand_hash}/simulation_class.pickle",
                             sim_paths[i],
                             str(self.start_time),
@@ -1412,7 +1419,8 @@ class Access:
                 )
 
             # Compute the error function values in a parallel environment.
-            with ProcessPoolExecutor(max_workers = len(solutions)) as executor:
+            with ProcessPoolExecutor(max_workers = self.max_workers) \
+                    as executor:
                 futures = []
 
                 # Get the output from each OS process / simulation
