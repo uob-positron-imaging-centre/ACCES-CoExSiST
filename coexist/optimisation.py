@@ -945,7 +945,8 @@ class Access:
 
         self.verbose = None
 
-        # Message printed to the stderr by spawned OS processes
+        # Message printed to the stdout and stderr by spawned OS processes
+        self._stdout = None
         self._stderr = None
 
 
@@ -1216,13 +1217,12 @@ class Access:
         num_params = len(self.simulation.parameters)
 
         results_scaled = history_scaled[(epoch * ns):(epoch * ns + ns)]
-
         es.tell(results_scaled[:, :num_params], results_scaled[:, -1])
 
         if self.verbose:
             print((
-                f"Injected {len(results_scaled)} / {len(history_scaled)} "
-                "historical solutions."
+                f"Injected {(epoch + 1) * len(results_scaled)} / "
+                f"{len(history_scaled)} historical solutions."
             ))
 
 
