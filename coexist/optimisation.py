@@ -1180,6 +1180,10 @@ class Access:
         if not os.path.isdir(f"access_info_{rand_hash}/positions"):
             os.mkdir(f"access_info_{rand_hash}/positions")
 
+        # Save simulation outputs (stderr and stdout) in a new folder
+        if not os.path.isdir(f"access_info_{rand_hash}/outputs"):
+            os.mkdir(f"access_info_{rand_hash}/outputs")
+
         # Serialize the simulation's concrete class so that it can be
         # reconstructed even if it is a `coexist.Simulation` subclass
         with open(f"access_info_{rand_hash}/simulation_class.pickle",
@@ -1295,11 +1299,11 @@ class Access:
                 "asynchronously:\n"
                 f"{self._stderr}\n\n"
                 "Writing error message to "
-                f"`restarts_{rand_hash}/error_{proc_index}.log`\n"
+                f"`restarts_{rand_hash}/outputs/error_{proc_index}.log`\n"
             ))
 
             with open(
-                f"access_info_{rand_hash}/error_{proc_index}.log", "w"
+                f"access_info_{rand_hash}/outputs/error_{proc_index}.log", "w"
             ) as f:
                 f.write(self._stderr)
 
@@ -1312,11 +1316,11 @@ class Access:
                 "simulation asynchronously:\n"
                 f"{self._stdout}\n\n"
                 "Writing output message to "
-                f"`restarts_{rand_hash}/output_{proc_index}.log`\n"
+                f"`restarts_{rand_hash}/outputs/output_{proc_index}.log`\n"
             ))
 
             with open(
-                f"access_info_{rand_hash}/output_{proc_index}.log", "w"
+                f"access_info_{rand_hash}/outputs/output_{proc_index}.log", "w"
             ) as f:
                 f.write(self._stdout)
 
