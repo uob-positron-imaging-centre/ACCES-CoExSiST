@@ -913,20 +913,76 @@ class Access:
 
     def __init__(
         self,
-        simulation: Simulation,
+        simulations: Simulation,
         scheduler = [sys.executable],
         max_workers = None,
     ):
+        '''`Access` class constructor.
+
+        Parameters
+        ----------
+        simulations: Simulation or list[Simulation]
+            The particle simulation object, implementing the
+            `coexist.Simulation` interface (e.g. `LiggghtsSimulation`).
+            Alternatively, this can be a *list of simulations*, in which case
+            multiple simulations will be run **for the same parameter
+            combination tried**. This allows the implementation of error
+            functions using multiple simulation regimes.
+
+        scheduler: list[str], default [sys.executable]
+            The executable that will run individual simulations as separate
+            Python scripts. In the simplest case, it would be just
+            `["python3"]`. Alternatively, this can be used to schedule
+            simulations on a cluster / supercomputer, e.g.
+            `["srun", "-n", "1", "python3"]` for SLURM. Each list element is
+            a piece of a shell command that will be run.
+
+        max_workers: int, optional
+            The maximum number of threads used by the main Python script to
+            run the error function on each simulation result. If `None`, the
+            output from `len(os.sched_getaffinity(0))` is used.
+
+        '''
 
         # Type-checking inputs
-        if not isinstance(simulation, Simulation):
+        def error_simulations(simulations):
+            # Print error message if the input `simulations` does not have the
+            # required type
             raise TypeError(textwrap.fill((
                 "The `simulation` input parameter must be an instance of "
-                f"`coexist.Simulation`. Received type `{type(simulation)}`."
+                "`coexist.Simulation` (or a subclass thereof) or a list "
+                f"of simulations. Received type `{type(simulations)}`."
             )))
 
+
+        if isinstance(simulations, Simulation):
+            self.simulations = [simulations]
+
+        elif isinstance(simulations, list):
+            if not len(simulations) >= 1:
+                error_simulations(simulations)
+
+            params = simulations[0].parameters
+
+            for sim in simulations:
+                if not isinstance(sim, Simulation):
+                    error_simulations(simulations)
+
+                if not params.equals(sim.parameters):
+                    raise ValueError((
+                        "The simulation parameters (`Simulation.parameters` "
+                        "attribute) must be the same across all simulations "
+                        "in the input list. The two unequal parameters are:\n"
+                        f"{params}\n\n"
+                        f"{sim.parameters}\n"
+                    ))
+
+            self.simulations = simulations
+
+        else:
+            error_simulations(simulations)
+
         # Setting class attributes
-        self.simulation = simulation
         self.scheduler = list(scheduler)
 
         if max_workers is None:
@@ -934,6 +990,8 @@ class Access:
         else:
             self.max_workers = int(max_workers)
 
+        # These are the constant class attributes relevant for a single
+        # ACCESS run. They will be set in the `learn` method
         self.rng = None
         self.error = None
 
@@ -942,7 +1000,22 @@ class Access:
 
         self.num_checkpoints = None
         self.num_solutions = None
+        self.target_sigma = None
 
+        self.use_historical = None
+        self.save_positions = None
+
+        self.save_path = None
+        self.simulations_path = None
+        self.outputs_path = None
+        self.classes_path = None
+        self.sim_classes_paths = None
+        self.sim_paths = None
+
+        self.history_path = None
+        self.history_scaled_path = None
+
+        self.random_seed = None
         self.verbose = None
 
         # Message printed to the stdout and stderr by spawned OS processes
@@ -979,76 +1052,89 @@ class Access:
         self.num_solutions = int(num_solutions)
         self.target_sigma = float(target_sigma)
 
-        self.rng = np.random.default_rng(random_seed)
+        self.use_historical = bool(use_historical)
+        self.save_positions = bool(save_positions)
 
-        if random_seed is None:
-            use_historical = False
-        else:
-            use_historical = bool(use_historical)
-
+        self.random_seed = random_seed
         self.verbose = bool(verbose)
 
-        save_positions = bool(save_positions)
+        # Setting constant class attributes
+        self.rng = np.random.default_rng(self.random_seed)
 
         # Aliases
-        sim = self.simulation
+        sims = self.simulations
         rng = self.rng
 
         # The random hash that represents this optimisation run. If a random
         # seed was specified, this will make the simulation and optimisations
         # fully deterministic (i.e. repeatable)
-        rand_hash = str(round(abs(rng.random() * 1e8)))
+        rand_hash = str(round(abs(rng.random() * 1e6)))
 
-        self.create_directories(
-            random_seed, rand_hash, use_historical, save_positions
-        )
+        self.save_path = f"access_info_{rand_hash}"
+        self.simulations_path = f"{self.save_path}/simulations"
+        self.classes_path = f"{self.save_path}/classes"
+        self.outputs_path = f"{self.save_path}/outputs"
+
+        self.sim_classes_paths = [
+            f"{self.classes_path}/simulation_{i}_class.pickle"
+            for i in range(len(self.simulations))
+        ]
+
+        self.sim_paths = [
+            f"{self.classes_path}/simulation_{i}"
+            for i in range(len(self.simulations))
+        ]
 
         # Check if we have historical data about the optimisation - these are
         # pre-computed values for this exact simulation, random seed, and
         # number of solutions
-        history_path = (
-            f"access_info_{rand_hash}/"
-            f"opt_history_{self.num_solutions}.csv"
+        self.history_path = (
+            f"{self.save_path}/opt_history_{self.num_solutions}.csv"
         )
 
-        history_scaled_path = (
-            f"access_info_{rand_hash}/"
-            f"opt_history_{self.num_solutions}_scaled.csv"
+        self.history_scaled_path = (
+            f"{self.save_path}/opt_history_{self.num_solutions}_scaled.csv"
         )
+
+        # Create all required paths above if they don't exist already
+        self.create_directories()
 
         # History columns: [param1, param2, ..., stddev_param1, stddev_param2,
         # ..., stddev_all, error_value]
-        if use_historical and os.path.isfile(history_path):
-            history = np.loadtxt(history_path, dtype = float)
+        if use_historical and os.path.isfile(self.history_path):
+            history = np.loadtxt(self.history_path, dtype = float)
         elif use_historical:
             history = []
         else:
             history = None
 
         # Scaling and unscaling parameter values introduce numerical errors
-        # that confuses the optimiser. Thus save unscaled values separately
-        if use_historical and os.path.isfile(history_scaled_path):
-            history_scaled = np.loadtxt(history_scaled_path, dtype = float)
-        elif use_historical:
+        # that confuse the optimiser. Thus save unscaled values separately
+        if self.use_historical and os.path.isfile(self.history_scaled_path):
+            history_scaled = np.loadtxt(
+                self.history_scaled_path, dtype = float
+            )
+        elif self.use_historical:
             history_scaled = []
         else:
             history_scaled = None
 
         # Minimum and maximum possible values for the DEM parameters
-        params_mins = sim.parameters["min"].to_numpy()
-        params_maxs = sim.parameters["max"].to_numpy()
+        params_mins = sims[0].parameters["min"].to_numpy()
+        params_maxs = sims[0].parameters["max"].to_numpy()
 
         # If any `sigma` value is smaller than 5% (max - min), clip it
-        sim.parameters["sigma"].clip(
-            lower = 0.05 * (sim.parameters["max"] - sim.parameters["min"]),
-            inplace = True,
-        )
+        for s in sims:
+            s.parameters["sigma"].clip(
+                lower = 0.05 * (params_maxs - params_mins),
+                inplace = True,
+            )
 
         # Scale sigma, bounds, solutions, results to unit variance
-        scaling = sim.parameters["sigma"].to_numpy()
+        scaling = sims[0].parameters["sigma"].to_numpy()
 
         # First guess, scaled
-        x0 = sim.parameters["value"].to_numpy() / scaling
+        x0 = sims[0].parameters["value"].to_numpy() / scaling
         sigma0 = 1.0
         bounds = [
             params_mins / scaling,
@@ -1064,7 +1150,7 @@ class Access:
         ))
 
         # Start optimisation: ask the optimiser for parameter combinations
-        # (solutions), run the simulation between `start_index:end_index` and
+        # (solutions), run the simulations between `start_index:end_index` and
         # feed the results back to CMA-ES.
         epoch = 0
 
@@ -1072,7 +1158,7 @@ class Access:
             solutions = es.ask()
 
             # If we have historical data, inject it for each epoch
-            if use_historical and \
+            if self.use_historical and \
                     epoch * self.num_solutions < len(history_scaled):
 
                 self.inject_historical(es, history_scaled, epoch)
@@ -1086,11 +1172,7 @@ class Access:
             if self.verbose:
                 self.print_before_eval(es, solutions)
 
-            results = self.try_solutions(
-                rand_hash,
-                solutions * scaling,
-                save_positions = epoch if save_positions else None,
-            )
+            results = self.try_solutions(solutions * scaling, epoch)
 
             es.tell(solutions, results)
             epoch += 1
@@ -1098,7 +1180,7 @@ class Access:
             # Save every step's historical data as function evaluations are
             # very expensive. Save columns [param1, param2, ..., stdev_param1,
             # stdev_param2, ..., stdev_all, error_val].
-            if use_historical:
+            if self.use_historical:
                 if not isinstance(history, list):
                     history = list(history)
 
@@ -1109,7 +1191,7 @@ class Access:
                         [es.sigma, res]
                     )
 
-                np.savetxt(history_path, history)
+                np.savetxt(self.history_path, history)
 
                 # Save scaled values separately to avoid numerical errors
                 if not isinstance(history_scaled, list):
@@ -1122,7 +1204,7 @@ class Access:
                         [es.sigma, res]
                     )
 
-                np.savetxt(history_scaled_path, history_scaled)
+                np.savetxt(self.history_scaled_path, history_scaled)
 
             if self.verbose:
                 self.print_after_eval(es, solutions, scaling, results)
@@ -1131,80 +1213,144 @@ class Access:
                 break
 
         solutions = es.result.xbest * scaling
-        param_names = sim.parameters.index
-
-        # Change sigma, min and max based on optimisation results
-        sim.parameters["sigma"] = es.result.stds * scaling
+        stds = es.result.stds * scaling
 
         if self.verbose:
             print(f"Best results for solutions: {solutions}", flush = True)
 
+        # Run the simulation with the best parameters found and save the
+        # results to disk. Return the paths to the saved values
+        radii_paths, positions_paths, velocities_paths = \
+            self.run_simulation_best(solutions, stds)
+
+        return radii_paths, positions_paths, velocities_paths
+
+
+    def run_simulation_best(self, solutions, stds):
+        # Path for saving the simulations with the best parameters
+        best_path = f"{self.save_path}/best"
+
+        if not os.path.isdir(best_path):
+            os.mkdir(best_path)
+
+        # Paths for saving the best simulations' outputs
+        best_radii_paths = [
+            f"{best_path}/best_radii_{i}.npy"
+            for i in range(len(self.simulations))
+        ]
+
+        best_positions_paths = [
+            f"{best_path}/best_positions_{i}.npy"
+            for i in range(len(self.simulations))
+        ]
+
+        best_velocities_paths = [
+            f"{best_path}/best_velocities_{i}.npy"
+            for i in range(len(self.simulations))
+        ]
+
+        # Change sigma, min and max based on optimisation results
+        param_names = self.simulations[0].parameters.index
+
+        for s in self.simulations:
+            s.parameters["sigma"] = stds
+
         # Change parameters to the best solution
         for i, sol_val in enumerate(solutions):
-            sim[param_names[i]] = sol_val
+            for s in self.simulations:
+                s[param_names[i]] = sol_val
 
         # Compute error for found solutions and move simulation forward in time
         checkpoints = np.linspace(
             self.start_time, self.end_time, self.num_checkpoints
         )
 
-        positions = []
-        for t in checkpoints:
-            sim.step_to_time(t)
-            positions.append(sim.positions())
+        # Run each simulation with the best parameters found. This cannot be
+        # done in parallel as the simulation library might be thread-unsafe
+        for i, sim in enumerate(self.simulations):
+            if self.verbose:
+                print((
+                    f"Running the simulation at index {i} with the best "
+                    "parameter values found..."
+                ))
 
-        positions = np.array(positions, dtype = float)
-        err = self.error(positions)
+            positions = []
+            velocities = []
+
+            for t in checkpoints:
+                sim.step_to_time(t)
+                positions.append(sim.positions())
+                velocities.append(sim.velocities())
+
+            radii = sim.radii()
+            positions = np.array(positions, dtype = float)
+            velocities = np.array(velocities, dtype = float)
+
+            np.save(best_radii_paths[i], radii)
+            np.save(best_positions_paths[i], positions)
+            np.save(best_velocities_paths[i], velocities)
+
+        error = self.error(
+            best_radii_paths,
+            best_positions_paths,
+            best_velocities_paths,
+        )
 
         if self.verbose:
             print((f"Error (computed by the `error` function) for solution: "
-                   f"{err}\n---"), flush = True)
+                   f"{error}\n---"), flush = True)
 
-        return positions
+        return best_radii_paths, best_positions_paths, best_velocities_paths
 
 
-    def create_directories(
-        self,
-        random_seed,
-        rand_hash,
-        use_historical,
-        save_positions,
-    ):
-        sim = self.simulation
-
+    def create_directories(self):
         # Save the current simulation state in a `restarts` folder
-        if not os.path.isdir(f"access_info_{rand_hash}"):
-            os.mkdir(f"access_info_{rand_hash}")
+        if not os.path.isdir(self.save_path):
+            os.mkdir(self.save_path)
 
         # Save positions and parameters in a new folder inside `restarts`
-        if not os.path.isdir(f"access_info_{rand_hash}/positions"):
-            os.mkdir(f"access_info_{rand_hash}/positions")
+        if not os.path.isdir(self.simulations_path):
+            os.mkdir(self.simulations_path)
+
+        # Save classes objects in a new folder inside `restarts`
+        if not os.path.isdir(self.classes_path):
+            os.mkdir(self.classes_path)
 
         # Save simulation outputs (stderr and stdout) in a new folder
-        if not os.path.isdir(f"access_info_{rand_hash}/outputs"):
-            os.mkdir(f"access_info_{rand_hash}/outputs")
+        if not os.path.isdir(self.outputs_path):
+            os.mkdir(self.outputs_path)
 
-        # Serialize the simulation's concrete class so that it can be
+        # Serialize the simulations' concrete class so that it can be
         # reconstructed even if it is a `coexist.Simulation` subclass
-        with open(f"access_info_{rand_hash}/simulation_class.pickle",
-                  "wb") as f:
-            pickle.dump(sim.__class__, f)
+        for i in range(len(self.simulations)):
+            with open(self.sim_classes_paths[i], "wb") as f:
+                pickle.dump(self.simulations[i].__class__, f)
 
-        # Save current checkpoint and extra data for parallel computation
-        sim.save(f"access_info_{rand_hash}/opt")
-        with open(f"access_info_{rand_hash}/opt_run_info.txt", "a") as f:
+            # Save current checkpoint and extra data for parallel computation
+            self.simulations[i].save(self.sim_paths[i])
+
+        with open(f"{self.save_path}/opt_run_info.txt", "a") as f:
             now = datetime.now().strftime("%H:%M:%S - %D")
             f.writelines([
+                "--------------------------------------------------------\n",
                 f"Starting ACCESS run at {now}\n",
-                f"{sim}\n\n",
+                f"{self.simulations}\n\n",
                 f"start_time =          {self.start_time}\n",
                 f"end_time =            {self.end_time}\n",
                 f"target_sigma =        {self.target_sigma}\n",
                 f"num_checkpoints =     {self.num_checkpoints}\n",
                 f"num_solutions =       {self.num_solutions}\n",
-                f"random_seed =         {random_seed}\n",
-                f"use_historical =      {use_historical}\n",
-                f"save_positions =      {save_positions}\n",
+                f"random_seed =         {self.random_seed}\n",
+                f"use_historical =      {self.use_historical}\n",
+                f"save_positions =      {self.save_positions}\n\n",
+                f"save_path =           {self.save_path}\n",
+                f"simulations_path =    {self.simulations_path}\n",
+                f"classes_path =        {self.classes_path}\n",
+                f"outputs_path =        {self.outputs_path}\n",
+                f"sim_classes_paths =   {self.sim_classes_paths}\n",
+                f"sim_paths =           {self.sim_paths}\n\n",
+                f"history_path =        {self.history_path}\n",
+                f"history_scaled_path = {self.history_scaled_path}\n",
                 "--------------------------------------------------------\n\n",
             ])
 
@@ -1218,7 +1364,7 @@ class Access:
         '''
 
         ns = self.num_solutions
-        num_params = len(self.simulation.parameters)
+        num_params = len(self.simulations[0].parameters)
 
         results_scaled = history_scaled[(epoch * ns):(epoch * ns + ns)]
         es.tell(results_scaled[:, :num_params], results_scaled[:, -1])
@@ -1246,7 +1392,7 @@ class Access:
         results,
     ):
         # Display evaluation results: solutions, error values, etc.
-        cols = list(self.simulation.parameters.index) + ["error"]
+        cols = list(self.simulations[0].parameters.index) + ["error"]
         sols_results = np.hstack((
             solutions * scaling,
             results[:, np.newaxis],
@@ -1289,89 +1435,94 @@ class Access:
         return False
 
 
-    def std_outputs(self, rand_hash, proc_index, stdout, stderr):
+    def std_outputs(self, run_index, sim_index, stdout, stderr):
         # If we had new errors, write them to `error.log`
         if len(stderr) and stderr != self._stderr:
             self._stderr = stderr.decode("utf-8")
 
+            error_path = (
+                f"{self.outputs_path}/"
+                f"error_{run_index}_{sim_index}.log"
+            )
+
             print((
-                "A new error ocurred while running a simulation "
-                "asynchronously:\n"
+                "A new error ocurred while running simulation (run "
+                f"{run_index} / index {sim_index}):\n"
                 f"{self._stderr}\n\n"
-                "Writing error message to "
-                f"`restarts_{rand_hash}/outputs/error_{proc_index}.log`\n"
+                f"Writing error message to `{error_path}`\n"
             ))
 
-            with open(
-                f"access_info_{rand_hash}/outputs/error_{proc_index}.log", "w"
-            ) as f:
+            with open(error_path, "w") as f:
                 f.write(self._stderr)
 
         # If we had new outputs, write them to `output.log`
         if len(stdout) and stdout != self._stdout:
             self._stdout = stdout.decode("utf-8")
 
+            output_path = (
+                f"{self.outputs_path}"
+                f"output_{run_index}_{sim_index}.log"
+            )
+
             print((
-                "A new message was outputted while running a "
-                "simulation asynchronously:\n"
+                "A new message was outputted while running simulation (run "
+                f"{run_index} / index {sim_index}):\n"
                 f"{self._stdout}\n\n"
-                "Writing output message to "
-                f"`restarts_{rand_hash}/outputs/output_{proc_index}.log`\n"
+                f"Writing output message to `{output_path}`\n"
             ))
 
-            with open(
-                f"access_info_{rand_hash}/outputs/output_{proc_index}.log", "w"
-            ) as f:
+            with open(output_path, "w") as f:
                 f.write(self._stdout)
 
 
-    def save_paths(self, rand_hash, save_positions = None):
-        epoch = save_positions          # Either the epoch (int) or None
-
+    def simulations_save_paths(self, epoch):
         sim_paths = []
         radii_paths = []
         positions_paths = []
         velocities_paths = []
 
-        # Save current parameter values. If `save_positions` is given, then
-        # save them to unique paths. Otherwise reuse the same ones
-        if save_positions is not None:
-            start_index = epoch * self.num_solutions
-        else:
-            start_index = 0
+        start_index = epoch * self.num_solutions
 
+        # For every parameter combination...
         for i in range(self.num_solutions):
-            sim_paths.append((
-                f"access_info_{rand_hash}/positions/"
-                f"opt_{start_index + i}"
-            ))
+            sim_run = []
+            radii_run = []
+            positions_run = []
+            velocities_run = []
 
-            radii_paths.append((
-                f"access_info_{rand_hash}/positions/"
-                f"opt_{start_index + i}_radii.npy"
-            ))
+            # For every simulation run...
+            for j in range(len(self.simulations)):
+                sim_run.append((
+                    f"{self.simulations_path}/"
+                    f"opt_{start_index + i}_{j}"
+                ))
 
-            positions_paths.append((
-                f"access_info_{rand_hash}/positions/"
-                f"opt_{start_index + i}_positions.npy"
-            ))
+                radii_run.append((
+                    f"{self.simulations_path}/"
+                    f"opt_{start_index + i}_{j}_radii.npy"
+                ))
 
-            velocities_paths.append((
-                f"access_info_{rand_hash}/positions/"
-                f"opt_{start_index + i}_velocities.npy"
-            ))
+                positions_run.append((
+                    f"{self.simulations_path}/"
+                    f"opt_{start_index + i}_{j}_positions.npy"
+                ))
+
+                velocities_run.append((
+                    f"{self.simulations_path}/"
+                    f"opt_{start_index + i}_{j}_velocities.npy"
+                ))
+
+            sim_paths.append(sim_run)
+            radii_paths.append(radii_run)
+            positions_paths.append(positions_run)
+            velocities_paths.append(velocities_run)
 
         return sim_paths, radii_paths, positions_paths, velocities_paths
 
 
-    def try_solutions(self, rand_hash, solutions, save_positions = None):
-        # `save_positions` is either None or an int => optimisation solution
-        # iteration (i.e. epoch)
-        epoch = save_positions
-
+    def try_solutions(self, solutions, epoch):
         # Aliases
-        sim = self.simulation
-        param_names = sim.parameters.index
+        param_names = self.simulations[0].parameters.index
 
         # Path to `async_access_error.py`
         async_xi = os.path.join(
@@ -1379,42 +1530,53 @@ class Access:
             "async_access_error.py"
         )
 
-        # For every solution to try, start a separate OS process that runs the
-        # `async_access_error.py` file and saves the positions in a `.npy` file
+        # For every solution to try and simulation run, start a separate OS
+        # process that runs the `async_access_error.py` file and saves the
+        # positions in a `.npy` file
         processes = []
 
+        # These are all lists of lists: axis 0 is the parameter combination to
+        # try, while axis 1 is the particular simulation to run
         sim_paths, radii_paths, positions_paths, velocities_paths = \
-            self.save_paths(rand_hash, save_positions)
+            self.simulations_save_paths(epoch)
 
         # Catch the KeyboardInterrupt (Ctrl-C) signal to shut down the spawned
         # processes before aborting.
         try:
+            # Run all simulations in `self.simulations` for each parameter
+            # combination in `solutions`
             for i, sol in enumerate(solutions):
+                single_run_processes = []
 
-                # Change parameter values to save them along with the full
-                # simulation state
-                for j, sol_val in enumerate(sol):
-                    sim.parameters.at[param_names[j], "value"] = sol_val
+                # For every simulation in `self.simulations`, start a new proc
+                for j, sim in enumerate(self.simulations):
 
-                sim.save(sim_paths[i])
+                    # Change parameter values to save them along with the
+                    # full simulation state
+                    for k, sol_val in enumerate(sol):
+                        sim.parameters.at[param_names[k], "value"] = sol_val
 
-                processes.append(
-                    subprocess.Popen(
-                        self.scheduler + [  # The Python interpreter path
-                            async_xi,       # The `async_access_error.py` path
-                            f"access_info_{rand_hash}/simulation_class.pickle",
-                            sim_paths[i],
-                            str(self.start_time),
-                            str(self.end_time),
-                            str(self.num_checkpoints),
-                            radii_paths[i],
-                            positions_paths[i],
-                            velocities_paths[i],
-                        ],
-                        stdout = subprocess.PIPE,
-                        stderr = subprocess.PIPE,
+                    sim.save(sim_paths[i][j])
+
+                    single_run_processes.append(
+                        subprocess.Popen(
+                            self.scheduler + [  # Python interpreter path
+                                async_xi,       # async_access_error.py path
+                                self.sim_classes_paths[j],
+                                sim_paths[i][j],
+                                str(self.start_time),
+                                str(self.end_time),
+                                str(self.num_checkpoints),
+                                radii_paths[i][j],
+                                positions_paths[i][j],
+                                velocities_paths[i][j],
+                            ],
+                            stdout = subprocess.PIPE,
+                            stderr = subprocess.PIPE,
+                        )
                     )
-                )
+
+                processes.append(single_run_processes)
 
             # Compute the error function values in a parallel environment.
             with ProcessPoolExecutor(max_workers = self.max_workers) \
@@ -1422,22 +1584,38 @@ class Access:
                 futures = []
 
                 # Get the output from each OS process / simulation
-                for i, proc in enumerate(processes):
-                    stdout, stderr = proc.communicate()
+                for i, run_procs in enumerate(processes):
+                    # Check simulations didn't crash
+                    crashed = False
 
-                    if epoch is not None:
+                    for j, proc in enumerate(run_procs):
+                        stdout, stderr = proc.communicate()
+
                         proc_index = epoch * self.num_solutions + i
-                    else:
-                        proc_index = i
+                        self.std_outputs(proc_index, j, stdout, stderr)
 
-                    self.std_outputs(rand_hash, proc_index, stdout, stderr)
+                        # Only load simulations if they exist - i.e. no errors
+                        # occurred
+                        if not (os.path.isfile(radii_paths[i][j]) and
+                                os.path.isfile(positions_paths[i][j]) and
+                                os.path.isfile(velocities_paths[i][j])):
 
-                    # Only load simulations if they exist - i.e. no errors
-                    # occurred
-                    if os.path.isfile(radii_paths[i]) and \
-                            os.path.isfile(positions_paths[i]) and \
-                            os.path.isfile(velocities_paths[i]):
+                            print((
+                                "At least one of the simulation files "
+                                f"{radii_paths[i][j]}, "
+                                f"{positions_paths[i][j]} or "
+                                f"{velocities_paths[i][j]}, was not found; "
+                                f"the simulation (run {i} / index {j}) most "
+                                "likely crashed. Check the error, output and "
+                                "LIGGGHTS logs for what went wrong. The error "
+                                "value for this simulation run is set to NaN."
+                            ))
 
+                            crashed = True
+
+                    # If no simulations crashed in this run, execute the error
+                    # function in parallel
+                    if not crashed:
                         futures.append(
                             executor.submit(
                                 self.error,
@@ -1446,19 +1624,6 @@ class Access:
                                 velocities_paths[i],
                             )
                         )
-
-                    else:
-                        futures.append(None)
-
-                        print((
-                            "At least one of the simulation files "
-                            f"{radii_paths[i]}, {positions_paths[i]} or "
-                            f"{velocities_paths[i]}, was not found; the "
-                            "simulation most likely crashed. Check the error, "
-                            "output and LIGGGHTS logs for what went wrong. "
-                            "The error value for this simulation is set to "
-                            "`NaN`."
-                        ))
 
                 # Crashed solutions will have np.nan as a value.
                 results = np.full(len(solutions), np.nan)
@@ -1469,9 +1634,21 @@ class Access:
 
 
         except KeyboardInterrupt:
-            for proc in processes:
-                proc.kill()
+            for proc_run in processes:
+                for proc in proc_run:
+                    proc.kill()
 
             sys.exit(130)
+
+        # If `save_positions` is not True, remove all simulation files
+        if not self.save_positions:
+            for radii_run in radii_paths:
+                [os.remove(rp) for rp in radii_run]
+
+            for positions_run in positions_paths:
+                [os.remove(pp) for pp in positions_run]
+
+            for velocities_run in velocities_paths:
+                [os.remove(vp) for vp in velocities_run]
 
         return results
