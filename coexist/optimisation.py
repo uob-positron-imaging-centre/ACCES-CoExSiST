@@ -958,7 +958,7 @@ class Access:
         if isinstance(simulations, Simulation):
             self.simulations = [simulations]
 
-        elif isinstance(simulations, list):
+        elif hasattr(simulations, "__iter__"):
             if not len(simulations) >= 1:
                 error_simulations(simulations)
 
@@ -995,8 +995,8 @@ class Access:
         self.rng = None
         self.error = None
 
-        self.start_time = None
-        self.end_time = None
+        self.start_times = None
+        self.end_times = None
 
         self.num_checkpoints = None
         self.num_solutions = None
@@ -1026,8 +1026,8 @@ class Access:
     def learn(
         self,
         error,
-        start_time,
-        end_time,
+        start_times,
+        end_times,
         num_checkpoints = 100,
         num_solutions = 10,
         target_sigma = 0.1,
@@ -1045,10 +1045,41 @@ class Access:
 
         self.error = error
 
-        self.start_time = float(start_time)
-        self.end_time = float(end_time)
+        if hasattr(start_times, "__iter__"):
+            self.start_times = [float(st) for st in start_times]
+        else:
+            self.start_times = [float(start_times) for _ in self.simulations]
 
-        self.num_checkpoints = int(num_checkpoints)
+        if hasattr(end_times, "__iter__"):
+            self.end_times = [float(et) for et in end_times]
+        else:
+            self.end_times = [float(end_times) for _ in self.simulations]
+
+        if len(self.start_times) != len(self.simulations) or \
+                len(self.end_times) != len(self.simulations):
+            raise ValueError(textwrap.fill((
+                "The input `start_times` and `end_times` must have the same "
+                "number of elements as the number of simulations. Received "
+                f"{len(self.start_times)} start times / {len(self.end_times)} "
+                f"end times for {len(self.simulations)} simulations."
+            )))
+
+        if hasattr(num_checkpoints, "__iter__"):
+            self.num_checkpoints = [int(nc) for nc in num_checkpoints]
+        else:
+            self.num_checkpoints = [
+                int(num_checkpoints)
+                for _ in self.simulations
+            ]
+
+        if len(self.num_checkpoints) != len(self.simulations):
+            raise ValueError(textwrap.fill((
+                "The input `num_checkpoints` must be either a single value or "
+                "a list with the same number of elements as the number of "
+                f"simulations. Received {len(self.num_checkpoints)} "
+                f"checkpoints for {len(self.simulations)} simulations."
+            )))
+
         self.num_solutions = int(num_solutions)
         self.target_sigma = float(target_sigma)
 
@@ -1124,8 +1155,8 @@ class Access:
         params_maxs = sims[0].parameters["max"].to_numpy()
 
         # If any `sigma` value is smaller than 5% (max - min), clip it
-        for s in sims:
-            s.parameters["sigma"].clip(
+        for sim in sims:
+            sim.parameters["sigma"].clip(
                 lower = 0.05 * (params_maxs - params_mins),
                 inplace = True,
             )
@@ -1252,18 +1283,13 @@ class Access:
         # Change sigma, min and max based on optimisation results
         param_names = self.simulations[0].parameters.index
 
-        for s in self.simulations:
-            s.parameters["sigma"] = stds
+        for sim in self.simulations:
+            sim.parameters["sigma"] = stds
 
         # Change parameters to the best solution
         for i, sol_val in enumerate(solutions):
-            for s in self.simulations:
-                s[param_names[i]] = sol_val
-
-        # Compute error for found solutions and move simulation forward in time
-        checkpoints = np.linspace(
-            self.start_time, self.end_time, self.num_checkpoints
-        )
+            for sim in self.simulations:
+                sim[param_names[i]] = sol_val
 
         # Run each simulation with the best parameters found. This cannot be
         # done in parallel as the simulation library might be thread-unsafe
@@ -1273,6 +1299,12 @@ class Access:
                     f"Running the simulation at index {i} with the best "
                     "parameter values found..."
                 ))
+
+            checkpoints = np.linspace(
+                self.start_times[i],
+                self.end_times[i],
+                self.num_checkpoints[i],
+            )
 
             positions = []
             velocities = []
@@ -1333,12 +1365,13 @@ class Access:
             now = datetime.now().strftime("%H:%M:%S - %D")
             f.writelines([
                 "--------------------------------------------------------\n",
-                f"Starting ACCESS run at {now}\n",
+                f"Starting ACCESS run at {now}\n\n",
+                "Simulations:\n"
                 f"{self.simulations}\n\n",
-                f"start_time =          {self.start_time}\n",
-                f"end_time =            {self.end_time}\n",
-                f"target_sigma =        {self.target_sigma}\n",
+                f"start_times =         {self.start_times}\n",
+                f"end_times =           {self.end_times}\n",
                 f"num_checkpoints =     {self.num_checkpoints}\n",
+                f"target_sigma =        {self.target_sigma}\n",
                 f"num_solutions =       {self.num_solutions}\n",
                 f"random_seed =         {self.random_seed}\n",
                 f"use_historical =      {self.use_historical}\n",
@@ -1564,9 +1597,9 @@ class Access:
                                 async_xi,       # async_access_error.py path
                                 self.sim_classes_paths[j],
                                 sim_paths[i][j],
-                                str(self.start_time),
-                                str(self.end_time),
-                                str(self.num_checkpoints),
+                                str(self.start_times[j]),
+                                str(self.end_times[j]),
+                                str(self.num_checkpoints[j]),
                                 radii_paths[i][j],
                                 positions_paths[i][j],
                                 velocities_paths[i][j],

@@ -1247,7 +1247,7 @@ class LiggghtsSimulation(Simulation):
             "Class instance that inherits from `pyLiggghts.Simulation`.\n"
             f"Type:\n{type(self)}\n\n"
             "Attributes\n----------\n"
-            f"{self.__str__()}"
+            f"{self.__str__()}\n"
         )
 
         return docstr
