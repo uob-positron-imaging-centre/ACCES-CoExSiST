@@ -1493,7 +1493,7 @@ class Access:
             self._stdout = stdout.decode("utf-8")
 
             output_path = (
-                f"{self.outputs_path}"
+                f"{self.outputs_path}/"
                 f"output_{run_index}_{sim_index}.log"
             )
 

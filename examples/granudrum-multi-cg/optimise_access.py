@@ -8,6 +8,7 @@
 
 import sys
 import shutil
+from typing import List, Tuple
 
 import numpy as np
 
@@ -92,7 +93,7 @@ def image_thresh(granudrum: GranuDrum, image_path: str) -> pept.Pixels:
     xx, yy = np.meshgrid(xgrid, ygrid)
 
     # Remove the GranuDrum's circular outline
-    image[xx ** 2 + yy ** 2 > 0.98 * granudrum.radius ** 2] = 0
+    image[xx ** 2 + yy ** 2 > 0.97 * granudrum.radius ** 2] = 0
 
     # Inflate then deflate the uint8-encoded image
     kernel = np.ones((21, 21), np.uint8)
@@ -100,7 +101,7 @@ def image_thresh(granudrum: GranuDrum, image_path: str) -> pept.Pixels:
 
     # Global thresholding + binarisation
     _, img = cv2.threshold(img, 30, 255, cv2.THRESH_BINARY)
-    img[xx ** 2 + yy ** 2 > 0.98 * granudrum.radius ** 2] = 0
+    img[xx ** 2 + yy ** 2 > 0.97 * granudrum.radius ** 2] = 0
 
     img = pept.Pixels(img, xlim = granudrum.xlim, ylim = granudrum.ylim)
 
@@ -109,7 +110,7 @@ def image_thresh(granudrum: GranuDrum, image_path: str) -> pept.Pixels:
 
 def simulation_thresh(
     granudrum: GranuDrum,
-    image_shape: tuple,
+    image_shape: Tuple[int, int],
     positions: np.ndarray,
     particle_radii: np.ndarray,
 ) -> pept.Pixels:
@@ -135,7 +136,7 @@ def simulation_thresh(
     xx, yy = np.meshgrid(xgrid, ygrid)
 
     # Remove the GranuDrum's circular outline
-    sim_occupancy[xx ** 2 + yy ** 2 > 0.98 * granudrum.radius ** 2] = 0
+    sim_occupancy[xx ** 2 + yy ** 2 > 0.97 * granudrum.radius ** 2] = 0
 
     # Inflate then deflate the uint8-encoded image
     kernel = np.ones((21, 21), np.uint8)
@@ -147,7 +148,7 @@ def simulation_thresh(
 
     # Global thresholding + binarisation
     _, sim = cv2.threshold(sim, 30, 255, cv2.THRESH_BINARY)
-    sim[xx ** 2 + yy ** 2 > 0.98 * granudrum.radius ** 2] = 0
+    sim[xx ** 2 + yy ** 2 > 0.97 * granudrum.radius ** 2] = 0
 
     sim = pept.Pixels(sim, xlim = granudrum.xlim, ylim = granudrum.ylim)
 
@@ -220,9 +221,9 @@ def subtract_occupancies(
 
 
 def error_function(
-    radii_paths: list[str],
-    positions_paths: list[str],
-    velocities_paths: list[str],
+    radii_paths: List[str],
+    positions_paths: List[str],
+    velocities_paths: List[str],
 ) -> float:
     '''An ACCESS error function quantifying the difference between multiple
     GranuDrum images (at different RPMs) and the corresponding DEM simulations,
