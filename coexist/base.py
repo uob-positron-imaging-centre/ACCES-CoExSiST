@@ -187,7 +187,7 @@ class Parameters(pd.DataFrame):
         *args,
         variables = [],
         commands = [],
-        values = [],
+        values = None,
         minimums = [],
         maximums = [],
         sigma = None,
@@ -230,17 +230,22 @@ class Parameters(pd.DataFrame):
 
         pd.DataFrame.__init__(self, *args, **kwargs)
 
-        if not (len(variables) == len(commands) == len(values) ==
-                len(minimums) == len(maximums)):
+        if not (len(variables) == len(commands) == len(minimums) ==
+                len(maximums)) or \
+                (values is not None and len(values) != len(variables)):
             raise ValueError(textwrap.fill(
-                '''The input iterables `variables`, `commands`,
-                `values`, `minimums` and `maximums` must all have the same
+                '''The input iterables `variables`, `commands`, `values` (if
+                defined), `minimums` and `maximums` must all have the same
                 length.'''
             ))
 
-        values = np.array(values, dtype = float)
         minimums = np.array(minimums, dtype = float)
         maximums = np.array(maximums, dtype = float)
+
+        if values is None:
+            values = (maximums + minimums) / 2
+        else:
+            values = np.array(values, dtype = float)
 
         if (minimums >= maximums).any():
             raise ValueError(textwrap.fill(
@@ -249,7 +254,7 @@ class Parameters(pd.DataFrame):
             ))
 
         if sigma is None:
-            sigma = 0.2 * (maximums - minimums)
+            sigma = 0.4 * (maximums - minimums)
         elif len(sigma) != len(variables):
             raise ValueError(textwrap.fill(
                 '''If defined, `sigma` must have the same length as the other
