@@ -1657,6 +1657,8 @@ class Access:
                                 velocities_paths[i],
                             )
                         )
+                    else:
+                        futures.append(None)
 
                 # Crashed solutions will have np.nan as a value.
                 results = np.full(len(solutions), np.nan)
