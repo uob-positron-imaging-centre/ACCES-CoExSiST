@@ -123,6 +123,57 @@ def to_vtk(
 
 
 
+def create_parameters(
+    variables = [],
+    minimums = [],
+    maximums = [],
+    values = None,
+    sigma = None,
+    **kwargs,
+):
+    if not (len(variables) == len(minimums) == len(maximums)) or \
+            (values is not None and len(values) != len(variables)) or \
+            (sigma is not None and len(sigma) != len(variables)):
+        raise ValueError(textwrap.fill(
+            '''The input iterables `variables`, `minimums`, `maximums`,
+            `values` and `sigma` (if defined), must all have the same length.
+            '''
+        ))
+
+    minimums = np.array(minimums, dtype = float)
+    maximums = np.array(maximums, dtype = float)
+
+    if values is None:
+        values = (maximums + minimums) / 2
+    else:
+        values = np.array(values, dtype = float)
+
+    if (minimums >= maximums).any():
+        raise ValueError(textwrap.fill(
+            '''Found value in `maximums` that was smaller or equal than the
+            corresponding value in `minimums`.'''
+        ))
+
+    if sigma is None:
+        sigma = 0.4 * (maximums - minimums)
+
+
+    parameters = pd.DataFrame(
+        data = {
+            "value": values,
+            "min": minimums,
+            "max": maximums,
+            "sigma": sigma,
+            **kwargs,
+        },
+        index = variables,
+    )
+
+    return parameters
+
+
+
+
 class Parameters(pd.DataFrame):
     '''Pandas DataFrame subclass with a custom constructor for LIGGGHTS
     simulation parameters.

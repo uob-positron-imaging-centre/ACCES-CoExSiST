@@ -8,6 +8,7 @@
 
 # Import base data structures and algorithms
 from    .base           import  to_vtk
+from    .base           import  create_parameters
 
 from    .base           import  Parameters
 from    .base           import  Experiment
@@ -19,6 +20,9 @@ from    .base           import  AutoTimestep
 
 from    .optimisation   import  Coexist
 from    .optimisation   import  Access
+from    .optimisation   import  AccessScript
+
+from    .               import  schedulers
 
 from    .               import  ballistics
 
@@ -28,13 +32,20 @@ from    .__version__    import  __version__
 
 __all__ = [
     "to_vtk",
+    "create_parameters",
+
     "Parameters",
     "Experiment",
     "Simulation",
     "LiggghtsSimulation",
+    "AutoTimestep",
+
     "Coexist",
     "Access",
+    "AccessScript",
+
+    "schedulers",
     "ballistics",
-    "AutoTimestep",
+
     "__version__",
 ]

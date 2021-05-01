@@ -20,6 +20,10 @@ import  cma
 
 import  coexist
 from    coexist             import  Simulation, Experiment
+from    coexist             import  schedulers
+
+from    .code_trees         import  code_contains_variable
+from    .code_trees         import  code_substitute_variable
 
 
 
@@ -1687,3 +1691,737 @@ class Access:
                 [os.remove(vp) for vp in velocities_run]
 
         return results
+
+
+
+
+class AccessScript:
+    '''Optimise an arbitrary user-defined script's parameters in parallel.
+
+    A minimal user script - saved in a separate file - would be:
+
+    ```python
+
+    #### ACCESS PARAMETERS START
+    import coexist
+
+    parameters = coexist.create_parameters(
+        variables = ["fp1", "fp2"],
+        minimums = [-5, -10],
+        maximums = [+5, +10],
+    )
+
+    access_id = 1                           # Optional
+    #### ACCESS PARAMETERS END
+
+    x = parameters.at["fp1", "value"]
+    y = parameters.at["fp2", "value"]
+
+    error = x ** 2 + y ** 2
+    extra = dict(info = "Some info")        # Optional
+
+    ```
+
+    This script defines two free parameters to optimise "fp1" and "fp2" with
+    ranges [-5, +5] and [-10, +10] and saves an error value to be optimised
+    in the variable `error`. To optimise it, run in another file:
+
+    ```python
+
+    import coexist
+
+    access = coexist.AccessScript("script_filepath.py")
+    access.learn()
+
+    ```
+
+    One you run `access.learn()`, a folder named "access_info_<hashcode>" is
+    generated which stores all information about this access run, including all
+    simulation data. Feel free to look through it and extract anything, but
+    don't manually edit the files in there.
+
+    In general, an ACCESS user script must define one simulation whose
+    parameters will be optimised this way:
+
+    1. Use a variable named "parameters" to define this simulation's free /
+       optimisable parameters. Create it using `coexist.create_parameters`.
+       An initial guess can also be set here.
+
+    2. The `parameters` creation should be fully self-contained between two
+       `#### ACCESS PARAMETERS START` and `#### ACCESS PARAMETERS END` blocks.
+       Self-contained means it should not depend on code ran before.
+
+    3. By the end of the simulation script, define two variables:
+        a. `error` - one number representing this simulation's error value.
+        b. `extra` - (optional) *any* python data structure storing extra
+                     information you want to save for a simulation run (e.g.
+                     particle positions).
+
+    Notice that there is no limitation on how the error value is calculated. It
+    can be any simulation, executed in any way - even externally; just launch
+    a separate process from the Python script, run the simulation, extract data
+    back into the Python script and set `error` to what you need optimised.
+
+    If you need to save data to disk, use the `access_id` variable which is set
+    to a unique ID for each simulation, so that you don't overwrite existing
+    files when simulations are executed in parallel.
+
+    For more information on the implementation details and how parallel
+    execution of your user script is achieved, check out the generated file
+    "access_info_<hashcode>/access_code.py" after running `access.learn()`.
+
+    Attributes
+    ----------
+    parameters: pandas.DataFrame
+        The free / optimisable parameters extracted from the user script.
+
+    scheduler: coexist.schedulers.Scheduler subclass
+        Scheduler used to spawn function evaluations / simulations in parallel.
+        The default `LocalScheduler` simply starts new Python interpreters on
+        the local machine for executing the user's script. See the other
+        schedulers in `coexist.schedulers` for e.g. spawning jobs on a cluster.
+
+    Methods
+    -------
+    learn(num_solutions = 10, target_sigma = 0.1, random_seed = None,
+          verbose = True)
+        Learn the free `parameters` from the user script that minimise the
+        `error` variable by trying `num_solutions` parameter combinations at
+        a time until the uncertainty in each parameter becomes lower than
+        `target_sigma`.
+
+    '''
+
+    def __init__(
+        self,
+        script_path: str,
+        scheduler = schedulers.LocalScheduler(),
+        max_workers = None,
+    ):
+        '''`Access` class constructor.
+
+        Parameters
+        ----------
+        script_path: str
+            A path to a user-defined script that runs one simulation. It should
+            use the free / optimisable parameters saved in a pandas.DataFrame
+            named exactly `parameters`, defined between two comments
+            "#### ACCESS PARAMETERS START" and "#### ACCESS PARAMETERS END".
+            By the end of the script, one variable named `error` must be
+            defined containing the error value, a number.
+
+        scheduler: coexist.schedulers.Scheduler subclass
+            Scheduler used to spawn function evaluations / simulations in
+            parallel. The default `LocalScheduler` simply starts new Python
+            interpreters on the local machine for executing the user's script.
+            See the other schedulers in `coexist.schedulers` for e.g. spawning
+            jobs on a supercomputing cluster.
+
+        max_workers: int, optional
+            [TODO] Only spawn `max_workers` processes at a time.
+
+        '''
+
+        # Setting class attributes
+        self.access_code, self.parameters = self.generate_code(script_path)
+        if not isinstance(scheduler, schedulers.Scheduler):
+            raise TypeError(textwrap.fill((
+                "The input `scheduler` must be a subclass of `coexist."
+                f"schedulers.Scheduler`. Received {type(scheduler)}."
+            )))
+
+        self.scheduler = scheduler.generate()
+
+        if max_workers is not None:
+            self.max_workers = int(max_workers)
+
+        # These are the constant class attributes relevant for a single
+        # ACCESS run. They will be set in the `learn` method
+        self.rng = None
+
+        self.num_solutions = None
+        self.target_sigma = None
+
+        self.save_path = None
+        self.simulations_path = None
+        self.outputs_path = None
+
+        self.history_path = None
+        self.history_scaled_path = None
+
+        self.random_seed = None
+        self.verbose = None
+
+        # Message printed to the stdout and stderr by spawned OS processes
+        self._stdout = None
+        self._stderr = None
+
+
+    def generate_code(self, script_path):
+        '''Generate the ACCESS code from a user's script at `script_path`.
+
+        The user script is modified such that:
+
+        1. The `parameters` assignment expression is substituted with *loading*
+           the parameters from an ACCESS-defined location; those parameters are
+           varied according to the optimisation procedure.
+        2. At the end of the script, the `error` and (if defined) `extra`
+           variables are saved to an ACCESS-defined location.
+
+        The ACCESS-defined locations are given to the script as three
+        command-line arguments; the script itself will be run in a
+        massively-parallel environment.
+
+        Parameters
+        ----------
+        script_path : str
+            A path to a user's Python script.
+
+        Returns
+        -------
+        generated_code : str
+            The complete, modified ACCESS code, returned as a single string
+            containing the correct newlines.
+
+        parameters : pandas.DataFrame
+            The `parameters` variable defined in the user script; that portion
+            of the script was executed separately; this is the created object.
+        '''
+        # Read in the user's Python script at `script_path`
+        with open(script_path, "r") as f:
+            user_code = f.readlines()
+
+        # Find the two parameter definitions directives
+        params_start_line = None
+        params_end_line = None
+
+        for i, line in enumerate(user_code):
+            if line.startswith("#### ACCESS PARAMETERS START"):
+                params_start_line = i
+
+            if line.startswith("#### ACCESS PARAMETERS END"):
+                params_end_line = i
+
+        if params_start_line is None or params_end_line is None:
+            raise NameError(textwrap.fill((
+                f"The user script found in file `{script_path}` did not "
+                "contain the blocks `#### ACCESS PARAMETERS START` and "
+                "`#### ACCESS PARAMETERS END`. Please define your simulation "
+                "free parameters between these two comments / directives."
+            )))
+
+        # Execute the code between the two directives to get the initial
+        # `parameters`. `exec` saves all the code's variables in the
+        # `parameters_exec` dictionary
+        user_params_code = "".join(
+            user_code[params_start_line:params_end_line]
+        )
+        user_params_exec = dict()
+        exec(user_params_code, user_params_exec)
+
+        if "parameters" not in user_params_exec:
+            raise NameError(textwrap.fill((
+                "The code between the user script's directives "
+                "`#### ACCESS PARAMETERS START` and "
+                "`#### ACCESS PARAMETERS END` does not define a variable "
+                "named exactly `parameters`."
+            )))
+
+        self.validate_parameters(user_params_exec["parameters"])
+
+        if not code_contains_variable(user_code, "error"):
+            raise NameError(textwrap.fill((
+                f"The user script found in file `{script_path}` does not "
+                "define the required variable `error`."
+            )))
+
+        # Substitute the `parameters` creation in the user code with loading
+        # them from an ACCESS-defined location
+        parameters_code = [
+            "\n# Unpickle `parameters` from this script's first " +
+            "command-line argument and set\n",
+            '# `access_id` to a unique simulation ID\n',
+            code_substitute_variable(
+                user_code[params_start_line:params_end_line],
+                "parameters",
+                ('with open(sys.argv[1], "rb") as f:\n'
+                 '    parameters = pickle.load(f)\n')
+            )
+        ]
+
+        # Also define a unique ACCESS ID for each simulation
+        parameters_code += (
+            'access_id = int(os.path.split(sys.argv[1])[1].split("_")[1])\n\n'
+        )
+
+        # Read in the `async_access_template.py` code template and find the
+        # code injection directives
+        template_code_path = os.path.join(
+            os.path.split(coexist.__file__)[0],
+            "async_access_template.py"
+        )
+
+        with open(template_code_path, "r") as f:
+            template_code = f.readlines()
+
+        for i, line in enumerate(template_code):
+            if line.startswith("#### ACCESS INJECT USER CODE START"):
+                inject_start_line = i
+
+            if line.startswith("#### ACCESS INJECT USER CODE END"):
+                inject_end_line = i
+
+        generated_code = "".join((
+            template_code[:inject_start_line + 1] +
+            user_code[:params_start_line + 1] +
+            parameters_code +
+            user_code[params_end_line:] +
+            template_code[inject_end_line:]
+        ))
+
+        return generated_code, user_params_exec["parameters"]
+
+
+    def validate_parameters(self, parameters):
+        if not isinstance(parameters, pd.DataFrame):
+            raise ValueError(textwrap.fill((
+                "The `parameters` variable defined in the user script is "
+                "not a pandas.DataFrame instance (or subclass thereof)."
+            )))
+
+        if len(parameters) < 2:
+            raise ValueError(textwrap.fill((
+                "The `parameters` DataFrame defined in the user script must "
+                "have at least two free parameters defined. Found only"
+                f"`len(parameters) = {len(parameters)}`."
+            )))
+
+        columns_needed = ["value", "min", "max", "sigma"]
+        if not all([c in parameters.columns for c in columns_needed]):
+            raise ValueError(textwrap.fill((
+                "The `parameters` DataFrame defined in the user script must "
+                "have at least four columns defined: ['value', 'min', "
+                f"'max', 'sigma']. Found these: `{parameters.columns}`. You "
+                "can use the `coexist.create_parameters` function for this."
+            )))
+
+
+    def learn(
+        self,
+        num_solutions = 10,
+        target_sigma = 0.1,
+        random_seed = None,
+        verbose = True,
+    ):
+        # Type-checking inputs
+        self.num_solutions = int(num_solutions)
+        self.target_sigma = float(target_sigma)
+
+        if random_seed is None:
+            self.random_seed = np.random.randint(np.iinfo(np.int64).max)
+        else:
+            self.random_seed = random_seed
+
+        self.verbose = bool(verbose)
+
+        # Setting constant class attributes
+        self.rng = np.random.default_rng(self.random_seed)
+
+        # Aliases
+        rng = self.rng
+
+        # The random hash that represents this optimisation run. If a random
+        # seed was specified, this will make the simulation and optimisations
+        # fully deterministic (i.e. repeatable)
+        rand_hash = str(round(abs(rng.random() * 1e6)))
+
+        self.save_path = f"access_info_{rand_hash}"
+        self.simulations_path = f"{self.save_path}/simulations"
+        self.outputs_path = f"{self.save_path}/outputs"
+
+        # Check if we have historical data about the optimisation - these are
+        # pre-computed values for this exact simulation, random seed, and
+        # number of solutions
+        self.history_path = (
+            f"{self.save_path}/opt_history_{self.num_solutions}.csv"
+        )
+
+        self.history_scaled_path = (
+            f"{self.save_path}/opt_history_{self.num_solutions}_scaled.csv"
+        )
+
+        self.access_code_path = f"{self.save_path}/access_code.py"
+
+        # Create all required paths above if they don't exist already
+        self.create_directories()
+
+        # Save the generated ACCESS code to a file
+        with open(self.access_code_path, "w") as f:
+            f.write(self.access_code)
+
+        # History columns: [param1, param2, ..., stddev_param1, stddev_param2,
+        # ..., stddev_all, error_value]
+        if os.path.isfile(self.history_path):
+            history = np.loadtxt(self.history_path, dtype = float)
+        else:
+            history = []
+
+        # Scaling and unscaling parameter values introduce numerical errors
+        # that confuse the optimiser. Thus save unscaled values separately
+        if os.path.isfile(self.history_scaled_path):
+            history_scaled = np.loadtxt(
+                self.history_scaled_path, dtype = float
+            )
+        else:
+            history_scaled = []
+
+        # Minimum and maximum possible values for the DEM parameters
+        params_mins = self.parameters["min"].to_numpy()
+        params_maxs = self.parameters["max"].to_numpy()
+
+        # If any `sigma` value is smaller than 5% (max - min), clip it
+        self.parameters["sigma"].clip(
+            lower = 0.05 * (params_maxs - params_mins),
+            inplace = True,
+        )
+
+        # Scale sigma, bounds, solutions, results to unit variance
+        scaling = self.parameters["sigma"].to_numpy()
+
+        # First guess, scaled
+        x0 = self.parameters["value"].to_numpy() / scaling
+        sigma0 = 1.0
+        bounds = [
+            params_mins / scaling,
+            params_maxs / scaling
+        ]
+
+        # Instantiate CMA-ES optimiser
+        es = cma.CMAEvolutionStrategy(x0, sigma0, dict(
+            bounds = bounds,
+            popsize = self.num_solutions,
+            randn = lambda *args: rng.standard_normal(args),
+            verbose = 3 if self.verbose else -9,
+        ))
+
+        # Start optimisation: ask the optimiser for parameter combinations
+        # (solutions), run the simulations between `start_index:end_index` and
+        # feed the results back to CMA-ES.
+        epoch = 0
+
+        while not es.stop():
+            solutions = es.ask()
+
+            # If we have historical data, inject it for each epoch
+            if epoch * self.num_solutions < len(history_scaled):
+
+                self.inject_historical(es, history_scaled, epoch)
+                epoch += 1
+
+                if self.finished(es):
+                    break
+
+                continue
+
+            if self.verbose:
+                self.print_before_eval(es, solutions)
+
+            results = self.try_solutions(solutions * scaling, epoch)
+
+            es.tell(solutions, results)
+            epoch += 1
+
+            # Save every step's historical data as function evaluations are
+            # very expensive. Save columns [param1, param2, ..., stdev_param1,
+            # stdev_param2, ..., stdev_all, error_val].
+            if not isinstance(history, list):
+                history = list(history)
+
+            for sol, res in zip(solutions, results):
+                history.append(
+                    list(sol * scaling) +
+                    list(es.result.stds * scaling) +
+                    [es.sigma, res]
+                )
+
+            np.savetxt(self.history_path, history)
+
+            # Save scaled values separately to avoid numerical errors
+            if not isinstance(history_scaled, list):
+                history_scaled = list(history_scaled)
+
+            for sol, res in zip(solutions, results):
+                history_scaled.append(
+                    list(sol) +
+                    list(es.result.stds) +
+                    [es.sigma, res]
+                )
+
+            np.savetxt(self.history_scaled_path, history_scaled)
+
+            if self.verbose:
+                self.print_after_eval(es, solutions, scaling, results)
+
+            if self.finished(es):
+                break
+
+        if es.result.xbest is None:
+            raise ValueError(textwrap.fill((
+                "No parameter combination was evaluated successfully. All "
+                "simulations crashed - please check the error logs in the "
+                "`access_info_<hash_code>/outputs` folder."
+            )))
+
+        solutions = es.result.xbest * scaling
+        stds = es.result.stds * scaling
+
+        if self.verbose:
+            print((
+                "\n---\n"
+                "The best result was achieved for these parameter values:\n"
+                f"{solutions}\n\n"
+                "The standard deviation / uncertainty in each parameter is:\n"
+                f"{stds}\n\n"
+                "For these parameters, the error value found was: "
+                f"{history[es.result.evals_best - 1][-1]}\n\n"
+                "These results were found for the simulation at index "
+                f"{es.result.evals_best - 1}, which can be found in:\n"
+                f"{self.simulations_path}\n"
+            ), flush = True)
+
+
+    def create_directories(self):
+        # Save the current simulation state in a `restarts` folder
+        if not os.path.isdir(self.save_path):
+            os.mkdir(self.save_path)
+
+        # Save positions and parameters in a new folder inside `restarts`
+        if not os.path.isdir(self.simulations_path):
+            os.mkdir(self.simulations_path)
+
+        # Save simulation outputs (stderr and stdout) in a new folder
+        if not os.path.isdir(self.outputs_path):
+            os.mkdir(self.outputs_path)
+
+        with open(f"{self.save_path}/opt_run_info.txt", "a") as f:
+            now = datetime.now().strftime("%H:%M:%S - %D")
+            f.writelines([
+                "--------------------------------------------------------\n",
+                f"Starting ACCESS run at {now}\n\n",
+                f"Generated ACCESS code:    {self.access_code_path}\n"
+                f"ACCESS parameters:\n{self.parameters}\n\n"
+                f"target_sigma =            {self.target_sigma}\n",
+                f"num_solutions =           {self.num_solutions}\n",
+                f"random_seed =             {self.random_seed}\n\n",
+                f"save_path =               {self.save_path}\n",
+                f"simulations_path =        {self.simulations_path}\n",
+                f"outputs_path =            {self.outputs_path}\n\n",
+                f"history_path =            {self.history_path}\n",
+                f"history_scaled_path =     {self.history_scaled_path}\n",
+                "--------------------------------------------------------\n\n",
+            ])
+
+
+    def inject_historical(self, es, history_scaled, epoch):
+        '''Inject the CMA-ES optimiser with pre-computed (historical) results.
+        The solutions must have a Gaussian distribution in each problem
+        dimension - though the standard deviation can vary for each of them.
+        Ideally, this should only use historical values that CMA-ES asked for
+        in a previous ACCESS run.
+        '''
+
+        ns = self.num_solutions
+        num_params = len(self.parameters)
+
+        results_scaled = history_scaled[(epoch * ns):(epoch * ns + ns)]
+        es.tell(results_scaled[:, :num_params], results_scaled[:, -1])
+
+        if self.verbose:
+            print((
+                f"Injected {(epoch + 1) * len(results_scaled):>6} / "
+                f"{len(history_scaled):>6} historical solutions."
+            ))
+
+
+    def print_before_eval(self, es, solutions):
+        print((
+            f"Scaled overall standard deviation: {es.sigma}\n"
+            f"Scaled individual standard deviations:\n{es.result.stds}"
+            f"\n\nTrying {len(solutions)} parameter combinations..."
+        ), flush = True)
+
+
+    def print_after_eval(
+        self,
+        es,
+        solutions,
+        scaling,
+        results,
+    ):
+        # Display evaluation results: solutions, error values, etc.
+        cols = list(self.parameters.index) + ["error"]
+        sols_results = np.hstack((
+            solutions * scaling,
+            results[:, np.newaxis],
+        ))
+
+        # Store solutions and results in a DataFrame for easy pretty printing
+        sols_results = pd.DataFrame(
+            data = sols_results,
+            columns = cols,
+            index = None,
+        )
+
+        # Display all the DataFrame columns and rows
+        old_max_columns = pd.get_option("display.max_columns")
+        old_max_rows = pd.get_option("display.max_rows")
+
+        pd.set_option("display.max_columns", None)
+        pd.set_option("display.max_rows", None)
+
+        print((
+            f"{sols_results}\n"
+            f"Function evaluations: {es.result.evaluations}\n---"
+        ), flush = True)
+
+        pd.set_option("display.max_columns", old_max_columns)
+        pd.set_option("display.max_rows", old_max_rows)
+
+
+    def finished(self, es):
+        if es.sigma < self.target_sigma:
+            if self.verbose:
+                print((
+                    "Optimal solution found within `target_sigma`, i.e. "
+                    f"{self.target_sigma * 100}%:\n"
+                    f"sigma = {es.sigma} < {self.target_sigma}"
+                ), flush = True)
+
+            return True
+
+        return False
+
+
+    def try_solutions(self, solutions, epoch):
+        # Aliases
+        param_names = self.parameters.index
+
+        # For every solution to try, start a separate OS process that runs the
+        # `access_info_<hash>/access_code.py` script, which computes and saves
+        # an error value
+        processes = []
+
+        # These are this optimisation run's paths to save the simulation
+        # outputs to; they will be given to `self.access_code` as command-line
+        # arguments
+        start_index = epoch * self.num_solutions
+
+        parameters_paths = [
+            f"{self.simulations_path}/opt_{start_index + i}_parameters.pickle"
+            for i in range(self.num_solutions)
+        ]
+
+        error_paths = [
+            f"{self.simulations_path}/opt_{start_index + i}_error.pickle"
+            for i in range(self.num_solutions)
+        ]
+
+        extra_paths = [
+            f"{self.simulations_path}/opt_{start_index + i}_extra.pickle"
+            for i in range(self.num_solutions)
+        ]
+
+        # Catch the KeyboardInterrupt (Ctrl-C) signal to shut down the spawned
+        # processes before aborting.
+        try:
+            # Spawn a separate process for every solution to try / sim to run
+            for i, sol in enumerate(solutions):
+                # Change the `self.parameters` values and save them to disk
+                for j, sol_val in enumerate(sol):
+                    self.parameters.at[param_names[j], "value"] = sol_val
+
+                with open(parameters_paths[i], "wb") as f:
+                    pickle.dump(self.parameters, f)
+
+                processes.append(
+                    subprocess.Popen(
+                        self.scheduler + [          # Python interpreter path
+                            self.access_code_path,
+                            parameters_paths[i],
+                            error_paths[i],
+                            extra_paths[i],
+                        ],
+                        stdout = subprocess.PIPE,
+                        stderr = subprocess.PIPE,
+                    )
+                )
+
+            # Gather results
+            results = []
+            errored = []
+            outputted = []
+            crashed = []
+
+            for i, proc in enumerate(processes):
+                stdout, stderr = proc.communicate()
+
+                proc_index = epoch * self.num_solutions + i
+
+                # If a new error message was recorded in stderr, log it
+                if len(stderr) and stderr != self._stderr:
+                    errored.append(proc_index + i)
+
+                    self._stderr = stderr.decode("utf-8")
+                    with open(f"{self.outputs_path}/error_{proc_index}.log",
+                              "w") as f:
+                        f.write(self._stderr)
+
+                # If a new output message was recorded in stdout, log it
+                if len(stdout) and stdout != self._stdout:
+                    outputted.append(proc_index + i)
+
+                    self._stdout = stdout.decode("utf-8")
+                    with open(f"{self.outputs_path}/output_{proc_index}.log",
+                              "w") as f:
+                        f.write(self._stdout)
+
+                if os.path.isfile(error_paths[i]):
+                    with open(error_paths[i], "rb") as f:
+                        results.append(float(pickle.load(f)))
+                else:
+                    results.append(np.nan)
+                    crashed.append(proc_index + i)
+
+        except KeyboardInterrupt:
+            for proc in processes:
+                proc.kill()
+
+            sys.exit(130)
+
+        # Print messages for errors, outputs and simulation crashes
+        if len(errored):
+            print((
+                "New error messages were recorded in `stderr` during "
+                f"these simulations:\n{errored}\n\n"
+                "The error messages were logged in the "
+                f"`{self.outputs_path}` directory.\n"
+            ), flush = True)
+
+        if len(outputted):
+            print((
+                "New output messages were recorded in `stdout` during "
+                f"these simulations:\n{outputted}\n\n"
+                "The output messages were logged in the "
+                f"`{self.outputs_path}` directory.\n"
+            ), flush = True)
+
+        if len(crashed):
+            print((
+                "The expected `error` values were not found for these "
+                f"simulations:\n{crashed}\n\n"
+                "They most likely crashed; check the error and output "
+                "logs for what happened. The error values for these "
+                "simulations were set to NaN.\n"
+            ), flush = True)
+
+        return np.array(results)
