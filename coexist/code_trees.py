@@ -9,6 +9,8 @@
 import ast
 import textwrap
 
+import astunparse
+
 
 def code_contains_variables(code, variables, root = False):
     '''Check whether the given `code` (either string or list of strings)
@@ -26,8 +28,6 @@ def code_contains_variables(code, variables, root = False):
         for node in tree.body:
             if isinstance(node, ast.Assign):
                 for target in node.targets:
-
-
                     vars_found.append(target.id)
 
     else:
@@ -111,4 +111,4 @@ def code_substitute_variable(old_code, variable, new_code):
         old_tree.body[(var_idx + 1):]
     )
 
-    return ast.unparse(old_tree) + "\n"
+    return astunparse.unparse(old_tree) + "\n"
