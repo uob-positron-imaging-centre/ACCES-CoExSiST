@@ -75,8 +75,8 @@ class SlurmScheduler(Scheduler):
         interpreter = os.path.split(sys.executable)[1],
         qos = None,
         account = None,
-        mail_type = "NONE",
-        ntasks = None,
+        mail_type = "FAIL",
+        ntasks = 1,
         mem = None,
         output = "logs/sim_slurm_%j.out",
         **kwargs,
@@ -124,6 +124,8 @@ class SlurmScheduler(Scheduler):
                     os.mkdir(output_path[0])
 
                 f.write(f"#SBATCH --output {self.output}\n")
+
+            f.write("#SBATCH --wait\n")
 
             for key, val in self.kwargs.items():
                 f.write(f"#SBATCH --{key} {val}\n")
