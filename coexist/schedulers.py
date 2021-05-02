@@ -37,11 +37,14 @@ class Scheduler(ABC):
     Subclassing
     -----------
     If you want to implement a concrete scheduler for another system, subclass
-    `Scheduler` and implement the `generate` method, which should generate any
-    files needed and return the system commands to be prepended to the Python
-    scripts (`python3` and `sbatch job_submission.sh` in the examples above).
-    '''
+    `Scheduler` and implement the `generate` method, which should:
 
+    - Generate any files needed to schedule a Python script's execution.
+    - Return a list of the system commands to be prepended to the Python
+      scripts (e.g. ["python3"] and ["sbatch", "job_submission.sh"] in the
+      examples above).
+
+    '''
 
     @abstractmethod
     def generate(self):
@@ -135,4 +138,4 @@ class SlurmScheduler(Scheduler):
             ))
             f.write(f"{self.interpreter} $*\n")
 
-        return ["sbatch", "filename"]
+        return ["sbatch", filename]
