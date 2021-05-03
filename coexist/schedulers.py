@@ -132,7 +132,9 @@ class SlurmScheduler(Scheduler):
 
             f.write("\n\n")
             for cmd in self.commands:
-                f.write(cmd + "\n")
+                if not cmd.endswith("\n"):
+                    cmd += "\n"
+                f.write(cmd)
 
             f.write((
                 "\n\n# Run a single function evaluation with all command-line "
