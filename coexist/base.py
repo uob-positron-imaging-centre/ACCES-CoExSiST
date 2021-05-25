@@ -19,7 +19,10 @@ import  pandas      as      pd
 from    tqdm        import  tqdm
 from    pyevtk.hl   import  pointsToVTK
 
-from    liggghts    import  liggghts
+try:
+    from liggghts   import  liggghts
+except ModuleNotFoundError:
+    pass
 
 
 
