@@ -979,8 +979,19 @@ class LiggghtsSimulation(Simulation):
 
 
     def radii(self):
-        radii = self.simulation.gather_atoms("radius", 1, 1)
-        return np.array(list(radii))
+        # Get particle radii
+        nlocal = self.simulation.extract_atom("nlocal", 0)[0]
+        id_lig = self.simulation.extract_atom("id", 0)
+
+        ids = np.array([id_lig[i] for i in range(nlocal)])
+        radii = np.full(ids.max(), np.nan)
+
+        radii_lig = self.simulation.extract_atom("radius", 2)
+
+        for i in range(len(ids)):
+            radii[ids[i] - 1] = radii_lig[i]
+
+        return radii
 
 
     def set_density(self, particle_id, density):
@@ -989,9 +1000,20 @@ class LiggghtsSimulation(Simulation):
 
 
     def positions(self):
-        # get particle positions
-        pos = self.simulation.gather_atoms("x", 1, 3)
-        pos = np.array(list(pos)).reshape(self.num_atoms(), -1)
+        # Get particle positions
+        nlocal = self.simulation.extract_atom("nlocal", 0)[0]
+        id_lig = self.simulation.extract_atom("id", 0)
+
+        ids = np.array([id_lig[i] for i in range(nlocal)])
+        pos = np.full((ids.max(), 3), np.nan)
+
+        pos_lig = self.simulation.extract_atom("x", 3)
+
+        for i in range(len(ids)):
+            pos[ids[i] - 1, 0] = pos_lig[i][0]
+            pos[ids[i] - 1, 1] = pos_lig[i][1]
+            pos[ids[i] - 1, 2] = pos_lig[i][2]
+
         return pos
 
 
