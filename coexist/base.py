@@ -1018,9 +1018,20 @@ class LiggghtsSimulation(Simulation):
 
 
     def velocities(self):
-        # get particle velocities
-        vel = self.simulation.gather_atoms("v", 1, 3)
-        vel = np.array(list(vel)).reshape(self.num_atoms(), -1)
+        # Get particle velocities
+        nlocal = self.simulation.extract_atom("nlocal", 0)[0]
+        id_lig = self.simulation.extract_atom("id", 0)
+
+        ids = np.array([id_lig[i] for i in range(nlocal)])
+        vel = np.full((ids.max(), 3), np.nan)
+
+        vel_lig = self.simulation.extract_atom("v", 3)
+
+        for i in range(len(ids)):
+            vel[ids[i] - 1, 0] = vel_lig[i][0]
+            vel[ids[i] - 1, 1] = vel_lig[i][1]
+            vel[ids[i] - 1, 2] = vel_lig[i][2]
+
         return vel
 
 
