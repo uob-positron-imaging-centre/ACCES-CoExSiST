@@ -1982,7 +1982,8 @@ class AccessScript:
         return generated_code, user_params_exec["parameters"]
 
 
-    def validate_parameters(self, parameters):
+    @staticmethod
+    def validate_parameters(parameters):
         if not isinstance(parameters, pd.DataFrame):
             raise ValueError(textwrap.fill((
                 "The `parameters` variable defined in the user script is "

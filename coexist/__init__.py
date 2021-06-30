@@ -22,9 +22,11 @@ from    .optimisation   import  Coexist
 from    .optimisation   import  Access
 from    .optimisation   import  AccessScript
 
-from    .               import  schedulers
+from    .plots          import  plot_access
 
+from    .               import  schedulers
 from    .               import  ballistics
+from    .               import  plots
 
 # Import package version
 from    .__version__    import  __version__
@@ -44,8 +46,11 @@ __all__ = [
     "Access",
     "AccessScript",
 
+    "plot_access",
+
     "schedulers",
     "ballistics",
+    "plots",
 
     "__version__",
 ]
