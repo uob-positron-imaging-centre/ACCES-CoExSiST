@@ -23,6 +23,7 @@ from    .optimisation   import  Access
 from    .optimisation   import  AccessScript
 
 from    .plots          import  plot_access
+from    .plots          import  plot_access2d
 
 from    .               import  schedulers
 from    .               import  ballistics
@@ -47,6 +48,7 @@ __all__ = [
     "AccessScript",
 
     "plot_access",
+    "plot_access2d",
 
     "schedulers",
     "ballistics",
