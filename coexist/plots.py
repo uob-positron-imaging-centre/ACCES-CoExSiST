@@ -313,7 +313,8 @@ def plot_access(
                     size = 8,
                     opacity = 0.4,
                     color = adjuster(1 - relative_error),
-                )
+                ),
+                showlegend = False,
             ),
             row = row,
             col = col,
@@ -329,7 +330,6 @@ def plot_access(
                 line = dict(
                     color = color,
                 ),
-                showlegend = False,
             ),
             row = num_parameters // ncols + 1,
             col = num_parameters % ncols + 1,

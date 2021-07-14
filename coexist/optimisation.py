@@ -2370,7 +2370,7 @@ class AccessScript:
 
                 # If a new error message was recorded in stderr, log it
                 if len(stderr) and stderr != self._stderr:
-                    errored.append(proc_index + i)
+                    errored.append(proc_index)
 
                     self._stderr = stderr.decode("utf-8")
                     with open(f"{self.outputs_path}/error_{proc_index}.log",
@@ -2379,19 +2379,20 @@ class AccessScript:
 
                 # If a new output message was recorded in stdout, log it
                 if len(stdout) and stdout != self._stdout:
-                    outputted.append(proc_index + i)
+                    outputted.append(proc_index)
 
                     self._stdout = stdout.decode("utf-8")
                     with open(f"{self.outputs_path}/output_{proc_index}.log",
                               "w") as f:
                         f.write(self._stdout)
 
+                # Save result if the file exists, otherwise set it to NaN
                 if os.path.isfile(error_paths[i]):
                     with open(error_paths[i], "rb") as f:
                         results.append(float(pickle.load(f)))
                 else:
                     results.append(np.nan)
-                    crashed.append(proc_index + i)
+                    crashed.append(proc_index)
 
         except KeyboardInterrupt:
             for proc in processes:
