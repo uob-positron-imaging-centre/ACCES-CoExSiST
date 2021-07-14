@@ -16,28 +16,31 @@ Must define one simulation whose parameters will be optimised this way:
                      information you want to save for a simulation run (e.g.
                      particle positions).
 
-Importantly, use `parameters.at[<free parameter name>, "value"]` in this
+Importantly, use `parameters.at[<free parameter name>, "value"]` to get this
 simulation's free / optimisable variable values.
 '''
 
 #### ACCESS PARAMETERS START
 import coexist
-
 parameters = coexist.create_parameters(
-    variables = ["cor", "coh"],
-    minimums = [-10, -10],
-    maximums = [+10, +10],
+    variables = ["cor", "separation"],
+    minimums = [-3, -7],
+    maximums = [+5, +3],
+    values = [1, 2],               # Optional, initial guess
 )
 
-access_id = 1                                   # Optional
+access_id = 0                       # Optional, unique ID for each simulation
 #### ACCESS PARAMETERS END
 
-x = parameters.at["cor", "value"]
-y = parameters.at["coh", "value"]
 
+# Extract variables
+x = parameters.at["cor", "value"]
+y = parameters.at["separation", "value"]
+
+
+# Define the error value in any way - run a simulation, analyse data, etc.
 a = 1
 b = 100
 
-# Define the error value in any way - run a simulation, analyse data, etc.
 error = (a - x) ** 2 + b * (y - x ** 2) ** 2
 extra = dict(a = a, b = b, c = access_id)       # Optional
