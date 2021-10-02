@@ -23,7 +23,10 @@ def requirements(filename):
 
 
 # What packages are required for this module to be executed?
-required = requirements('requirements.txt')
+required = requirements("requirements.txt")
+extras = {
+    "docs": requirements("requirements_extra.txt")
+}
 
 # Load the package's __version__.py module as a dictionary.
 here = os.path.abspath(os.path.dirname(__file__))
@@ -82,9 +85,10 @@ setuptools.setup(
     description = "Coupling experimental granular data with DEM simulations",
     long_description = long_description,
     long_description_content_type = "text/markdown",
-    url = "https://github.com/D-werner-bham/pyLiggghts",
+    url = "https://github.com/uob-positron-imaging-centre/Coexist",
 
     install_requires = required,
+    extras_require = extras,
     include_package_data = True,
     packages = setuptools.find_packages(),
 

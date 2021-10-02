@@ -6,7 +6,11 @@
 # Date   : 20.01.2021
 
 
-import  sympy
+# SymPy is an optional dependency for the ballistics calculations
+try:
+    import  sympy
+except ImportError:
+    pass
 
 
 def ballistic():

@@ -19,11 +19,10 @@ from    .base           import  LiggghtsSimulation
 from    .base           import  AutoTimestep
 
 from    .optimisation   import  Coexist
+from    .optimisation   import  AccessCoupled
 from    .optimisation   import  Access
-from    .optimisation   import  AccessScript
 
-from    .plots          import  plot_access
-from    .plots          import  plot_access2d
+from    .utilities      import  AccessData
 
 from    .               import  schedulers
 from    .               import  ballistics
@@ -44,11 +43,9 @@ __all__ = [
     "AutoTimestep",
 
     "Coexist",
+    "AccessCoupled",
     "Access",
-    "AccessScript",
-
-    "plot_access",
-    "plot_access2d",
+    "AccessData",
 
     "schedulers",
     "ballistics",

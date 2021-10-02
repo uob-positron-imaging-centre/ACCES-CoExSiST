@@ -23,5 +23,5 @@ scheduler = SlurmScheduler(
 )
 
 # Use ACCESS to learn the simulation parameters
-access = coexist.AccessScript("simulation_script.py", scheduler)
+access = coexist.Access("simulation_script.py", scheduler)
 access.learn(num_solutions = 100, target_sigma = 0.1, random_seed = 12345)

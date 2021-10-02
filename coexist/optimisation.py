@@ -12,11 +12,13 @@ import  textwrap
 import  subprocess
 import  pickle
 from    datetime            import  datetime
+from    typing              import  List
 from    concurrent.futures  import  ProcessPoolExecutor
 
 import  numpy               as      np
 import  pandas              as      pd
 import  cma
+import  attr
 
 import  coexist
 from    coexist             import  Simulation, Experiment
@@ -24,6 +26,8 @@ from    coexist             import  schedulers
 
 from    .code_trees         import  code_contains_variable
 from    .code_trees         import  code_substitute_variable
+
+from    .utilities          import  AccessData
 
 
 
@@ -913,7 +917,7 @@ class Coexist:
 
 
 
-class Access:
+class AccessCoupled:
 
     def __init__(
         self,
@@ -1671,7 +1675,6 @@ class Access:
                     if f is not None:
                         results[i] = f.result()
 
-
         except KeyboardInterrupt:
             for proc_run in processes:
                 for proc in proc_run:
@@ -1695,50 +1698,60 @@ class Access:
 
 
 
-class AccessScript:
+
+@attr.s(auto_attribs = True)
+class AccessInfo:
+    parameters: pd.DataFrame
+    scheduler: List
+    num_solutions: int = None
+    target_sigma: float = None
+    random_seed: int = None
+
+
+
+
+class Access:
     '''Optimise an arbitrary user-defined script's parameters in parallel.
 
     A minimal user script - saved in a separate file - would be:
 
-    ```python
+    ::
 
-    #### ACCESS PARAMETERS START
-    import coexist
+        #### ACCESS PARAMETERS START
+        import coexist
 
-    parameters = coexist.create_parameters(
-        variables = ["fp1", "fp2"],
-        minimums = [-5, -10],
-        maximums = [+5, +10],
-    )
+        parameters = coexist.create_parameters(
+            variables = ["fp1", "fp2"],
+            minimums = [-3, -7],
+            maximums = [+5, +3],
+        )
 
-    access_id = 1                           # Optional
-    #### ACCESS PARAMETERS END
+        access_id = 0                           # Optional
+        #### ACCESS PARAMETERS END
 
-    x = parameters.at["fp1", "value"]
-    y = parameters.at["fp2", "value"]
+        x = parameters.at["fp1", "value"]
+        y = parameters.at["fp2", "value"]
 
-    error = x ** 2 + y ** 2
-    extra = dict(info = "Some info")        # Optional
+        error = x ** 2 + y ** 2
 
-    ```
 
     This script defines two free parameters to optimise "fp1" and "fp2" with
-    ranges [-5, +5] and [-10, +10] and saves an error value to be optimised
+    ranges [-3, +5] and [-7, +3] and saves an error value to be optimised
     in the variable `error`. To optimise it, run in another file:
 
-    ```python
 
-    import coexist
+    ::
 
-    access = coexist.AccessScript("script_filepath.py")
-    access.learn()
+        import coexist
 
-    ```
+        access = coexist.Access("script_filepath.py")
+        access.learn(num_solutions = 10, target_sigma = 0.1, random_seed = 42)
 
-    One you run `access.learn()`, a folder named "access_info_<hashcode>" is
+
+    Once you run `access.learn()`, a folder named "access_info_000042" is
     generated which stores all information about this access run, including all
-    simulation data. Feel free to look through it and extract anything, but
-    don't manually edit the files in there.
+    simulation data. You can load this data using ``coexist.AccessData.read``
+    even while the optimisation is still running.
 
     In general, an ACCESS user script must define one simulation whose
     parameters will be optimised this way:
@@ -1748,14 +1761,11 @@ class AccessScript:
        An initial guess can also be set here.
 
     2. The `parameters` creation should be fully self-contained between two
-       `#### ACCESS PARAMETERS START` and `#### ACCESS PARAMETERS END` blocks.
-       Self-contained means it should not depend on code ran before.
+       `#### ACCESS PARAMETERS START` and `#### ACCESS PARAMETERS END` comments
+       i.e. it should not depend on code ran before the block.
 
-    3. By the end of the simulation script, define two variables:
-        a. `error` - one number representing this simulation's error value.
-        b. `extra` - (optional) *any* python data structure storing extra
-                     information you want to save for a simulation run (e.g.
-                     particle positions).
+    3. By the end of the simulation script, define a variable named ``error``
+       storing a single number representing this simulation's error value.
 
     Notice that there is no limitation on how the error value is calculated. It
     can be any simulation, executed in any way - even externally; just launch
@@ -1781,22 +1791,12 @@ class AccessScript:
         the local machine for executing the user's script. See the other
         schedulers in `coexist.schedulers` for e.g. spawning jobs on a cluster.
 
-    Methods
-    -------
-    learn(num_solutions = 10, target_sigma = 0.1, random_seed = None,
-          verbose = True)
-        Learn the free `parameters` from the user script that minimise the
-        `error` variable by trying `num_solutions` parameter combinations at
-        a time until the uncertainty in each parameter becomes lower than
-        `target_sigma`.
-
     '''
 
     def __init__(
         self,
         script_path: str,
         scheduler = schedulers.LocalScheduler(),
-        max_workers = None,
     ):
         '''`Access` class constructor.
 
@@ -1817,9 +1817,6 @@ class AccessScript:
             See the other schedulers in `coexist.schedulers` for e.g. spawning
             jobs on a supercomputing cluster.
 
-        max_workers: int, optional
-            [TODO] Only spawn `max_workers` processes at a time.
-
         '''
 
         # Setting class attributes
@@ -1831,9 +1828,7 @@ class AccessScript:
             )))
 
         self.scheduler = scheduler.generate()
-
-        if max_workers is not None:
-            self.max_workers = int(max_workers)
+        self.access_info = AccessInfo(self.parameters, self.scheduler)
 
         # These are the constant class attributes relevant for a single
         # ACCESS run. They will be set in the `learn` method
@@ -2014,29 +2009,35 @@ class AccessScript:
         random_seed = None,
         verbose = True,
     ):
+        '''Learn the free `parameters` from the user script that minimise the
+        `error` variable by trying `num_solutions` parameter combinations at
+        a time until the overall uncertainty becomes lower than `target_sigma`.
+        '''
         # Type-checking inputs
         self.num_solutions = int(num_solutions)
         self.target_sigma = float(target_sigma)
 
         if random_seed is None:
-            self.random_seed = np.random.randint(np.iinfo(np.int64).max)
+            self.random_seed = np.random.randint(100_000, 1_000_000)
         else:
-            self.random_seed = random_seed
+            self.random_seed = int(random_seed)
 
         self.verbose = bool(verbose)
 
         # Setting constant class attributes
         self.rng = np.random.default_rng(self.random_seed)
 
+        self.access_info.num_solutions = num_solutions
+        self.access_info.target_sigma = target_sigma
+        self.access_info.random_seed = random_seed
+
         # Aliases
         rng = self.rng
 
-        # The random hash that represents this optimisation run. If a random
-        # seed was specified, this will make the simulation and optimisations
-        # fully deterministic (i.e. repeatable)
-        rand_hash = str(round(abs(rng.random() * 1e6)))
-
-        self.save_path = f"access_info_{rand_hash}"
+        # Include the random seed used in the `access_info_<hash>` path. Using
+        # this random seed for the NumPy RNG will make the optimisation run
+        # deterministic / repeatable
+        self.save_path = f"access_info_{self.random_seed:0>6}"
         self.simulations_path = f"{self.save_path}/simulations"
         self.outputs_path = f"{self.save_path}/outputs"
 
@@ -2052,13 +2053,18 @@ class AccessScript:
         )
 
         self.access_code_path = f"{self.save_path}/access_code.py"
+        self.access_info_path = f"{self.save_path}/access_info.pickle"
 
         # Create all required paths above if they don't exist already
         self.create_directories()
 
-        # Save the generated ACCESS code to a file
+        # Save the generated ACCESS code to a text file
         with open(self.access_code_path, "w") as f:
             f.write(self.access_code)
+
+        # Save the parameters used to a pickle file
+        with open(self.access_info_path, "wb") as f:
+            pickle.dump(self.access_info, f)
 
         # History columns: [param1, param2, ..., stddev_param1, stddev_param2,
         # ..., stddev_all, error_value]
@@ -2189,6 +2195,8 @@ class AccessScript:
                 f"{es.result.evals_best - 1}, which can be found in:\n"
                 f"{self.simulations_path}\n"
             ), flush = True)
+
+        return AccessData.read(self.save_path)
 
 
     def create_directories(self):

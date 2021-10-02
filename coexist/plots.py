@@ -6,8 +6,6 @@
 # Date   : 30.06.2021
 
 
-import  os
-import  re
 import  colorsys
 
 import  numpy               as      np
@@ -63,13 +61,11 @@ class LightAdjuster:
 
 
 
-def format_fig(fig):
+def format_fig(fig, size=20, font="Computer Modern", template="plotly_white"):
     '''Format a Plotly figure to a consistent theme for the Nature
     Computational Science journal.'''
 
     # LaTeX font
-    font = "Computer Modern"
-    size = 20
     fig.update_layout(
         font_family = font,
         font_size = size,
@@ -82,78 +78,18 @@ def format_fig(fig):
 
     fig.update_xaxes(title_font_family = font, title_font_size = size)
     fig.update_yaxes(title_font_family = font, title_font_size = size)
-    fig.update_layout(template = "plotly_white",)
+    fig.update_layout(template = template)
 
 
-def find_history(history_path):
-    '''Find the `opt_history_<num_solutions>.csv` file for the following cases:
-
-        1. `history_path` points to the actual file
-        2. `history_path` points to an `access_info_<hash>` folder
-        3. `history_path` is a directory that contains `opt_history_<ns>`
-        4. `history_path` is a directory that contains `access_info_<hash>`
-
-    Returns the full path to the history file.
-    '''
-
-    ns_finder = re.compile(r"opt_history_[0-9]+\.csv")
-
-    # If we received e.g. "simulation/access_info_123456/opt_history_100.csv"
-    if os.path.split(history_path)[1].startswith("opt_history"):
-        pass
-
-    # If we received e.g. "simulation/access_info_123456"
-    elif os.path.split(history_path)[1].startswith("access_info"):
-        for f in os.listdir(history_path):
-            if ns_finder.search(f):
-                history_path = os.path.join(history_path, f)
-
-    # If we received e.g. "simulation/"
-    else:
-        files = os.listdir(history_path)
-
-        # First check if there is an `opt_history_<ns>` file
-        for f in files:
-            if ns_finder.search(f):
-                history_path = os.path.join(history_path, f)
-                break
-
-        # Otherwise check if there is an `access_info_<hash>` folder
-        else:
-            access_finder = re.compile(r"access_info_[0-9]+")
-            access_infos = [f for f in files if access_finder.search(f)]
-            if len(access_infos) > 1:
-                raise ValueError((
-                    f"The path provided in `{history_path=}` contains "
-                    "multiple `access_info_<hash>` folders:\n"
-                    f"{access_infos}\nPlease provide a path to a specific "
-                    "`access_info_<hash>`."
-                ))
-
-            if len(access_infos) == 0:
-                raise FileNotFoundError((
-                    f"The path provided in `{history_path=}` does not point "
-                    "to a `opt_history_<ns>.csv` file, or an ACCESS folder."
-                ))
-
-            history_path = access_infos[0]
-            for f in os.listdir(history_path):
-                if ns_finder.search(f):
-                    history_path = os.path.join(history_path, f)
-
-    return history_path
-
-
-def plot_access(
-    history_path,
-    parameters = None,
+def access(
+    access_data,
     select = lambda results: results[:, -1] < np.inf,
     epochs = ...,
     colors = px.colors.qualitative.Set1,
     overall = True,
 ):
     '''Create a Plotly figure showing the solutions tried, uncertainties and
-    error values found in a `coexist.AccessScript` run.
+    error values found in a `coexist.Access` run.
 
     Parameters
     ----------
@@ -192,9 +128,9 @@ def plot_access(
         A Plotly figure containing subplots with the solutions tried. Call the
         `.show()` method to display it.
 
-    Example
-    -------
-    If `coexist.AccessScript(filepath, random_seed = 12345)` was run, the
+    Examples
+    --------
+    If `coexist.Access(filepath, random_seed = 12345)` was run, the
     directory "access_info_227336" would have been created. Plot its results:
 
     >>> import coexist
@@ -228,47 +164,29 @@ def plot_access(
     '''
 
     # Type-checking inputs
-    if parameters is not None:
-        coexist.AccessScript.validate_parameters(parameters)
+    if not isinstance(access_data, coexist.AccessData):
+        access_data = coexist.read_access(access_data)
 
     # Check if sample_indices is an iterable collection (list-like)
     # otherwise just "iterate" over the single number or Ellipsis
     if not hasattr(epochs, "__iter__"):
         epochs = [epochs]
 
-    # Find the path to the `opt_history_<num_solutions>.csv` file
-    history_path = find_history(history_path)
+    # Extract data needed from `access_data`
+    parameters = access_data.parameters
 
     # The data columns: [param1, param2, ..., param1_stddev, param2_stddev,
     # ..., overall_std_dev, error]
-    results = np.loadtxt(history_path)
+    results = access_data.results.to_numpy()
+    results_scaled = access_data.results_scaled.to_numpy()
 
-    # Load scaled results for the scaled standard deviation
-    history_path_scaled = history_path.split(".csv")[0] + "_scaled.csv"
-    if not os.path.isfile(history_path_scaled):
-        results_scaled = results
-    else:
-        results_scaled = np.loadtxt(history_path_scaled)
-
-    # Number of solutions (ns) per epoch
-    ns_extractor = re.compile(r"opt_history_|\.csv")
-    ns = int(ns_extractor.split(os.path.split(history_path)[1])[1])
+    ns = access_data.num_solutions
+    num_epochs = access_data.num_epochs
 
     # The number of parameters
     num_parameters = (results.shape[1] - 2) // 2
 
-    # If `parameters` were provided, plot extra information
-    if parameters is not None:
-        names = parameters.index
-
-        # If no scaled results were provided, we can still scale by the
-        # parameters' sigma
-        if not os.path.isfile(history_path_scaled):
-            results[:, num_parameters:-2] /= \
-                parameters["sigma"].to_numpy()
-
-    else:
-        names = [f"Parameter {i + 1}" for i in range(num_parameters)]
+    names = parameters.index
 
     # Create a subplots grid
     ncols = int(np.ceil(np.sqrt(num_parameters + 2)))
@@ -397,32 +315,26 @@ def plot_access(
     return fig
 
 
-def plot_access2d(
-    history_path,
-    parameters,
+def access2d(
+    access_data,
     resolution = (1000, 1000),
     columns = [0, 1],
     select = lambda results: results[:, -1] < np.inf,
     epochs = ...,
     colorscale = "Blues_r",
+    seeds = True,
 ):
     '''Create a Plotly figure showing a 2D Voronoi diagram of the error values
-    found in a `coexist.AccessScript` run.
+    found in a `coexist.Access` run.
 
     This can be used to visualise a 2D optimisation problem, or a slice through
     higher-dimensional error functions.
 
     Parameters
     ----------
-    history_path: str
-        A path to an ACCES history file
-        (e.g. "sim/access_info_123456/opt_history_100.csv"), an ACCES run
-        folder (e.g. "sim/access_info_123456"), or a directory where a single
-        ACCES run exists (e.g. "sim/")
-
-    parameters: pandas.DataFrame
-        The `parameters` dataframe used to run ACCESS, exactly the same as in
-        the simulation script used.
+    access_data: AccessData or path
+        An `AccessData` instance (e.g. initialised using `coexist.read_access`)
+        or a path to an `access_info_<hash>` directory or its parent.
 
     resolution: 2-tuple, default (1000, 1000)
         The number of pixels in the heatmap / Voronoi diagram shown in the
@@ -445,9 +357,13 @@ def plot_access2d(
         epoch, an iterable (list-like) signifies multiple epochs, while an
         Ellipsis (`...`) signifies all epochs.
 
-    colorscale: str, "Blues_r"
+    colorscale: str, default "Blues_r"
         The colorscale used to colour-code the error value. For a list of
         possible colorscales, see `plotly.com/python/builtin-colorscales`.
+
+    seeds: bool, default True
+        If True, also plot the points representing parameter combinations
+        tried.
 
     Returns
     -------
@@ -455,27 +371,20 @@ def plot_access2d(
         A Plotly figure containing subplots with the solutions tried. Call the
         `.show()` method to display it.
 
-    Example
-    -------
-    If `coexist.AccessScript(filepath, random_seed = 12345)` was run, the
-    directory "access_info_227336" would have been created. Plot its results:
+    Examples
+    --------
+    If `coexist.Access(filepath, random_seed = 12345)` was run, the
+    directory "access_info_012345" would have been created. Plot its results:
 
     >>> import coexist
     >>>
-    >>> parameters = coexist.create_parameters(
-    >>>     variables = ["fp1", "fp2", "fp3"],
-    >>>     minimums = [0, 0, 0],
-    >>>     maximums = [1, 2, 1],
-    >>> )
-    >>>
-    >>> fig = coexist.plot_access2d("access_info_227336", parameters)
+    >>> fig = coexist.plot_access2d("access_info_012345")
     >>> fig.show()
 
     Only plot the results from epochs 5, 6, 7:
 
     >>> coexist.plot_access2d(
-    >>>     "access_info_227336",
-    >>>     parameters,
+    >>>     "access_info_012345",
     >>>     epochs = [4, 5, 6],
     >>> ).show()
 
@@ -483,8 +392,7 @@ def plot_access2d(
     0.4 < `fp2` < 0.6.
 
     >>> coexist.plot_access2d(
-    >>>     "access_info_227336",
-    >>>     parameters,
+    >>>     "access_info_012345",
     >>>     columns = [0, 2]
     >>>     select = lambda res: (res[:, 1] > 0.4) & (res[:, 1] < 0.6),
     >>> ).show()
@@ -492,32 +400,23 @@ def plot_access2d(
     '''
 
     # Type-checking inputs
-    coexist.AccessScript.validate_parameters(parameters)
-    if len(columns) != 2:
-        raise ValueError((
-            f"The input `{columns=}` must contain exactly two columns to plot "
-            "corresponding to the parameter indices (e.g. [0, 1] to plot the "
-            "first two parameters)."
-        ))
+    if not isinstance(access_data, coexist.AccessData):
+        access_data = coexist.read_access(access_data)
 
     # Check if sample_indices is an iterable collection (list-like)
     # otherwise just "iterate" over the single number or Ellipsis
     if not hasattr(epochs, "__iter__"):
         epochs = [epochs]
 
-    # Find the path to the `opt_history_<num_solutions>.csv` file
-    history_path = find_history(history_path)
+    # Extract data needed from `access_data`
+    parameters = access_data.parameters
 
     # The data columns: [param1, param2, ..., param1_stddev, param2_stddev,
     # ..., overall_std_dev, error]
-    results = np.loadtxt(history_path)
+    results = access_data.results.to_numpy()
 
-    # Number of solutions (ns) per epoch
-    ns_extractor = re.compile(r"opt_history_|\.csv")
-    ns = int(ns_extractor.split(os.path.split(history_path)[1])[1])
-
-    # Plot the parameter values checked per epoch
-    num_epochs = results.shape[0] // ns
+    ns = access_data.num_solutions
+    num_epochs = access_data.num_epochs
 
     # Filter results plotted based on the error value and selected epochs
     selection = select(results)
@@ -548,10 +447,33 @@ def plot_access2d(
             y = y,
             z = error_map,
             colorscale = colorscale,
+            colorbar_title = "Error Value",
         )
     )
-    fig.update_xaxes(title = parameters.index[0])
-    fig.update_yaxes(title = parameters.index[1])
+
+    # Plot points tried
+    if seeds:
+        errors = results[selection][:, -1]
+        errors_scaled = (errors - errors.min()) / (errors.max() - errors.min())
+
+        # Use inverted colorscale for good contrast (i.e. color = 1 / errors)
+        fig.add_trace(
+            go.Scatter(
+                x = results[selection][:, columns[0]],
+                y = results[selection][:, columns[1]],
+                mode = "markers",
+                marker = dict(
+                    size = 1 + 10 * errors_scaled,
+                    color = 1 / (errors - errors.min() + 1),
+                    colorscale = colorscale,
+                )
+            )
+        )
+
+    fig.update_xaxes(title = parameters.index[0],
+                     range = [parameters["min"][0], parameters["max"][0]])
+    fig.update_yaxes(title = parameters.index[1],
+                     range = [parameters["min"][1], parameters["max"][1]])
 
     format_fig(fig)
     return fig

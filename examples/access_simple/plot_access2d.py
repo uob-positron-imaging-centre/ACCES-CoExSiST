@@ -5,20 +5,10 @@
 # Author : Andrei Leonard Nicusan <a.l.nicusan@bham.ac.uk>
 # Date   : 30.06.2021
 
-
 import coexist
 
+# Use path to either the `access_info_<hash>` folder itself, or the parent
+access_data = coexist.AccessData.read(".")
 
-# Define parameters from the `simulation_script.py` for richer plotting
-parameters = coexist.create_parameters(
-    variables = ["cor", "separation"],
-    minimums = [-10, -15],
-    maximums = [+15, +20],
-    values = [5, 10],
-)
-
-# Path to either the `access_info_<hash>` folder itself, or the parent
-access_path = "."
-
-fig = coexist.plot_access2d(access_path, parameters)
+fig = coexist.plots.access2d(access_data)
 fig.show()

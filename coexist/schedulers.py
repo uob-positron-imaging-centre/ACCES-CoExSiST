@@ -20,22 +20,23 @@ class Scheduler(ABC):
     calling a Python script with some command-line arguments in parallel; in
     the simplest case:
 
-        $> python3 some_script.py arg1 arg2 arg3
+        $> ``python3 some_script.py arg1 arg2 arg3``
 
     Here, `python3` is the "scheduler", simply creating a new OS process in
     which a Python interpreter executes `some_script.py`. This is implemented
-    in the `LocalScheduler` class.
+    in the ``LocalScheduler`` class.
 
     In a more complex, multi-cluster environment managed by SLURM:
 
-        $> sbatch job_submission.sh some_script.py arg1 arg2 arg3
+        $> ``sbatch job_submission.sh some_script.py arg1 arg2 arg3``
 
     Here, the `sbatch job_submission.sh` is the scheduling part, and the
     `job_submission.sh` SLURM script must be generated beforehand. This is
-    implemented in the `SlurmScheduler` class.
+    implemented in the ``SlurmScheduler`` class.
 
-    Subclassing
-    -----------
+
+    **Subclassing:**
+
     If you want to implement a concrete scheduler for another system, subclass
     `Scheduler` and implement the `generate` method, which should:
 
@@ -54,6 +55,10 @@ class Scheduler(ABC):
 
 class LocalScheduler(Scheduler):
     '''Schedule parallel workloads on the local / shared-memory machine.
+
+    By default, it will use the ``sys.executable`` Python interpreter (i.e. the
+    one used to execute the current code); you can set it to a different
+    name, e.g. ``coexist.schedulers.LocalScheduler(["python3"])``.
     '''
 
     def __init__(self, python_executable = [sys.executable]):
@@ -67,18 +72,80 @@ class LocalScheduler(Scheduler):
 
 
 class SlurmScheduler(Scheduler):
+    '''Launch simulations on a SLURM distributed cluster using ``sbatch``.
+
+    First a bash script must be defined for launching each simulation job; this
+    class generates this script, but some details must be defined by you; they
+    are specified as class parameters, see examples below:
+
+    Parameters
+    ----------
+    time : str
+        The time allocated for *a single simulation*, given as a string, e.g.
+        "1:0:0". Will be added as "#SBATCH --time 1:0:0"
+
+    qos : str, optional
+        The "#SBATCH --qos bbdefault" ``sbatch`` command.
+
+    account : str, optional
+        The "#SBATCH --account windowcr-rt-royalsociety" ``sbatch`` command.
+
+    mail_type : str, default "1"
+        The "#SBATCH --mail-type FAIL" ``sbatch`` command.
+
+    ntasks : str, default "1"
+        The "#SBATCH --ntasks 1" ``sbatch`` command.
+
+    mem : str, optional
+        The "#SBATCH --mem 4G" ``sbatch`` command.
+
+    output : str, default "logs/sim_slurm_%j.out"
+        The output logs directory.
+
+    commands : list[str], default ["module load Python"]
+        Any other *non-SLURM* commands to run in the job submission script
+        before executing the simulation; this is normally the setup work, e.g.
+        loading necessary modules, environments, etc.
+
+    interpreter : str, default os.path.split(sys.executable)[1]
+        Name of the Python interpreter which will be used to execute the
+        simulation script; this is normally set to the name of the executable
+        used to run ACCES, e.g. "usr/bin/python3" -> "python3".
+
+    **kwargs : other keyword arguments
+        Other "#SBATCH" commands to include at the top of the job submission
+        script; e.g. ``constraint = "cascadelake"`` is transformed to
+        "#SBATCH --constraint cascadelake".
+
+    Examples
+    --------
+
+    >>> from coexist.schedulers import SlurmScheduler
+    >>> scheduler = SlurmScheduler(
+    >>>     "10:0:0",          # Time allocated for a single simulation
+    >>>     commands = [       # Commands to add in the sbatch script after `#`
+    >>>         "set -e",
+    >>>         "module purge; module load bluebear",
+    >>>         "module load BEAR-Python-DataScience",
+    >>>     ],
+    >>>     qos = "bbdefault",
+    >>>     account = "windowcr-rt-royalsociety",
+    >>>     constraint = "cascadelake",   # Any other #SBATCH --<CMD> = "VAL"
+    >>> )
+
+    '''
 
     def __init__(
         self,
         time,
-        commands = ["module load Python"],
-        interpreter = os.path.split(sys.executable)[1],
         qos = None,
         account = None,
         mail_type = "FAIL",
-        ntasks = 1,
+        ntasks = "1",
         mem = None,
         output = "logs/sim_slurm_%j.out",
+        commands = ["module load Python"],
+        interpreter = os.path.split(sys.executable)[1],
         **kwargs,
     ):
         self.time = str(time)
@@ -128,7 +195,7 @@ class SlurmScheduler(Scheduler):
             f.write("#SBATCH --wait\n")
 
             for key, val in self.kwargs.items():
-                f.write(f"#SBATCH --{key} {val}\n")
+                f.write(f"#SBATCH --{key.replace('_', '-')} {val}\n")
 
             f.write("\n\n")
             for cmd in self.commands:

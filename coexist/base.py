@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# File   : pyLiggghts.py
+# File   : base.py
 # License: GNU v3.0
 # Author : Andrei Leonard Nicusan <a.l.nicusan@bham.ac.uk>
 # Date   : 01.09.2020
@@ -19,6 +19,7 @@ import  pandas      as      pd
 from    tqdm        import  tqdm
 from    pyevtk.hl   import  pointsToVTK
 
+# `liggghts` is an optional dependency for LiggghtsSimulation
 try:
     from liggghts   import  liggghts
 except ModuleNotFoundError:
@@ -134,6 +135,30 @@ def create_parameters(
     sigma = None,
     **kwargs,
 ):
+    '''Create a ``pandas.DataFrame`` storing the free parameters' names,
+    bounds, and optionally starting values and relative uncertainty.
+
+    This is simply a helper for creating a ``pandas.DataFrame`` with the
+    format required by e.g. ``coexist.Access``.
+
+    Examples
+    --------
+    Create a DataFrame storing two free parameters, specifying the minimum and
+    maximum bounds; notice that the starting guess and uncertainty are set
+    automatically.
+
+    >>> import coexist
+    >>> parameters = coexist.create_parameters(
+    >>>     variables = ["cor", "separation"],
+    >>>     minimums = [-3, -7],
+    >>>     maximums = [+5, +3],
+    >>> )
+    >>> parameters
+                value  min  max  sigma
+    cor           1.0 -3.0  5.0    3.2
+    separation   -2.0 -7.0  3.0    4.0
+
+    '''
     if not (len(variables) == len(minimums) == len(maximums)) or \
             (values is not None and len(values) != len(variables)) or \
             (sigma is not None and len(sigma) != len(variables)):
@@ -159,7 +184,6 @@ def create_parameters(
 
     if sigma is None:
         sigma = 0.4 * (maximums - minimums)
-
 
     parameters = pd.DataFrame(
         data = {

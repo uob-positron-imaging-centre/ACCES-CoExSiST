@@ -8,9 +8,9 @@
 import coexist
 
 # Use ACCESS to learn a simulation's parameters
-access = coexist.AccessScript("simulation_script.py")
+access = coexist.Access("simulation_script.py")
 access.learn(
     num_solutions = 10,         # Number of solutions per epoch
     target_sigma = 0.1,         # Target std-dev (accuracy) of solution
-    random_seed = 12345,        # Reproducible / deterministic optimisation
+    random_seed = 42,           # Reproducible / deterministic optimisation
 )

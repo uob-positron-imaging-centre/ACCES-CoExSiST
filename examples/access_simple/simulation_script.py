@@ -10,11 +10,8 @@ Must define one simulation whose parameters will be optimised this way:
        `#### ACCESS PARAMETERS START` and `#### ACCESS PARAMETERS END`
        blocks (i.e. it should not depend on code ran before that).
 
-    3. By the end of the simulation script, define two variables:
-        a. `error` - one number representing this simulation's error value.
-        b. `extra` - (optional) any python data structure storing extra
-                     information you want to save for a simulation run (e.g.
-                     particle positions).
+    3. By the end of the simulation script, define a variable named ``error``
+       storing a single number representing this simulation's error value.
 
 Importantly, use `parameters.at[<free parameter name>, "value"]` to get this
 simulation's free / optimisable variable values.
@@ -26,7 +23,7 @@ parameters = coexist.create_parameters(
     variables = ["cor", "separation"],
     minimums = [-3, -7],
     maximums = [+5, +3],
-    values = [1, 2],               # Optional, initial guess
+    values = [3, 2],                # Optional, initial guess
 )
 
 access_id = 0                       # Optional, unique ID for each simulation
@@ -43,4 +40,3 @@ a = 1
 b = 100
 
 error = (a - x) ** 2 + b * (y - x ** 2) ** 2
-extra = dict(a = a, b = b, c = access_id)       # Optional
