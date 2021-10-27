@@ -93,16 +93,9 @@ def access(
 
     Parameters
     ----------
-    history_path: str
-        A path to an ACCES history file
-        (e.g. "sim/access_info_123456/opt_history_100.csv"), an ACCES run
-        folder (e.g. "sim/access_info_123456"), or a directory where a single
-        ACCES run exists (e.g. "sim/")
-
-    parameters: pandas.DataFrame, optional
-        The `parameters` dataframe used to run ACCESS, exactly the same as in
-        the simulation script used. If provided, extra information will be
-        plotted.
+    access_data: coexist.AccessData
+        An `AccessData` object containing all information about an ACCES run;
+        you can initialise it with ``coexist.AccessData.read("folder_path")``.
 
     select: function, default lambda results: results[:, -1] < np.inf
         A filtering function used to plot only selected solutions tried, based
@@ -131,36 +124,20 @@ def access(
     Examples
     --------
     If `coexist.Access(filepath, random_seed = 12345)` was run, the
-    directory "access_info_227336" would have been created. Plot its results:
+    directory "access_info_012345" would have been created. Plot its results:
 
     >>> import coexist
-    >>> fig = coexist.plot_access("access_info_227336")
+    >>> data = coexist.AccessData.read("access_info_012345")
+    >>> fig = coexist.plots.access(data)
     >>> fig.show()
 
     Only plot solution combinations that yielded an error value < 100:
 
-    >>> coexist.plot_access(
-    >>>     "access_info_227336",
+    >>> coexist.plots.access(
+    >>>      data,
     >>>      select = lambda results: results[:, -1] < 100,
     >>> ).show()
 
-    If the ACCESS parameters used (created in the simulation script) are given,
-    the parameters' names will be plotted and the standard deviations will be
-    scaled between 0 and 1:
-
-    >>> parameters = coexist.create_parameters(
-    >>>     variables = ["fp1", "fp2"],
-    >>>     minimums = [0, 0],
-    >>>     maximums = [1, 2],
-    >>> )
-    >>>
-    >>> coexist.plot_access("access_info_227336", parameters).show()
-
-    Notes
-    -----
-    At least the "opt_history_<num_solutions>.csv" file is needed. If the
-    "opt_history_<num_solutions>_scaled.csv" file is found too, then the
-    scaled standard deviations will be plotted (i.e. between 0 and 1).
     '''
 
     # Type-checking inputs
@@ -218,7 +195,11 @@ def access(
         row = i // ncols + 1
         col = i % ncols + 1
 
-        color = colors[i]
+        # Ensure the color_index does not go beyond the number of colours
+        color_index = i
+        while color_index >= len(colors):
+            color_index -= len(colors)
+        color = colors[color_index]
         adjuster = LightAdjuster(color)
 
         fig.add_trace(
@@ -332,9 +313,9 @@ def access2d(
 
     Parameters
     ----------
-    access_data: AccessData or path
-        An `AccessData` instance (e.g. initialised using `coexist.read_access`)
-        or a path to an `access_info_<hash>` directory or its parent.
+    access_data: coexist.AccessData
+        An `AccessData` object containing all information about an ACCES run;
+        you can initialise it with ``coexist.AccessData.read("folder_path")``.
 
     resolution: 2-tuple, default (1000, 1000)
         The number of pixels in the heatmap / Voronoi diagram shown in the
@@ -378,21 +359,19 @@ def access2d(
 
     >>> import coexist
     >>>
-    >>> fig = coexist.plot_access2d("access_info_012345")
+    >>> data = coexist.AccessData.read("access_info_012345")
+    >>> fig = coexist.plots.access2d(data)
     >>> fig.show()
 
     Only plot the results from epochs 5, 6, 7:
 
-    >>> coexist.plot_access2d(
-    >>>     "access_info_012345",
-    >>>     epochs = [4, 5, 6],
-    >>> ).show()
+    >>> coexist.plots.access2d(data, epochs = [4, 5, 6]).show()
 
     Only plot a slice through a 3D parameter space for `fp1` and `fp3`, with
     0.4 < `fp2` < 0.6.
 
     >>> coexist.plot_access2d(
-    >>>     "access_info_012345",
+    >>>     data,
     >>>     columns = [0, 2]
     >>>     select = lambda res: (res[:, 1] > 0.4) & (res[:, 1] < 0.6),
     >>> ).show()

@@ -69,6 +69,10 @@ class LocalScheduler(Scheduler):
         return self.python_executable
 
 
+    def __repr__(self):
+        return f"LocalScheduler(python_executable={self.python_executable})"
+
+
 
 
 class SlurmScheduler(Scheduler):
@@ -114,7 +118,7 @@ class SlurmScheduler(Scheduler):
 
     **kwargs : other keyword arguments
         Other "#SBATCH" commands to include at the top of the job submission
-        script; e.g. ``constraint = "cascadelake"`` is transformed to
+        script; e.g. ``constraint = "cascadelake"`` is transformed into
         "#SBATCH --constraint cascadelake".
 
     Examples
@@ -210,3 +214,17 @@ class SlurmScheduler(Scheduler):
             f.write(f"{self.interpreter} $*\n")
 
         return ["sbatch", filename]
+
+
+    def __repr__(self):
+        # Return pretty string representation of an arbitrary object
+        docs = []
+        for attr in dir(self):
+            if not attr.startswith("_"):
+                memb = getattr(self, attr)
+                if not callable(memb):
+                    docs.append(f"{attr} = {memb}")
+
+        name = self.__class__.__name__
+        underline = "-" * len(name)
+        return f"{name}\n{underline}\n" + "\n".join(docs)

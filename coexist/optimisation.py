@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# File   : access.py
+# File   : optimisation.py
 # License: GNU v3.0
 # Author : Andrei Leonard Nicusan <a.l.nicusan@bham.ac.uk>
 # Date   : 03.09.2020
@@ -1793,6 +1793,9 @@ class Access:
 
     '''
 
+    _docs_short = {"access_code", "access_info", "parameters"}
+    _docs_hidden = {}
+
     def __init__(
         self,
         script_path: str,
@@ -2435,3 +2438,21 @@ class Access:
             ), flush = True)
 
         return np.array(results)
+
+
+    def __repr__(self):
+        # Return pretty string representation of an arbitrary object
+        docs = []
+        for att in dir(self):
+            if not att.startswith("_") and att not in self._docs_hidden:
+                memb = getattr(self, att)
+                if not callable(memb):
+                    if att in self._docs_short:
+                        shortmemb = str(memb)[:60].replace("\n", "\\n") + "..."
+                        docs.append(f"{att} = {shortmemb}")
+                    else:
+                        docs.append(f"{att} = {memb}")
+
+        name = self.__class__.__name__
+        underline = "-" * len(name)
+        return f"{name}\n{underline}\n" + "\n".join(docs)

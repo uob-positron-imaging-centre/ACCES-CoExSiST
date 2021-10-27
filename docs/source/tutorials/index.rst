@@ -70,10 +70,11 @@ vary at the top, e.g.:
 
     #### ACCESS PARAMETERS START
     import coexist
+
     parameters = coexist.create_parameters(
-        variables = ["cor", "separation"],
-        minimums = [-3, -7],
-        maximums = [+5, +3],
+        variables = ["param1", "param2"],
+        minimums = [-1, -3],
+        maximums = [5, 3],
         values = [3, 2],                # Optional, initial guess
     )
 
@@ -81,16 +82,13 @@ vary at the top, e.g.:
     #### ACCESS PARAMETERS END
 
 
-    # Extract variables
-    x = parameters.at["cor", "value"]
-    y = parameters.at["separation", "value"]
+    # The `parameters` variable is a pandas.DataFrame - extract param1, param2
+    p1 = parameters.at["param1", "value"]
+    p2 = parameters.at["param2", "value"]
 
 
     # Define the error value in any way - run a simulation, analyse data, etc.
-    a = 1
-    b = 100
-
-    error = (a - x) ** 2 + b * (y - x ** 2) ** 2
+    error = p1 ** 2 + p2 ** 2
 
 
 All you need to do is to create a variable called ``parameters`` (a simple
@@ -125,65 +123,64 @@ corresponding error values:
 
 ::
 
-    (5_w,10)-aCMA-ES (mu_w=3.2,w_1=45%) in dimension 2 (seed=<module 'time' (built-in)>, Sat Oct  2 20:10:32 2021)
+    (5_w,10)-aCMA-ES (mu_w=3.2,w_1=45%) in dimension 2 (seed=<module 'time' (built-in)>, Wed Oct 27 10:02:03 2021)
     Scaled overall standard deviation: 1.0
     Scaled individual standard deviations:
     [1.       1.000025]
 
     Trying 10 parameter combinations...
-            cor  separation         error
-    0  3.975095   -2.160040  32270.104639
-    1  4.999955    0.937647  57913.534250
-    2 -2.996414   -3.208848  14869.102695
-    3  3.409089    0.734998  11858.244979
-    4  2.946236   -1.412261  10189.783399
-    5  4.900442    1.588754  50305.857496
-    6  3.211298    0.190922  10249.394181
-    7  4.496030   -1.437256  46891.143262
-    8  4.180003   -1.835626  37290.181348
-    9  4.901931    1.800291  49426.433170
+         param1    param2      error
+    0  3.731321 -0.496024  14.168796
+    1  4.781306  2.282588  28.071099
+    2 -0.657516 -1.125309   1.698647
+    3  3.306817  1.240999  12.475116
+    4  2.959677 -0.047357   8.761932
+    5  4.954519  2.673253  31.693540
+    6  3.158474  1.834553  13.341542
+    7  4.122022 -0.062353  16.994957
+    8  3.885002 -0.301376  15.184067
+    9  4.953718  1.880175  28.074382
     Function evaluations: 10
     ---
-    Scaled overall standard deviation: 0.7917725529475667
+    Scaled overall standard deviation: 1.240843559888434
     Scaled individual standard deviations:
-    [0.67378042 0.74292858]
+    [1.37258669 1.34768971]
 
     [...output truncated...]
 
     ---
-    Scaled overall standard deviation: 0.12014944702373544
+    Scaled overall standard deviation: 0.1265506796562545
     Scaled individual standard deviations:
-    [0.03222829 0.04423768]
+    [0.01103251 0.01237254]
 
     Trying 10 parameter combinations...
-            cor  separation     error
-    0  0.921384    0.843603  0.009038
-    1  1.019462    1.022632  0.028168
-    2  0.736744    0.523327  0.107192
-    3  0.844403    0.735111  0.073025
-    4  0.917605    0.861830  0.046117
-    5  0.923034    0.847540  0.007905
-    6  1.085804    1.166795  0.022186
-    7  0.902186    0.815508  0.009814
-    8  0.791441    0.644249  0.075431
-    9  0.881143    0.784338  0.020410
-    Function evaluations: 230
+         param1    param2     error
+    0 -0.002522 -0.024961  0.000629
+    1  0.057048 -0.041534  0.004980
+    2  0.027572 -0.000700  0.000761
+    3 -0.019132  0.058721  0.003814
+    4 -0.020061 -0.036178  0.001711
+    5 -0.008127 -0.013306  0.000243
+    6  0.000361  0.009405  0.000089
+    7 -0.015397 -0.014005  0.000433
+    8 -0.017028 -0.040828  0.001957
+    9 -0.033740  0.074407  0.006675
+    Function evaluations: 240
     ---
     Optimal solution found within `target_sigma`, i.e. 10.0%:
-    sigma = 0.09046951690975955 < 0.1
+    sigma = 0.08958381541480065 < 0.1
 
     ---
     The best result was achieved for these parameter values:
-    [0.9484971  0.89783533]
+    [-0.00261052 -0.0018851 ]
 
     The standard deviation / uncertainty in each parameter is:
-    [0.06539225 0.11303058]
+    [0.01689302 0.01582416]
 
-    For these parameters, the error value found was: 0.002980675258852438
+    For these parameters, the error value found was: 1.03684456038658e-05
 
-    These results were found for the simulation at index 200, which can be found in:
+    These results were found for the simulation at index 227, which can be found in:
     access_info_000042/simulations
-
 
 
 Each ACCES run creates a folder "access_info_<random_seed>" saving the optimisation
@@ -197,9 +194,9 @@ even while the optimisation is still running for intermediate results:
 
     AccessData(
       parameters:
-                    value  min  max  sigma
-        cor           3.0 -3.0  5.0    3.2
-        separation    2.0 -7.0  3.0    4.0
+                value  min  max  sigma
+        param1    3.0 -1.0  5.0    2.4
+        param2    2.0 -3.0  3.0    2.4
 
       num_solutions:
         10
@@ -211,44 +208,44 @@ even while the optimisation is still running for intermediate results:
         42
 
       results:
-                  cor  separation   cor_std  separation_std  overall_std         error
-        0    3.975095   -2.160040  2.156097        2.971714     0.791773  32270.104639
-        1    4.999955    0.937647  2.156097        2.971714     0.791773  57913.534250
-        2   -2.996414   -3.208848  2.156097        2.971714     0.791773  14869.102695
-        3    3.409089    0.734998  2.156097        2.971714     0.791773  11858.244979
-        4    2.946236   -1.412261  2.156097        2.971714     0.791773  10189.783399
-        ..        ...         ...       ...             ...          ...           ...
-        225  0.923034    0.847540  0.065392        0.113031     0.090470      0.007905
-        226  1.085804    1.166795  0.065392        0.113031     0.090470      0.022186
-        227  0.902186    0.815508  0.065392        0.113031     0.090470      0.009814
-        228  0.791441    0.644249  0.065392        0.113031     0.090470      0.075431
-        229  0.881143    0.784338  0.065392        0.113031     0.090470      0.020410
+               param1    param2  param1_std  param2_std  overall_std      error
+        0    3.731321 -0.496024    3.294208    3.234455     1.240844  14.168796
+        1    4.781306  2.282588    3.294208    3.234455     1.240844  28.071099
+        2   -0.657516 -1.125309    3.294208    3.234455     1.240844   1.698647
+        3    3.306817  1.240999    3.294208    3.234455     1.240844  12.475116
+        4    2.959677 -0.047357    3.294208    3.234455     1.240844   8.761932
+        ..        ...       ...         ...         ...          ...        ...
+        235 -0.008127 -0.013306    0.016893    0.015824     0.089584   0.000243
+        236  0.000361  0.009405    0.016893    0.015824     0.089584   0.000089
+        237 -0.015397 -0.014005    0.016893    0.015824     0.089584   0.000433
+        238 -0.017028 -0.040828    0.016893    0.015824     0.089584   0.001957
+        239 -0.033740  0.074407    0.016893    0.015824     0.089584   0.006675
 
-        [230 rows x 6 columns]
+        [240 rows x 6 columns]
 
       results_scaled:
-                  cor  separation   cor_std  separation_std  overall_std         error
-        0    1.242217   -0.540010  0.673780        0.742929     0.791773  32270.104639
-        1    1.562486    0.234412  0.673780        0.742929     0.791773  57913.534250
-        2   -0.936379   -0.802212  0.673780        0.742929     0.791773  14869.102695
-        3    1.065340    0.183750  0.673780        0.742929     0.791773  11858.244979
-        4    0.920699   -0.353065  0.673780        0.742929     0.791773  10189.783399
-        ..        ...         ...       ...             ...          ...           ...
-        225  0.288448    0.211885  0.020435        0.028258     0.090470      0.007905
-        226  0.339314    0.291699  0.020435        0.028258     0.090470      0.022186
-        227  0.281933    0.203877  0.020435        0.028258     0.090470      0.009814
-        228  0.247325    0.161062  0.020435        0.028258     0.090470      0.075431
-        229  0.275357    0.196085  0.020435        0.028258     0.090470      0.020410
+               param1    param2  param1_std  param2_std  overall_std      error
+        0    1.554717 -0.206677    1.372587    1.347690     1.240844  14.168796
+        1    1.992211  0.951078    1.372587    1.347690     1.240844  28.071099
+        2   -0.273965 -0.468879    1.372587    1.347690     1.240844   1.698647
+        3    1.377840  0.517083    1.372587    1.347690     1.240844  12.475116
+        4    1.233199 -0.019732    1.372587    1.347690     1.240844   8.761932
+        ..        ...       ...         ...         ...          ...        ...
+        235 -0.003386 -0.005544    0.007039    0.006593     0.089584   0.000243
+        236  0.000151  0.003919    0.007039    0.006593     0.089584   0.000089
+        237 -0.006415 -0.005835    0.007039    0.006593     0.089584   0.000433
+        238 -0.007095 -0.017011    0.007039    0.006593     0.089584   0.001957
+        239 -0.014058  0.031003    0.007039    0.006593     0.089584   0.006675
 
-        [230 rows x 6 columns]
+        [240 rows x 6 columns]
 
       num_epochs:
-        23
+        24
     )
 
 
 You can create a "convergence plot" showing the evolution of the ACCES run using
-``coexist.plots.plot_access``:
+``coexist.plots.access``:
 
 ::
 
@@ -256,7 +253,7 @@ You can create a "convergence plot" showing the evolution of the ACCES run using
 
     # Use path to either the `access_info_<random_seed>` folder itself, or its
     # parent directory
-    access_data = coexist.AccessData.read(".")
+    access_data = coexist.AccessData.read("access_info_000042")
 
     fig = coexist.plots.access(access_data)
     fig.show()
@@ -269,10 +266,10 @@ Which will produce the following interactive Plotly figure:
 
 
 If you zoom into the error value, you'll see that ACCES effectively found the
-optimum in less than 10 epochs; while this particular error function is
-well-behaved and a gradient-based optimiser may be quicker and more accurate,
-this can never be assumed with physical simulations and noisy measurements (see
-the image at the top of the page).
+optimum in less than 15 epochs; while this particular error function is
+well-behaved and a gradient-based optimiser may be quicker, this can never be
+assumed with physical simulations and noisy measurements (see the image at the
+top of the page).
 
 If you have only two free parameters (or take a slice through your larger parameter
 space) you can see which parts ACCES explored:
@@ -283,7 +280,7 @@ space) you can see which parts ACCES explored:
 
     # Use path to either the `access_info_<random_seed>` folder itself, or its
     # parent directory
-    access_data = coexist.AccessData.read(".")
+    access_data = coexist.AccessData.read("access_info_000042")
 
     fig = coexist.plots.access2d(access_data)
     fig.show()
