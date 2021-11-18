@@ -1,0 +1,237 @@
+#
+# Simulating microcrystalline cellulose (MCC) particles; see the `psd_fractions.py` for
+# the particle size distribution, as measured with a Canty Solidsizer.
+
+
+# Simulation constants
+variable timestep       equal 1e-5
+variable rotationPeriod equal 60/45         # s per revolution
+variable N equal 30000.0
+variable NRate          equal ${N}/0.1      # Particle insertion rate
+variable NRate          equal 30000/0.1      
+
+
+variable youngmodP      equal 5e6
+variable poissP         equal 0.3
+
+variable fricPP equal 0.4
+variable fricPW equal 0.4
+variable fricPSW equal 0.4
+variable fric           equal 0.5           # Dummy value, Wall-Sidewall
+
+variable fricRollPP equal 0.1
+variable fricRollPW equal 0.1
+variable fricRollPSW equal 0.1
+variable fricRoll       equal 0.5           # Dummy value, Wall-Sidewall
+
+variable corPP          equal 0.3           # Vary
+variable corPW          equal 0.3           # Vary
+variable corPSW         equal 0.3
+variable cor            equal 0.3           # Dummy value, Wall-Sidewall
+
+variable dens           equal 1580.0
+
+
+# Particle Size Distribution
+variable r0 equal 1050e-6/2
+variable r1 equal 1100e-6/2
+variable r2 equal 1150e-6/2
+variable r3 equal 1200e-6/2
+variable r4 equal 1250e-6/2
+variable r5 equal 1300e-6/2
+variable r6 equal 1350e-6/2
+variable r7 equal 1400e-6/2
+variable r8 equal 1450e-6/2
+variable r9 equal 1500e-6/2
+
+
+variable p0 equal 0.0064659
+variable p1 equal 0.07387693
+variable p2 equal 0.26249571
+variable p3 equal 0.25249525
+variable p4 equal 0.17012964
+variable p5 equal 0.10530736
+variable p6 equal 0.06885834
+variable p7 equal 0.03662696
+variable p8 equal 0.01861549
+variable p9 equal 0.00512842
+
+
+# Set up rotating drum
+atom_style      granular
+atom_modify map array
+
+boundary        f f f       # non-periodic
+newton          off         # Sets newtons 3rd law on or off
+communicate     single vel yes
+units           si
+
+
+# Simulated region
+region domain block -0.048 0.048 -0.025 0.025 -0.048 0.048 units box
+create_box 3 domain
+Created orthogonal box = (-0.048 -0.025 -0.048) to (0.048 0.025 0.048)
+  1 by 1 by 1 MPI processor grid
+
+
+# Set up the neighbor-list
+neighbor        0.0008  bin
+neigh_modify    delay   0
+hard_particles  yes
+soft_particles  yes
+
+
+# Particle / wall contact properties
+fix m1 all property/global youngsModulus peratomtype     ${youngmodP}    ${youngmodP}    ${youngmodP}
+fix m1 all property/global youngsModulus peratomtype     5000000    ${youngmodP}    ${youngmodP}
+fix m1 all property/global youngsModulus peratomtype     5000000    5000000    ${youngmodP}
+fix m1 all property/global youngsModulus peratomtype     5000000    5000000    5000000
+
+fix m2 all property/global poissonsRatio peratomtype     ${poissP}       ${poissP}       ${poissP}
+fix m2 all property/global poissonsRatio peratomtype     0.3       ${poissP}       ${poissP}
+fix m2 all property/global poissonsRatio peratomtype     0.3       0.3       ${poissP}
+fix m2 all property/global poissonsRatio peratomtype     0.3       0.3       0.3
+
+fix m3 all property/global coefficientFriction peratomtypepair 3     ${fricPP}       ${fricPW}       ${fricPSW}          ${fricPW}       ${fric}         ${fric}             ${fricPSW}      ${fric}         ${fric}
+fix m3 all property/global coefficientFriction peratomtypepair 3     0.4       ${fricPW}       ${fricPSW}          ${fricPW}       ${fric}         ${fric}             ${fricPSW}      ${fric}         ${fric}
+fix m3 all property/global coefficientFriction peratomtypepair 3     0.4       0.4       ${fricPSW}          ${fricPW}       ${fric}         ${fric}             ${fricPSW}      ${fric}         ${fric}
+fix m3 all property/global coefficientFriction peratomtypepair 3     0.4       0.4       0.4          ${fricPW}       ${fric}         ${fric}             ${fricPSW}      ${fric}         ${fric}
+fix m3 all property/global coefficientFriction peratomtypepair 3     0.4       0.4       0.4          0.4       ${fric}         ${fric}             ${fricPSW}      ${fric}         ${fric}
+fix m3 all property/global coefficientFriction peratomtypepair 3     0.4       0.4       0.4          0.4       0.5         ${fric}             ${fricPSW}      ${fric}         ${fric}
+fix m3 all property/global coefficientFriction peratomtypepair 3     0.4       0.4       0.4          0.4       0.5         0.5             ${fricPSW}      ${fric}         ${fric}
+fix m3 all property/global coefficientFriction peratomtypepair 3     0.4       0.4       0.4          0.4       0.5         0.5             0.4      ${fric}         ${fric}
+fix m3 all property/global coefficientFriction peratomtypepair 3     0.4       0.4       0.4          0.4       0.5         0.5             0.4      0.5         ${fric}
+fix m3 all property/global coefficientFriction peratomtypepair 3     0.4       0.4       0.4          0.4       0.5         0.5             0.4      0.5         0.5
+
+fix m4 all property/global coefficientRollingFriction peratomtypepair 3     ${fricRollPP}   ${fricRollPW}   ${fricRollPSW}      ${fricRollPW}   ${fricRoll}     ${fricRoll}         ${fricRollPSW}  ${fricRoll}     ${fricRoll}
+fix m4 all property/global coefficientRollingFriction peratomtypepair 3     0.1   ${fricRollPW}   ${fricRollPSW}      ${fricRollPW}   ${fricRoll}     ${fricRoll}         ${fricRollPSW}  ${fricRoll}     ${fricRoll}
+fix m4 all property/global coefficientRollingFriction peratomtypepair 3     0.1   0.1   ${fricRollPSW}      ${fricRollPW}   ${fricRoll}     ${fricRoll}         ${fricRollPSW}  ${fricRoll}     ${fricRoll}
+fix m4 all property/global coefficientRollingFriction peratomtypepair 3     0.1   0.1   0.1      ${fricRollPW}   ${fricRoll}     ${fricRoll}         ${fricRollPSW}  ${fricRoll}     ${fricRoll}
+fix m4 all property/global coefficientRollingFriction peratomtypepair 3     0.1   0.1   0.1      0.1   ${fricRoll}     ${fricRoll}         ${fricRollPSW}  ${fricRoll}     ${fricRoll}
+fix m4 all property/global coefficientRollingFriction peratomtypepair 3     0.1   0.1   0.1      0.1   0.5     ${fricRoll}         ${fricRollPSW}  ${fricRoll}     ${fricRoll}
+fix m4 all property/global coefficientRollingFriction peratomtypepair 3     0.1   0.1   0.1      0.1   0.5     0.5         ${fricRollPSW}  ${fricRoll}     ${fricRoll}
+fix m4 all property/global coefficientRollingFriction peratomtypepair 3     0.1   0.1   0.1      0.1   0.5     0.5         0.1  ${fricRoll}     ${fricRoll}
+fix m4 all property/global coefficientRollingFriction peratomtypepair 3     0.1   0.1   0.1      0.1   0.5     0.5         0.1  0.5     ${fricRoll}
+fix m4 all property/global coefficientRollingFriction peratomtypepair 3     0.1   0.1   0.1      0.1   0.5     0.5         0.1  0.5     0.5
+
+fix m5 all property/global coefficientRestitution peratomtypepair 3     ${corPP}        ${corPW}        ${corPSW}           ${corPW}        ${cor}          ${cor}              ${corPSW}       ${cor}          ${cor}
+fix m5 all property/global coefficientRestitution peratomtypepair 3     0.3        ${corPW}        ${corPSW}           ${corPW}        ${cor}          ${cor}              ${corPSW}       ${cor}          ${cor}
+fix m5 all property/global coefficientRestitution peratomtypepair 3     0.3        0.3        ${corPSW}           ${corPW}        ${cor}          ${cor}              ${corPSW}       ${cor}          ${cor}
+fix m5 all property/global coefficientRestitution peratomtypepair 3     0.3        0.3        0.3           ${corPW}        ${cor}          ${cor}              ${corPSW}       ${cor}          ${cor}
+fix m5 all property/global coefficientRestitution peratomtypepair 3     0.3        0.3        0.3           0.3        ${cor}          ${cor}              ${corPSW}       ${cor}          ${cor}
+fix m5 all property/global coefficientRestitution peratomtypepair 3     0.3        0.3        0.3           0.3        0.3          ${cor}              ${corPSW}       ${cor}          ${cor}
+fix m5 all property/global coefficientRestitution peratomtypepair 3     0.3        0.3        0.3           0.3        0.3          0.3              ${corPSW}       ${cor}          ${cor}
+fix m5 all property/global coefficientRestitution peratomtypepair 3     0.3        0.3        0.3           0.3        0.3          0.3              0.3       ${cor}          ${cor}
+fix m5 all property/global coefficientRestitution peratomtypepair 3     0.3        0.3        0.3           0.3        0.3          0.3              0.3       0.3          ${cor}
+fix m5 all property/global coefficientRestitution peratomtypepair 3     0.3        0.3        0.3           0.3        0.3          0.3              0.3       0.3          0.3
+
+fix m7 all property/global k_finnie peratomtypepair 3 1.0 1.0 1.0 1.0 1.0 1.0 1.0 1.0 1.0
+
+
+# Contact pair styles
+pair_style gran model hertz tangential history rolling_friction cdt
+pair_coeff * *
+
+
+# Timestep size
+timestep ${timestep}
+timestep 1e-05
+
+
+# Set gravity as a constant force
+fix gravi all gravity 9.81 vector 0.0 0.0 -1.0
+
+
+# STL Geometries: drum / faces
+fix cad all mesh/surface/stress file    mesh/rotating_drum_mm.stl       type 2 scale 0.001 wear finnie
+fix side all mesh/surface/stress file   mesh/rotating_drum_side_mm.stl  type 3 scale 0.001
+fix inface all mesh/surface file        mesh/inface_mm.stl              type 3 scale 0.001 move 0.0 0.0 -0.02
+
+
+# Wall contact models
+fix granwalls all wall/gran model hertz tangential history rolling_friction cdt  mesh n_meshes 2 meshes cad side
+
+
+# Particle Size Distribution
+fix pts0 all particletemplate/sphere 15485863 atom_type 1 density constant ${dens} radius constant ${r0}
+fix pts0 all particletemplate/sphere 15485863 atom_type 1 density constant 1580 radius constant ${r0}
+fix pts0 all particletemplate/sphere 15485863 atom_type 1 density constant 1580 radius constant 0.000525
+fix pts1 all particletemplate/sphere 20433971 atom_type 1 density constant ${dens} radius constant ${r1}
+fix pts1 all particletemplate/sphere 20433971 atom_type 1 density constant 1580 radius constant ${r1}
+fix pts1 all particletemplate/sphere 20433971 atom_type 1 density constant 1580 radius constant 0.00055
+fix pts2 all particletemplate/sphere 20433977 atom_type 1 density constant ${dens} radius constant ${r2}
+fix pts2 all particletemplate/sphere 20433977 atom_type 1 density constant 1580 radius constant ${r2}
+fix pts2 all particletemplate/sphere 20433977 atom_type 1 density constant 1580 radius constant 0.000575
+fix pts3 all particletemplate/sphere 20434457 atom_type 1 density constant ${dens} radius constant ${r3}
+fix pts3 all particletemplate/sphere 20434457 atom_type 1 density constant 1580 radius constant ${r3}
+fix pts3 all particletemplate/sphere 20434457 atom_type 1 density constant 1580 radius constant 0.0006
+fix pts4 all particletemplate/sphere 20434553 atom_type 1 density constant ${dens} radius constant ${r4}
+fix pts4 all particletemplate/sphere 20434553 atom_type 1 density constant 1580 radius constant ${r4}
+fix pts4 all particletemplate/sphere 20434553 atom_type 1 density constant 1580 radius constant 0.000625
+fix pts5 all particletemplate/sphere 20435099 atom_type 1 density constant ${dens} radius constant ${r5}
+fix pts5 all particletemplate/sphere 20435099 atom_type 1 density constant 1580 radius constant ${r5}
+fix pts5 all particletemplate/sphere 20435099 atom_type 1 density constant 1580 radius constant 0.00065
+fix pts6 all particletemplate/sphere 20437121 atom_type 1 density constant ${dens} radius constant ${r6}
+fix pts6 all particletemplate/sphere 20437121 atom_type 1 density constant 1580 radius constant ${r6}
+fix pts6 all particletemplate/sphere 20437121 atom_type 1 density constant 1580 radius constant 0.000675
+fix pts7 all particletemplate/sphere 20437457 atom_type 1 density constant ${dens} radius constant ${r7}
+fix pts7 all particletemplate/sphere 20437457 atom_type 1 density constant 1580 radius constant ${r7}
+fix pts7 all particletemplate/sphere 20437457 atom_type 1 density constant 1580 radius constant 0.0007
+fix pts8 all particletemplate/sphere 20437687 atom_type 1 density constant ${dens} radius constant ${r8}
+fix pts8 all particletemplate/sphere 20437687 atom_type 1 density constant 1580 radius constant ${r8}
+fix pts8 all particletemplate/sphere 20437687 atom_type 1 density constant 1580 radius constant 0.000725
+fix pts9 all particletemplate/sphere 20437811 atom_type 1 density constant ${dens} radius constant ${r9}
+fix pts9 all particletemplate/sphere 20437811 atom_type 1 density constant 1580 radius constant ${r9}
+fix pts9 all particletemplate/sphere 20437811 atom_type 1 density constant 1580 radius constant 0.00075
+
+
+fix pdd all particledistribution/discrete/numberbased 49979693 10 pts0 ${p0}  pts1 ${p1}  pts2 ${p2}  pts3 ${p3}  pts4 ${p4}  pts5 ${p5}  pts6 ${p6}  pts7 ${p7}  pts8 ${p8}  pts9 ${p9}
+fix pdd all particledistribution/discrete/numberbased 49979693 10 pts0 0.0064659  pts1 ${p1}  pts2 ${p2}  pts3 ${p3}  pts4 ${p4}  pts5 ${p5}  pts6 ${p6}  pts7 ${p7}  pts8 ${p8}  pts9 ${p9}
+fix pdd all particledistribution/discrete/numberbased 49979693 10 pts0 0.0064659  pts1 0.07387693  pts2 ${p2}  pts3 ${p3}  pts4 ${p4}  pts5 ${p5}  pts6 ${p6}  pts7 ${p7}  pts8 ${p8}  pts9 ${p9}
+fix pdd all particledistribution/discrete/numberbased 49979693 10 pts0 0.0064659  pts1 0.07387693  pts2 0.26249571  pts3 ${p3}  pts4 ${p4}  pts5 ${p5}  pts6 ${p6}  pts7 ${p7}  pts8 ${p8}  pts9 ${p9}
+fix pdd all particledistribution/discrete/numberbased 49979693 10 pts0 0.0064659  pts1 0.07387693  pts2 0.26249571  pts3 0.25249525  pts4 ${p4}  pts5 ${p5}  pts6 ${p6}  pts7 ${p7}  pts8 ${p8}  pts9 ${p9}
+fix pdd all particledistribution/discrete/numberbased 49979693 10 pts0 0.0064659  pts1 0.07387693  pts2 0.26249571  pts3 0.25249525  pts4 0.17012964  pts5 ${p5}  pts6 ${p6}  pts7 ${p7}  pts8 ${p8}  pts9 ${p9}
+fix pdd all particledistribution/discrete/numberbased 49979693 10 pts0 0.0064659  pts1 0.07387693  pts2 0.26249571  pts3 0.25249525  pts4 0.17012964  pts5 0.10530736  pts6 ${p6}  pts7 ${p7}  pts8 ${p8}  pts9 ${p9}
+fix pdd all particledistribution/discrete/numberbased 49979693 10 pts0 0.0064659  pts1 0.07387693  pts2 0.26249571  pts3 0.25249525  pts4 0.17012964  pts5 0.10530736  pts6 0.06885834  pts7 ${p7}  pts8 ${p8}  pts9 ${p9}
+fix pdd all particledistribution/discrete/numberbased 49979693 10 pts0 0.0064659  pts1 0.07387693  pts2 0.26249571  pts3 0.25249525  pts4 0.17012964  pts5 0.10530736  pts6 0.06885834  pts7 0.03662696  pts8 ${p8}  pts9 ${p9}
+fix pdd all particledistribution/discrete/numberbased 49979693 10 pts0 0.0064659  pts1 0.07387693  pts2 0.26249571  pts3 0.25249525  pts4 0.17012964  pts5 0.10530736  pts6 0.06885834  pts7 0.03662696  pts8 0.01861549  pts9 ${p9}
+fix pdd all particledistribution/discrete/numberbased 49979693 10 pts0 0.0064659  pts1 0.07387693  pts2 0.26249571  pts3 0.25249525  pts4 0.17012964  pts5 0.10530736  pts6 0.06885834  pts7 0.03662696  pts8 0.01861549  pts9 0.00512842
+
+
+# Particle Insertion
+fix ins all insert/stream   seed 32452867                                           distributiontemplate pdd                                nparticles ${N}                                         particlerate ${NRate}                                   overlapcheck yes                                        all_in no                                               vel constant 0.0 0.0 -0.5                               insertion_face inface extrude_length 0.03
+fix ins all insert/stream   seed 32452867                                           distributiontemplate pdd                                nparticles 30000                                         particlerate ${NRate}                                   overlapcheck yes                                        all_in no                                               vel constant 0.0 0.0 -0.5                               insertion_face inface extrude_length 0.03
+fix ins all insert/stream   seed 32452867                                           distributiontemplate pdd                                nparticles 30000                                         particlerate 300000                                   overlapcheck yes                                        all_in no                                               vel constant 0.0 0.0 -0.5                               insertion_face inface extrude_length 0.03
+
+
+# Integration scheme
+fix integr all nve/sphere
+
+
+# Output settings, include total thermal energy
+modify_timing on
+
+thermo        1000
+thermo_style  custom step atoms ke vol time
+thermo_modify lost ignore norm no
+
+
+# Save particle locations as VTK files straight from LIGGGHTS. The `coexist` library can also
+# export data in the newer, more efficient XML-based VTU file format - without needing to link
+# against a VTK library
+# dump dmp all custom/vtk 1000 post/drum_*.vtk id type type x y z ix iy iz vx vy vz fx fy fz omegax omegay omegaz radius
+
+
+# Rotate drum
+fix move  all move/mesh mesh cad  rotate origin 0. 0. 0. axis  0. 1. 0. period ${rotationPeriod}
+fix move  all move/mesh mesh cad  rotate origin 0. 0. 0. axis  0. 1. 0. period 1.33333333333333
+fix move2 all move/mesh mesh side rotate origin 0. 0. 0. axis  0. 1. 0. period ${rotationPeriod}
+fix move2 all move/mesh mesh side rotate origin 0. 0. 0. axis  0. 1. 0. period 1.33333333333333
+
+
+# Run the first 10,000 timesteps to make sure all particles are inserted
+# run 1000
+run 233333.0 post no
+Setting up run at Thu Jun 24 10:51:59 2021
+
+WARNING: Fix mesh: Mesh contains highly skewed element, moving mesh (if used) will not parallelize well (/home/andreinicusan/Prog/Coexist/coexist-testing/PICI-LIGGGHTS/src/surface_mesh_I.h:657)
