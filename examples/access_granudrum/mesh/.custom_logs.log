@@ -1,0 +1,24 @@
+
+
+
+So 5. Apr 19:31:02 CEST 2020
+ssh to  uob cluster
+packet_write_wait: Connection to 147.188.40.131 port 22: Broken pipe
+
+
+
+So 5. Apr 23:26:30 CEST 2020
+ssh to  uob cluster
+Connection to thpc1.ph.bham.ac.uk closed.
+
+
+
+Mo 6. Apr 07:03:21 CEST 2020
+ssh to  uob cluster
+packet_write_wait: Connection to 147.188.40.131 port 22: Broken pipe
+
+
+
+Mo 6. Apr 14:26:44 CEST 2020
+ssh to  uob cluster
+packet_write_wait: Connection to 147.188.40.131 port 22: Broken pipe
