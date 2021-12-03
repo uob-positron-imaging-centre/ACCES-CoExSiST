@@ -36,6 +36,10 @@ def to_vtk(
     radii = None,
     verbose = True,
 ):
+    '''Export particle `positions` and optionally `times`, `velocities` and
+    `radii` to a folder `dirname` in the modern binary VTK format.
+    '''
+
     # Type-checking inputs
     positions = np.asarray(positions)
     if positions.ndim != 3 or positions.shape[2] < 3:
@@ -660,8 +664,37 @@ class Simulation(ABC):
 
 
 class LiggghtsSimulation(Simulation):
-    '''Class encapsulating a single LIGGGHTS simulation whose parameters will
-    be modified dynamically by a driver code.
+    '''Pythonic interface to LIGGGHTS, interfacing with a given simulation
+    script, optionally returning NumPy arrays to relevant particle properties.
+
+    You need to have the ``liggghts`` Python library available; you can see the
+    `https://github.com/uob-positron-imaging-centre/PICI-LIGGGHTS` repository
+    for some instruction. In short: compile liggghts, then add the `python`
+    directory to PYTHONPATH.
+
+    Examples
+    --------
+    Simply load a LIGGGHTS simulation script's path as the first parameter:
+
+    >>> import coexist
+    >>> sim = coexist.LiggghtsSimulation("path_to_liggghts_script.sim")
+
+    LIGGGHTS can only run simulations for a given integer number of timesteps,
+    but often we want to run them up to a given physical time.
+
+    Using this class we can run the simulation up to e.g. time 1.2 seconds
+    (this will use the appropriate number of timesteps):
+
+    >>> sim.step_to_time(1.2)
+
+    Access the particle radii, positions and velocities as **NumPy arrays**:
+
+    >>> radii = sim.radii()
+    >>> positions = sim.positions()
+    >>> velocities = sim.velocities()
+
+    If the simulation is unstable and particles are lost, they will be set to
+    NaNs.
 
     '''
 
@@ -1212,11 +1245,10 @@ class LiggghtsSimulation(Simulation):
 
 
     def copy(self, filename = None):
-        """
-        copy the ligghts instance
-        includes:
-            - particle positions /velocitys / properties
-            - system
+        """Create a copy the ligghts instance, including:
+
+        - Particle positions /velocities / properties.
+        - System
         """
 
         if filename is None:
@@ -1346,11 +1378,7 @@ class LiggghtsSimulation(Simulation):
         self.parameters.at[key, "value"] = value
 
 
-    def __str__(self):
-        # Shown when calling print(class)
         docstr = (
-            f"simulation:\n{self.simulation}\n\n"
-            f"parameters:\n{self.parameters}"
         )
 
         return docstr
@@ -1358,15 +1386,14 @@ class LiggghtsSimulation(Simulation):
 
     def __repr__(self):
         # Shown when writing the class on a REPL
+        name = self.__class__.__name__
+        underline = "-" * len(name)
 
-        docstr = (
-            "Class instance that inherits from `pyLiggghts.Simulation`.\n"
-            f"Type:\n{type(self)}\n\n"
-            "Attributes\n----------\n"
-            f"{self.__str__()}\n"
+        return (
+            f"{name}\n{underline}\n"
+            f"  simulation:\n{self.simulation}\n\n"
+            f"  parameters:\n{self.parameters}"
         )
-
-        return docstr
 
 
 

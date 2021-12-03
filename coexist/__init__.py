@@ -32,24 +32,7 @@ from    .               import  plots
 from    .__version__    import  __version__
 
 
-__all__ = [
-    "to_vtk",
-    "create_parameters",
-
-    "Parameters",
-    "Experiment",
-    "Simulation",
-    "LiggghtsSimulation",
-    "AutoTimestep",
-
-    "Coexist",
-    "AccessCoupled",
-    "Access",
-    "AccessData",
-
-    "schedulers",
-    "ballistics",
-    "plots",
-
-    "__version__",
-]
+__author__ = "Andrei Leonard Nicusan"
+__email__ = "a.l.nicusan@bham.ac.uk"
+__license__ = "MIT"
+__status__ = "Beta"
