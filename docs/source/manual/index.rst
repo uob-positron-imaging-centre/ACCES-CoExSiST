@@ -16,6 +16,8 @@ and submit your changes to the GitHub repository directly!
 ACCES
 =====
 
+Exported functionality related to the ACCES macro calibration suite.
+
 .. autosummary::
    :toctree: generated/
 
@@ -27,10 +29,25 @@ ACCES
 
 
 .. toctree::
-   :hidden:
    :caption: Submodules
 
    schedulers
    plots
+
+
+
+LIGGGHTS
+========
+
+Helpers for driving LIGGGHTS simulations with less code that is more memory efficient and
+error-proof.
+
+.. autosummary::
+   :toctree: generated/
+
+   coexist.LiggghtsSimulation
+   coexist.Simulation
+   coexist.to_vtk
+
 
 
