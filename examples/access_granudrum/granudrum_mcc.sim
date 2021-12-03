@@ -14,15 +14,16 @@ variable NRate          equal ${N}/0.1      # Particle insertion rate
 variable youngmodP      equal 5e6
 variable poissP         equal 0.3
 
-variable fricPP         equal 0.5           # Optimise as `sliding`
-variable fricPW         equal 0.5           # Optimise
-variable fricPSW        equal 0.5           # Optimise
+
+variable fricPP         equal 0.3197        # Optimise as `sliding`
+variable fricPW         equal 0.3197        # Optimise
+variable fricPSW        equal 0.3197        # Optimise
 variable fric           equal 0.5           # Dummy value, Wall-Sidewall
 
-variable fricRollPP     equal 0.5           # Optimise as `rolling`
-variable fricRollPW     equal 0.5           # Optimise
-variable fricRollPSW    equal 0.5           # Optimise
-variable fricRoll       equal 0.5           # Dummy value, Wall-Sidewall
+variable fricRollPP     equal 0.00248       # Optimise as `rolling`
+variable fricRollPW     equal 0.00248       # Optimise
+variable fricRollPSW    equal 0.00248       # Optimise
+variable fricRoll       equal 0.00248       # Dummy value, Wall-Sidewall
 
 variable corPP          equal 0.3           # Optimise
 variable corPW          equal 0.3           # Optimise
