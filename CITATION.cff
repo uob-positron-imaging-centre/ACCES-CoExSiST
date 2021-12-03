@@ -1,0 +1,17 @@
+cff-version: 1.2.0
+message: "If you use this software, you are kindly asked to cite it as below."
+authors:
+  - family-names: Nicusan
+    given-names: Andrei-Leonard
+    orcid: https://orcid.org/0000-0002-4796-8719
+  - family-names: Werner
+    given-names: Dominik
+  - family-names: Seville
+    given-names: Jonathan
+  - family-names: Windows-Yule
+    given-names: Kit
+    orcid: https://orcid.org/0000-0003-1305-537X
+
+title: "ACCES: Autonomous Characterisation and Calibration via Evolutionary Simulation"
+version: 0.1.0
+date-released: 2021-12-01
