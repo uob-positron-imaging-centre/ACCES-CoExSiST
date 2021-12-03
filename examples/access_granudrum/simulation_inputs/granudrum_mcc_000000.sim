@@ -24,10 +24,15 @@ variable fricRollPW equal 0.1
 variable fricRollPSW equal 0.1
 variable fricRoll       equal 0.5           # Dummy value, Wall-Sidewall
 
-variable corPP          equal 0.3           # Vary
-variable corPW          equal 0.3           # Vary
-variable corPSW         equal 0.3
+variable corPP          equal 0.3           # Optimise
+variable corPW          equal 0.3           # Optimise
+variable corPSW         equal 0.3           # Optimise
 variable cor            equal 0.3           # Dummy value, Wall-Sidewall
+
+variable cohPP          equal 0             # Optimise
+variable cohPW          equal 0             # Optimise
+variable cohPSW         equal 0             # Optimise
+variable coh            equal 0             # Dummy value, Wall-Sidewall
 
 variable dens           equal 1580.0
 
@@ -101,11 +106,16 @@ fix m5 all property/global coefficientRestitution peratomtypepair 3 &
     ${corPW}        ${cor}          ${cor}          &
     ${corPSW}       ${cor}          ${cor}
 
+fix m6 all property/global cohesionEnergyDensity peratomtypepair 3 &
+    ${cohPP}        ${cohPW}        ${cohPSW}       &
+    ${cohPW}        ${coh}          ${coh}          &
+    ${cohPSW}       ${coh}          ${coh}        
+
 fix m7 all property/global k_finnie peratomtypepair 3 1.0 1.0 1.0 1.0 1.0 1.0 1.0 1.0 1.0
 
 
 # Contact pair styles
-pair_style gran model hertz tangential history rolling_friction cdt 
+pair_style gran model hertz tangential history cohesion sjkr rolling_friction cdt 
 pair_coeff * *
 
 
@@ -177,5 +187,6 @@ fix move  all move/mesh mesh cad  rotate origin 0. 0. 0. axis  0. 1. 0. period $
 fix move2 all move/mesh mesh side rotate origin 0. 0. 0. axis  0. 1. 0. period ${rotationPeriod}
 
 
-# Run the first 10,000 timesteps to make sure all particles are inserted
+# Run the first 10,000 timesteps to make sure all particles are inserted; driven by the
+# `simulation_script.py`
 # run 1000
