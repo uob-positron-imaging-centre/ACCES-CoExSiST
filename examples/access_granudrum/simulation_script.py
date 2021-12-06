@@ -38,7 +38,7 @@ parameters = coexist.create_parameters(
     variables = ["sliding", "rolling", "nparticles"],
     minimums = [0., 0., 15494],
     maximums = [2., 1., 36152],
-    values = [0.4, 0.1, 30000],
+    values = [0.3197, 0.00248, 29954],
 )
 
 access_id = 0               # Unique ID for each ACCESS simulation run
@@ -71,11 +71,11 @@ filepath = f"simulation_inputs/granudrum_mcc_{access_id:0>6}.sim"
 with open(filepath, "w") as f:
     f.writelines(sim_script)
 
-# Load simulation and run it for two GranuDrum rotations. Use the last half
+# Load simulation and run it for two GranuDrum rotations. Use the last quarter
 # rotation to compute the error value
 rpm = 45
 rotations = 2
-start_time = (rotations - 0.5) / (rpm / 60)
+start_time = (rotations - 0.25) / (rpm / 60)
 end_time = rotations / (rpm / 60)
 
 

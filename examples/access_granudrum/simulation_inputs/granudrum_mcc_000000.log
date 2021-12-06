@@ -6,23 +6,24 @@
 # Simulation constants
 variable timestep       equal 1e-5
 variable rotationPeriod equal 60/45         # s per revolution
-variable N equal 30000.0
+variable N equal 29954.0
 variable NRate          equal ${N}/0.1      # Particle insertion rate
-variable NRate          equal 30000/0.1      
+variable NRate          equal 29954/0.1      
 
 
 variable youngmodP      equal 5e6
 variable poissP         equal 0.3
 
-variable fricPP equal 0.4
-variable fricPW equal 0.4
-variable fricPSW equal 0.4
+variable fricPP equal 0.3197
+variable fricPW equal 0.3197
+variable fricPSW equal 0.3197
+variable fricPSW        equal 0.3197        # Optimise
 variable fric           equal 0.5           # Dummy value, Wall-Sidewall
-
-variable fricRollPP equal 0.1
-variable fricRollPW equal 0.1
-variable fricRollPSW equal 0.1
-variable fricRoll       equal 0.5           # Dummy value, Wall-Sidewall
+variable fricRollPP equal 0.00248
+variable fricRollPW equal 0.00248
+variable fricRollPSW equal 0.00248
+variable fricRollPSW    equal 0.00248       # Optimise
+variable fricRoll       equal 0.00248       # Dummy value, Wall-Sidewall
 
 variable corPP          equal 0.3           # Optimise
 variable corPW          equal 0.3           # Optimise
@@ -98,26 +99,26 @@ fix m2 all property/global poissonsRatio peratomtype     0.3       0.3       ${p
 fix m2 all property/global poissonsRatio peratomtype     0.3       0.3       0.3
 
 fix m3 all property/global coefficientFriction peratomtypepair 3     ${fricPP}       ${fricPW}       ${fricPSW}          ${fricPW}       ${fric}         ${fric}             ${fricPSW}      ${fric}         ${fric}
-fix m3 all property/global coefficientFriction peratomtypepair 3     0.4       ${fricPW}       ${fricPSW}          ${fricPW}       ${fric}         ${fric}             ${fricPSW}      ${fric}         ${fric}
-fix m3 all property/global coefficientFriction peratomtypepair 3     0.4       0.4       ${fricPSW}          ${fricPW}       ${fric}         ${fric}             ${fricPSW}      ${fric}         ${fric}
-fix m3 all property/global coefficientFriction peratomtypepair 3     0.4       0.4       0.4          ${fricPW}       ${fric}         ${fric}             ${fricPSW}      ${fric}         ${fric}
-fix m3 all property/global coefficientFriction peratomtypepair 3     0.4       0.4       0.4          0.4       ${fric}         ${fric}             ${fricPSW}      ${fric}         ${fric}
-fix m3 all property/global coefficientFriction peratomtypepair 3     0.4       0.4       0.4          0.4       0.5         ${fric}             ${fricPSW}      ${fric}         ${fric}
-fix m3 all property/global coefficientFriction peratomtypepair 3     0.4       0.4       0.4          0.4       0.5         0.5             ${fricPSW}      ${fric}         ${fric}
-fix m3 all property/global coefficientFriction peratomtypepair 3     0.4       0.4       0.4          0.4       0.5         0.5             0.4      ${fric}         ${fric}
-fix m3 all property/global coefficientFriction peratomtypepair 3     0.4       0.4       0.4          0.4       0.5         0.5             0.4      0.5         ${fric}
-fix m3 all property/global coefficientFriction peratomtypepair 3     0.4       0.4       0.4          0.4       0.5         0.5             0.4      0.5         0.5
+fix m3 all property/global coefficientFriction peratomtypepair 3     0.3197       ${fricPW}       ${fricPSW}          ${fricPW}       ${fric}         ${fric}             ${fricPSW}      ${fric}         ${fric}
+fix m3 all property/global coefficientFriction peratomtypepair 3     0.3197       0.3197       ${fricPSW}          ${fricPW}       ${fric}         ${fric}             ${fricPSW}      ${fric}         ${fric}
+fix m3 all property/global coefficientFriction peratomtypepair 3     0.3197       0.3197       0.3197          ${fricPW}       ${fric}         ${fric}             ${fricPSW}      ${fric}         ${fric}
+fix m3 all property/global coefficientFriction peratomtypepair 3     0.3197       0.3197       0.3197          0.3197       ${fric}         ${fric}             ${fricPSW}      ${fric}         ${fric}
+fix m3 all property/global coefficientFriction peratomtypepair 3     0.3197       0.3197       0.3197          0.3197       0.5         ${fric}             ${fricPSW}      ${fric}         ${fric}
+fix m3 all property/global coefficientFriction peratomtypepair 3     0.3197       0.3197       0.3197          0.3197       0.5         0.5             ${fricPSW}      ${fric}         ${fric}
+fix m3 all property/global coefficientFriction peratomtypepair 3     0.3197       0.3197       0.3197          0.3197       0.5         0.5             0.3197      ${fric}         ${fric}
+fix m3 all property/global coefficientFriction peratomtypepair 3     0.3197       0.3197       0.3197          0.3197       0.5         0.5             0.3197      0.5         ${fric}
+fix m3 all property/global coefficientFriction peratomtypepair 3     0.3197       0.3197       0.3197          0.3197       0.5         0.5             0.3197      0.5         0.5
 
 fix m4 all property/global coefficientRollingFriction peratomtypepair 3     ${fricRollPP}   ${fricRollPW}   ${fricRollPSW}      ${fricRollPW}   ${fricRoll}     ${fricRoll}         ${fricRollPSW}  ${fricRoll}     ${fricRoll}
-fix m4 all property/global coefficientRollingFriction peratomtypepair 3     0.1   ${fricRollPW}   ${fricRollPSW}      ${fricRollPW}   ${fricRoll}     ${fricRoll}         ${fricRollPSW}  ${fricRoll}     ${fricRoll}
-fix m4 all property/global coefficientRollingFriction peratomtypepair 3     0.1   0.1   ${fricRollPSW}      ${fricRollPW}   ${fricRoll}     ${fricRoll}         ${fricRollPSW}  ${fricRoll}     ${fricRoll}
-fix m4 all property/global coefficientRollingFriction peratomtypepair 3     0.1   0.1   0.1      ${fricRollPW}   ${fricRoll}     ${fricRoll}         ${fricRollPSW}  ${fricRoll}     ${fricRoll}
-fix m4 all property/global coefficientRollingFriction peratomtypepair 3     0.1   0.1   0.1      0.1   ${fricRoll}     ${fricRoll}         ${fricRollPSW}  ${fricRoll}     ${fricRoll}
-fix m4 all property/global coefficientRollingFriction peratomtypepair 3     0.1   0.1   0.1      0.1   0.5     ${fricRoll}         ${fricRollPSW}  ${fricRoll}     ${fricRoll}
-fix m4 all property/global coefficientRollingFriction peratomtypepair 3     0.1   0.1   0.1      0.1   0.5     0.5         ${fricRollPSW}  ${fricRoll}     ${fricRoll}
-fix m4 all property/global coefficientRollingFriction peratomtypepair 3     0.1   0.1   0.1      0.1   0.5     0.5         0.1  ${fricRoll}     ${fricRoll}
-fix m4 all property/global coefficientRollingFriction peratomtypepair 3     0.1   0.1   0.1      0.1   0.5     0.5         0.1  0.5     ${fricRoll}
-fix m4 all property/global coefficientRollingFriction peratomtypepair 3     0.1   0.1   0.1      0.1   0.5     0.5         0.1  0.5     0.5
+fix m4 all property/global coefficientRollingFriction peratomtypepair 3     0.00248   ${fricRollPW}   ${fricRollPSW}      ${fricRollPW}   ${fricRoll}     ${fricRoll}         ${fricRollPSW}  ${fricRoll}     ${fricRoll}
+fix m4 all property/global coefficientRollingFriction peratomtypepair 3     0.00248   0.00248   ${fricRollPSW}      ${fricRollPW}   ${fricRoll}     ${fricRoll}         ${fricRollPSW}  ${fricRoll}     ${fricRoll}
+fix m4 all property/global coefficientRollingFriction peratomtypepair 3     0.00248   0.00248   0.00248      ${fricRollPW}   ${fricRoll}     ${fricRoll}         ${fricRollPSW}  ${fricRoll}     ${fricRoll}
+fix m4 all property/global coefficientRollingFriction peratomtypepair 3     0.00248   0.00248   0.00248      0.00248   ${fricRoll}     ${fricRoll}         ${fricRollPSW}  ${fricRoll}     ${fricRoll}
+fix m4 all property/global coefficientRollingFriction peratomtypepair 3     0.00248   0.00248   0.00248      0.00248   0.00248     ${fricRoll}         ${fricRollPSW}  ${fricRoll}     ${fricRoll}
+fix m4 all property/global coefficientRollingFriction peratomtypepair 3     0.00248   0.00248   0.00248      0.00248   0.00248     0.00248         ${fricRollPSW}  ${fricRoll}     ${fricRoll}
+fix m4 all property/global coefficientRollingFriction peratomtypepair 3     0.00248   0.00248   0.00248      0.00248   0.00248     0.00248         0.00248  ${fricRoll}     ${fricRoll}
+fix m4 all property/global coefficientRollingFriction peratomtypepair 3     0.00248   0.00248   0.00248      0.00248   0.00248     0.00248         0.00248  0.00248     ${fricRoll}
+fix m4 all property/global coefficientRollingFriction peratomtypepair 3     0.00248   0.00248   0.00248      0.00248   0.00248     0.00248         0.00248  0.00248     0.00248
 
 fix m5 all property/global coefficientRestitution peratomtypepair 3     ${corPP}        ${corPW}        ${corPSW}           ${corPW}        ${cor}          ${cor}              ${corPSW}       ${cor}          ${cor}
 fix m5 all property/global coefficientRestitution peratomtypepair 3     0.3        ${corPW}        ${corPSW}           ${corPW}        ${cor}          ${cor}              ${corPSW}       ${cor}          ${cor}
@@ -225,8 +226,8 @@ fix pdd all particledistribution/discrete/numberbased 49979693 10 pts0 0.0064659
 
 # Particle Insertion
 fix ins all insert/stream   seed 32452867                                           distributiontemplate pdd                                nparticles ${N}                                         particlerate ${NRate}                                   overlapcheck yes                                        all_in no                                               vel constant 0.0 0.0 -0.5                               insertion_face inface extrude_length 0.03
-fix ins all insert/stream   seed 32452867                                           distributiontemplate pdd                                nparticles 30000                                         particlerate ${NRate}                                   overlapcheck yes                                        all_in no                                               vel constant 0.0 0.0 -0.5                               insertion_face inface extrude_length 0.03
-fix ins all insert/stream   seed 32452867                                           distributiontemplate pdd                                nparticles 30000                                         particlerate 300000                                   overlapcheck yes                                        all_in no                                               vel constant 0.0 0.0 -0.5                               insertion_face inface extrude_length 0.03
+fix ins all insert/stream   seed 32452867                                           distributiontemplate pdd                                nparticles 29954                                         particlerate ${NRate}                                   overlapcheck yes                                        all_in no                                               vel constant 0.0 0.0 -0.5                               insertion_face inface extrude_length 0.03
+fix ins all insert/stream   seed 32452867                                           distributiontemplate pdd                                nparticles 29954                                         particlerate 299540                                   overlapcheck yes                                        all_in no                                               vel constant 0.0 0.0 -0.5                               insertion_face inface extrude_length 0.03
 
 
 # Integration scheme
@@ -257,1875 +258,1076 @@ fix move2 all move/mesh mesh side rotate origin 0. 0. 0. axis  0. 1. 0. period 1
 # Run the first 10,000 timesteps to make sure all particles are inserted; driven by the
 # `simulation_script.py`
 # run 1000
-run 199999.0 post no
-Setting up run at Fri Dec  3 14:09:26 2021
+run 233333.0 post no
+Setting up run at Mon Dec  6 09:29:56 2021
 
 WARNING: Fix mesh: Mesh contains highly skewed element, moving mesh (if used) will not parallelize well (/home/andreinicusan/Prog/Coexist/coexist-testing/PICI-LIGGGHTS/src/surface_mesh_I.h:657)
-INFO: Particle insertion ins: 18000.000000 particles every 6000 steps - particle rate 300000.000000, (mass rate 4.588898e-01)
-      30000 particles (mass 4.588898e-02) within 6000 steps
+INFO: Particle insertion ins: 17972.400000 particles every 6000 steps - particle rate 299540.000000, (mass rate 4.581862e-01)
+      29954 particles (mass 4.581862e-02) within 6000 steps
 Memory usage per processor = 10.6601 Mbytes
     Step    Atoms         KinEng         Volume           Time 
        0        0              0      0.0004608              0 
-INFO: Particle insertion ins: inserted 14854 particle templates (mass 2.381948e-02) at step 1
- - a total of 14854 particle templates (mass 2.381948e-02) inserted so far.
+INFO: Particle insertion ins: inserted 14862 particle templates (mass 2.382122e-02) at step 1
+ - a total of 14862 particle templates (mass 2.382122e-02) inserted so far.
 WARNING: Particle insertion: Less insertions than requested (/home/andreinicusan/Prog/Coexist/coexist-testing/PICI-LIGGGHTS/src/fix_insert.cpp:814)
-    1000    14854   0.0035709852      0.0004608           0.01 
-    2000    14854   0.0041507476      0.0004608           0.02 
-    3000    14854   0.0044214901      0.0004608           0.03 
-    4000    14854   0.0036582737      0.0004608           0.04 
-    5000    14854   0.0025658826      0.0004608           0.05 
-    6000    14854   0.0011565439      0.0004608           0.06 
-INFO: Particle insertion ins: inserted 15146 particle templates (mass 2.317034e-02) at step 6001
- - a total of 30000 particle templates (mass 4.698981e-02) inserted so far.
-    7000    30000   0.0031651157      0.0004608           0.07 
-    8000    30000   0.0030264983      0.0004608           0.08 
-    9000    30000   0.0030692347      0.0004608           0.09 
-   10000    30000   0.0039739834      0.0004608            0.1 
-   11000    30000   0.0052774883      0.0004608           0.11 
-   12000    30000    0.010043976      0.0004608           0.12 
-   13000    30000      0.1413474      0.0004608           0.13 
-   14000    30000    0.018064903      0.0004608           0.14 
-   15000    30000   0.0046280561      0.0004608           0.15 
-   16000    30000   0.0017554567      0.0004608           0.16 
-   17000    30000   0.0009128376      0.0004608           0.17 
-   18000    30000  0.00080995778      0.0004608           0.18 
-   19000    30000   0.0012336787      0.0004608           0.19 
-   20000    30000   0.0020634237      0.0004608            0.2 
-   21000    30000   0.0032180845      0.0004608           0.21 
-   22000    30000   0.0045940396      0.0004608           0.22 
-   23000    30000   0.0060248125      0.0004608           0.23 
-   24000    30000   0.0071746074      0.0004608           0.24 
-   25000    30000   0.0074694544      0.0004608           0.25 
-   26000    30000   0.0058577711      0.0004608           0.26 
-   27000    30000  0.00060514382      0.0004608           0.27 
-   28000    30000  0.00068785128      0.0004608           0.28 
-   29000    30000  0.00056822905      0.0004608           0.29 
-   30000    30000  0.00049455977      0.0004608            0.3 
-   31000    30000  0.00047235138      0.0004608           0.31 
-   32000    30000  0.00046009551      0.0004608           0.32 
-   33000    30000  0.00046087708      0.0004608           0.33 
-   34000    30000  0.00046158555      0.0004608           0.34 
-   35000    30000  0.00046065143      0.0004608           0.35 
-   36000    30000  0.00045909662      0.0004608           0.36 
-   37000    30000  0.00045749766      0.0004608           0.37 
-   38000    30000   0.0004557542      0.0004608           0.38 
-   39000    30000  0.00045376618      0.0004608           0.39 
-   40000    30000  0.00045100284      0.0004608            0.4 
-   41000    30000  0.00044816479      0.0004608           0.41 
-   42000    30000  0.00044624042      0.0004608           0.42 
-   43000    30000  0.00044568482      0.0004608           0.43 
-   44000    30000  0.00044678151      0.0004608           0.44 
-   45000    30000   0.0004511925      0.0004608           0.45 
-   46000    30000  0.00046230307      0.0004608           0.46 
-   47000    30000  0.00048327742      0.0004608           0.47 
-   48000    30000   0.0005129005      0.0004608           0.48 
-   49000    30000  0.00055513309      0.0004608           0.49 
-   50000    30000  0.00061146218      0.0004608            0.5 
-   51000    30000  0.00069089331      0.0004608           0.51 
-   52000    30000   0.0007866349      0.0004608           0.52 
-   53000    30000  0.00090348904      0.0004608           0.53 
-   54000    30000   0.0010274071      0.0004608           0.54 
-   55000    30000   0.0011695722      0.0004608           0.55 
-   56000    30000   0.0013049008      0.0004608           0.56 
-   57000    30000    0.001379916      0.0004608           0.57 
-   58000    30000   0.0014031071      0.0004608           0.58 
-   59000    30000   0.0013762086      0.0004608           0.59 
-   60000    30000   0.0013490496      0.0004608            0.6 
-   61000    30000     0.00128214      0.0004608           0.61 
-   62000    30000   0.0012388282      0.0004608           0.62 
-   63000    30000   0.0011951947      0.0004608           0.63 
-   64000    30000   0.0011435781      0.0004608           0.64 
-   65000    30000   0.0011118011      0.0004608           0.65 
-   66000    30000   0.0010736848      0.0004608           0.66 
-   67000    30000   0.0010529048      0.0004608           0.67 
-   68000    30000  0.00099817045      0.0004608           0.68 
-   69000    30000  0.00097497718      0.0004608           0.69 
-   70000    30000  0.00096297537      0.0004608            0.7 
-   71000    30000   0.0009471079      0.0004608           0.71 
-   72000    30000  0.00093883386      0.0004608           0.72 
-   73000    30000  0.00093108119      0.0004608           0.73 
-   74000    30000   0.0009290397      0.0004608           0.74 
-   75000    30000  0.00091797669      0.0004608           0.75 
-   76000    30000  0.00090995327      0.0004608           0.76 
-   77000    30000  0.00091844673      0.0004608           0.77 
-   78000    30000  0.00091857542      0.0004608           0.78 
-   79000    30000  0.00092446068      0.0004608           0.79 
-   80000    30000  0.00091834624      0.0004608            0.8 
-   81000    30000  0.00091629445      0.0004608           0.81 
-   82000    30000  0.00091803568      0.0004608           0.82 
-   83000    30000  0.00091547701      0.0004608           0.83 
-   84000    30000    0.000941845      0.0004608           0.84 
-   85000    30000  0.00092953028      0.0004608           0.85 
-   86000    30000  0.00093372962      0.0004608           0.86 
-   87000    30000  0.00092269554      0.0004608           0.87 
-   88000    30000  0.00094097407      0.0004608           0.88 
-   89000    30000  0.00094499056      0.0004608           0.89 
-   90000    30000  0.00095884975      0.0004608            0.9 
-   91000    30000  0.00097533545      0.0004608           0.91 
-   92000    30000  0.00097042109      0.0004608           0.92 
-   93000    30000  0.00096909684      0.0004608           0.93 
-   94000    30000  0.00097166738      0.0004608           0.94 
-   95000    30000  0.00097056346      0.0004608           0.95 
-   96000    30000  0.00098139282      0.0004608           0.96 
-   97000    30000  0.00097096425      0.0004608           0.97 
-   98000    30000  0.00095979055      0.0004608           0.98 
-   99000    30000  0.00096695715      0.0004608           0.99 
-  100000    30000  0.00096447187      0.0004608              1 
-  101000    30000  0.00095997236      0.0004608           1.01 
-  102000    30000  0.00096174955      0.0004608           1.02 
-  103000    30000  0.00095442241      0.0004608           1.03 
-  104000    30000  0.00095800839      0.0004608           1.04 
-  105000    30000  0.00095309407      0.0004608           1.05 
-  106000    30000   0.0009508532      0.0004608           1.06 
-  107000    30000  0.00095518275      0.0004608           1.07 
-  108000    30000  0.00097105832      0.0004608           1.08 
-  109000    30000  0.00095832707      0.0004608           1.09 
-  110000    30000  0.00095120997      0.0004608            1.1 
-  111000    30000  0.00095629282      0.0004608           1.11 
-  112000    30000  0.00095656336      0.0004608           1.12 
-  113000    30000  0.00095876283      0.0004608           1.13 
-  114000    30000  0.00095561174      0.0004608           1.14 
-  115000    30000  0.00096382663      0.0004608           1.15 
-  116000    30000  0.00095995714      0.0004608           1.16 
-  117000    30000  0.00095555965      0.0004608           1.17 
-  118000    30000  0.00095592787      0.0004608           1.18 
-  119000    30000   0.0009584869      0.0004608           1.19 
-  120000    30000  0.00094176698      0.0004608            1.2 
-  121000    30000  0.00093460447      0.0004608           1.21 
-  122000    30000   0.0009450726      0.0004608           1.22 
-  123000    30000   0.0009564294      0.0004608           1.23 
-  124000    30000  0.00095023237      0.0004608           1.24 
-  125000    30000  0.00094404673      0.0004608           1.25 
-  126000    30000  0.00094165196      0.0004608           1.26 
-  127000    30000  0.00095136938      0.0004608           1.27 
-  128000    30000  0.00095680947      0.0004608           1.28 
-  129000    30000   0.0009531074      0.0004608           1.29 
-  130000    30000  0.00094740748      0.0004608            1.3 
-  131000    30000  0.00094251779      0.0004608           1.31 
-  132000    30000  0.00094212415      0.0004608           1.32 
-  133000    30000  0.00093779001      0.0004608           1.33 
-  134000    30000  0.00097387029      0.0004608           1.34 
-  135000    30000   0.0009694118      0.0004608           1.35 
-  136000    30000  0.00095049555      0.0004608           1.36 
-  137000    30000  0.00094881743      0.0004608           1.37 
-  138000    30000  0.00094693417      0.0004608           1.38 
-  139000    30000    0.000952192      0.0004608           1.39 
-  140000    30000   0.0009559674      0.0004608            1.4 
-  141000    30000  0.00094857205      0.0004608           1.41 
-  142000    30000  0.00095062114      0.0004608           1.42 
-  143000    30000  0.00095544473      0.0004608           1.43 
-  144000    30000  0.00094368912      0.0004608           1.44 
-  145000    30000   0.0009428302      0.0004608           1.45 
-  146000    30000  0.00096033302      0.0004608           1.46 
-  147000    30000  0.00095734278      0.0004608           1.47 
-  148000    30000  0.00095397142      0.0004608           1.48 
-  149000    30000  0.00096203365      0.0004608           1.49 
-  150000    30000   0.0009555952      0.0004608            1.5 
-  151000    30000  0.00094325936      0.0004608           1.51 
-  152000    30000  0.00095870187      0.0004608           1.52 
-  153000    30000  0.00097166741      0.0004608           1.53 
-  154000    30000  0.00096854584      0.0004608           1.54 
-  155000    30000  0.00096498099      0.0004608           1.55 
-  156000    30000  0.00094913315      0.0004608           1.56 
-  157000    30000  0.00095578524      0.0004608           1.57 
-  158000    30000   0.0009653116      0.0004608           1.58 
-  159000    30000  0.00095973554      0.0004608           1.59 
-  160000    30000  0.00094855667      0.0004608            1.6 
-  161000    30000   0.0009567203      0.0004608           1.61 
-  162000    30000  0.00093185186      0.0004608           1.62 
-  163000    30000  0.00094746207      0.0004608           1.63 
-  164000    30000  0.00093756177      0.0004608           1.64 
-  165000    30000   0.0009428808      0.0004608           1.65 
-  166000    30000  0.00094600188      0.0004608           1.66 
-  167000    30000  0.00095484382      0.0004608           1.67 
-  168000    30000  0.00094868384      0.0004608           1.68 
-  169000    30000  0.00094512721      0.0004608           1.69 
-  170000    30000  0.00095409108      0.0004608            1.7 
-  171000    30000   0.0009425422      0.0004608           1.71 
-  172000    30000  0.00093500626      0.0004608           1.72 
-  173000    30000  0.00094025456      0.0004608           1.73 
-  174000    30000  0.00095416817      0.0004608           1.74 
-  175000    30000  0.00095615686      0.0004608           1.75 
-  176000    30000  0.00094428978      0.0004608           1.76 
-  177000    30000  0.00095552307      0.0004608           1.77 
-  178000    30000  0.00096608538      0.0004608           1.78 
-  179000    30000  0.00096530063      0.0004608           1.79 
-  180000    30000  0.00096000486      0.0004608            1.8 
-  181000    30000  0.00096069716      0.0004608           1.81 
-  182000    30000  0.00095084653      0.0004608           1.82 
-  183000    30000  0.00095022227      0.0004608           1.83 
-  184000    30000  0.00095538638      0.0004608           1.84 
-  185000    30000  0.00097569485      0.0004608           1.85 
-  186000    30000  0.00095802116      0.0004608           1.86 
-  187000    30000  0.00094552267      0.0004608           1.87 
-  188000    30000  0.00095090389      0.0004608           1.88 
-  189000    30000  0.00094398865      0.0004608           1.89 
-  190000    30000  0.00095559241      0.0004608            1.9 
-  191000    30000  0.00094857801      0.0004608           1.91 
-  192000    30000  0.00094717323      0.0004608           1.92 
-  193000    30000  0.00095059818      0.0004608           1.93 
-  194000    30000  0.00094762616      0.0004608           1.94 
-  195000    30000  0.00096332723      0.0004608           1.95 
-  196000    30000  0.00095360147      0.0004608           1.96 
-  197000    30000  0.00095212704      0.0004608           1.97 
-  198000    30000  0.00095048008      0.0004608           1.98 
-  199000    30000   0.0009504424      0.0004608           1.99 
-  199999    30000  0.00095880135      0.0004608        1.99999 
-Loop time of 3260.06 on 1 procs for 199999 steps with 30000 atoms, finish time Fri Dec  3 15:03:46 2021
-
-timestep 9.999999999836395e-06
-run 1 post no
-Setting up run at Fri Dec  3 15:03:46 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  199999    30000  0.00095880135      0.0004608        1.99999 
-  200000    30000  0.00095871025      0.0004608              2 
-Loop time of 0.0145804 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:03:47 2021
-
-timestep 1e-05
-run 833.0 post no
-Setting up run at Fri Dec  3 15:03:47 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  200000    30000  0.00095871025      0.0004608              2 
-  200833    30000  0.00095730655      0.0004608        2.00833 
-Loop time of 12.2074 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:03:59 2021
-
-timestep 3.333333333303046e-06
-run 1 post no
-Setting up run at Fri Dec  3 15:03:59 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  200833    30000  0.00095730655      0.0004608        2.00833 
-  200834    30000  0.00095724993      0.0004608      2.0083333 
-Loop time of 0.015062 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:03:59 2021
-
-timestep 1e-05
-run 833.0 post no
-Setting up run at Fri Dec  3 15:03:59 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  200834    30000  0.00095724993      0.0004608      2.0083333 
-  201000    30000  0.00095359793      0.0004608      2.0099933 
-  201667    30000  0.00095947464      0.0004608      2.0166633 
-Loop time of 12.3225 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:04:11 2021
-
-timestep 3.333333333303046e-06
-run 1 post no
-Setting up run at Fri Dec  3 15:04:11 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  201667    30000  0.00095947464      0.0004608      2.0166633 
-  201668    30000  0.00095943889      0.0004608      2.0166667 
-Loop time of 0.0147794 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:04:12 2021
-
-timestep 1e-05
-run 833.0 post no
-Setting up run at Fri Dec  3 15:04:12 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  201668    30000  0.00095943889      0.0004608      2.0166667 
-  202000    30000  0.00095754136      0.0004608      2.0199867 
-  202501    30000  0.00096086642      0.0004608      2.0249967 
-Loop time of 12.4076 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:04:24 2021
-
-timestep 3.333333333303046e-06
-run 1 post no
-Setting up run at Fri Dec  3 15:04:24 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  202501    30000  0.00096086642      0.0004608      2.0249967 
-  202502    30000  0.00096083125      0.0004608          2.025 
-Loop time of 0.0148418 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:04:24 2021
-
-timestep 1e-05
-run 833.0 post no
-Setting up run at Fri Dec  3 15:04:24 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  202502    30000  0.00096083125      0.0004608          2.025 
-  203000    30000   0.0009634223      0.0004608        2.02998 
-  203335    30000  0.00097067854      0.0004608        2.03333 
-Loop time of 12.4522 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:04:37 2021
-
-timestep 3.333333333303046e-06
-run 1 post no
-Setting up run at Fri Dec  3 15:04:37 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  203335    30000  0.00097067854      0.0004608        2.03333 
-  203336    30000  0.00097064807      0.0004608      2.0333333 
-Loop time of 0.0149008 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:04:37 2021
-
-timestep 1e-05
-run 833.0 post no
-Setting up run at Fri Dec  3 15:04:37 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  203336    30000  0.00097064807      0.0004608      2.0333333 
-  204000    30000  0.00097452286      0.0004608      2.0399733 
-  204169    30000  0.00096926426      0.0004608      2.0416633 
-Loop time of 12.59 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:04:50 2021
-
-timestep 3.333333333303046e-06
-run 1 post no
-Setting up run at Fri Dec  3 15:04:50 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  204169    30000  0.00096926426      0.0004608      2.0416633 
-  204170    30000   0.0009692231      0.0004608      2.0416667 
-Loop time of 0.0152427 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:04:50 2021
-
-timestep 1e-05
-run 833.0 post no
-Setting up run at Fri Dec  3 15:04:50 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  204170    30000   0.0009692231      0.0004608      2.0416667 
-  205000    30000  0.00095901164      0.0004608      2.0499667 
-  205003    30000  0.00095905025      0.0004608      2.0499967 
-Loop time of 12.8216 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:05:03 2021
-
-timestep 3.333333333303046e-06
-run 1 post no
-Setting up run at Fri Dec  3 15:05:03 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  205003    30000  0.00095905025      0.0004608      2.0499967 
-  205004    30000  0.00095902151      0.0004608           2.05 
-Loop time of 0.0146772 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:05:03 2021
-
-timestep 1e-05
-run 833.0 post no
-Setting up run at Fri Dec  3 15:05:03 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  205004    30000  0.00095902151      0.0004608           2.05 
-  205837    30000  0.00094999841      0.0004608        2.05833 
-Loop time of 12.7802 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:05:16 2021
-
-timestep 3.333333333303046e-06
-run 1 post no
-Setting up run at Fri Dec  3 15:05:16 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  205837    30000  0.00094999841      0.0004608        2.05833 
-  205838    30000  0.00094996135      0.0004608      2.0583333 
-Loop time of 0.0140544 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:05:16 2021
-
-timestep 1e-05
-run 833.0 post no
-Setting up run at Fri Dec  3 15:05:16 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  205838    30000  0.00094996135      0.0004608      2.0583333 
-  206000    30000  0.00094774304      0.0004608      2.0599533 
-  206671    30000  0.00094999612      0.0004608      2.0666633 
-Loop time of 12.8698 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:05:29 2021
-
-timestep 3.333333333303046e-06
-run 1 post no
-Setting up run at Fri Dec  3 15:05:29 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  206671    30000  0.00094999612      0.0004608      2.0666633 
-  206672    30000  0.00094994239      0.0004608      2.0666667 
-Loop time of 0.0146708 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:05:29 2021
-
-timestep 1e-05
-run 833.0 post no
-Setting up run at Fri Dec  3 15:05:29 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  206672    30000  0.00094994239      0.0004608      2.0666667 
-  207000    30000  0.00094458785      0.0004608      2.0699467 
-  207505    30000  0.00094392432      0.0004608      2.0749967 
-Loop time of 12.9501 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:05:42 2021
-
-timestep 3.333333333303046e-06
-run 1 post no
-Setting up run at Fri Dec  3 15:05:42 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  207505    30000  0.00094392432      0.0004608      2.0749967 
-  207506    30000  0.00094388271      0.0004608          2.075 
-Loop time of 0.0148771 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:05:43 2021
-
-timestep 1e-05
-run 833.0 post no
-Setting up run at Fri Dec  3 15:05:43 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  207506    30000  0.00094388271      0.0004608          2.075 
-  208000    30000  0.00094196188      0.0004608        2.07994 
-  208339    30000  0.00093858178      0.0004608        2.08333 
-Loop time of 13.0393 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:05:56 2021
-
-timestep 3.333333333303046e-06
-run 1 post no
-Setting up run at Fri Dec  3 15:05:56 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  208339    30000  0.00093858178      0.0004608        2.08333 
-  208340    30000  0.00093854208      0.0004608      2.0833333 
-Loop time of 0.0148274 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:05:56 2021
-
-timestep 1e-05
-run 833.0 post no
-Setting up run at Fri Dec  3 15:05:56 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  208340    30000  0.00093854208      0.0004608      2.0833333 
-  209000    30000   0.0009479087      0.0004608      2.0899333 
-  209173    30000  0.00095093585      0.0004608      2.0916633 
-Loop time of 13.4497 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:06:10 2021
-
-timestep 3.333333333303046e-06
-run 1 post no
-Setting up run at Fri Dec  3 15:06:10 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  209173    30000  0.00095093585      0.0004608      2.0916633 
-  209174    30000  0.00095090143      0.0004608      2.0916667 
-Loop time of 0.0166696 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:06:10 2021
-
-timestep 1e-05
-run 833.0 post no
-Setting up run at Fri Dec  3 15:06:10 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  209174    30000  0.00095090143      0.0004608      2.0916667 
-  210000    30000  0.00094422546      0.0004608      2.0999267 
-  210007    30000  0.00094408894      0.0004608      2.0999967 
-Loop time of 13.2695 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:06:23 2021
-
-timestep 3.333333333303046e-06
-run 1 post no
-Setting up run at Fri Dec  3 15:06:23 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  210007    30000  0.00094408894      0.0004608      2.0999967 
-  210008    30000  0.00094403296      0.0004608            2.1 
-Loop time of 0.0147032 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:06:23 2021
-
-timestep 1e-05
-run 833.0 post no
-Setting up run at Fri Dec  3 15:06:23 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  210008    30000  0.00094403296      0.0004608            2.1 
-  210841    30000   0.0009401417      0.0004608        2.10833 
-Loop time of 13.443 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:06:37 2021
-
-timestep 3.333333333303046e-06
-run 1 post no
-Setting up run at Fri Dec  3 15:06:37 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  210841    30000   0.0009401417      0.0004608        2.10833 
-  210842    30000  0.00094009119      0.0004608      2.1083333 
-Loop time of 0.0146438 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:06:37 2021
-
-timestep 1e-05
-run 833.0 post no
-Setting up run at Fri Dec  3 15:06:37 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  210842    30000  0.00094009119      0.0004608      2.1083333 
-  211000    30000  0.00093789637      0.0004608      2.1099133 
-  211675    30000  0.00093427158      0.0004608      2.1166633 
-Loop time of 13.3415 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:06:51 2021
-
-timestep 3.333333333303046e-06
-run 1 post no
-Setting up run at Fri Dec  3 15:06:51 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  211675    30000  0.00093427158      0.0004608      2.1166633 
-  211676    30000  0.00093423465      0.0004608      2.1166667 
-Loop time of 0.0150322 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:06:51 2021
-
-timestep 1e-05
-run 833.0 post no
-Setting up run at Fri Dec  3 15:06:51 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  211676    30000  0.00093423465      0.0004608      2.1166667 
-  212000    30000  0.00093993356      0.0004608      2.1199067 
-  212509    30000  0.00095157526      0.0004608      2.1249967 
-Loop time of 13.3628 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:07:05 2021
-
-timestep 3.333333333303046e-06
-run 1 post no
-Setting up run at Fri Dec  3 15:07:05 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  212509    30000  0.00095157526      0.0004608      2.1249967 
-  212510    30000  0.00095153679      0.0004608          2.125 
-Loop time of 0.0148351 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:07:05 2021
-
-timestep 1e-05
-run 833.0 post no
-Setting up run at Fri Dec  3 15:07:05 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  212510    30000  0.00095153679      0.0004608          2.125 
-  213000    30000  0.00095020287      0.0004608         2.1299 
-  213343    30000  0.00094635978      0.0004608        2.13333 
-Loop time of 13.4648 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:07:18 2021
-
-timestep 3.333333333303046e-06
-run 1 post no
-Setting up run at Fri Dec  3 15:07:18 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  213343    30000  0.00094635978      0.0004608        2.13333 
-  213344    30000  0.00094631563      0.0004608      2.1333333 
-Loop time of 0.0144489 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:07:19 2021
-
-timestep 1e-05
-run 833.0 post no
-Setting up run at Fri Dec  3 15:07:19 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  213344    30000  0.00094631563      0.0004608      2.1333333 
-  214000    30000  0.00094906257      0.0004608      2.1398933 
-  214177    30000  0.00095050313      0.0004608      2.1416633 
-Loop time of 13.4457 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:07:32 2021
-
-timestep 3.333333333303046e-06
-run 1 post no
-Setting up run at Fri Dec  3 15:07:32 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  214177    30000  0.00095050313      0.0004608      2.1416633 
-  214178    30000  0.00095046992      0.0004608      2.1416667 
-Loop time of 0.0140251 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:07:32 2021
-
-timestep 1e-05
-run 833.0 post no
-Setting up run at Fri Dec  3 15:07:33 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  214178    30000  0.00095046992      0.0004608      2.1416667 
-  215000    30000  0.00095618367      0.0004608      2.1498867 
-  215011    30000  0.00095598099      0.0004608      2.1499967 
-Loop time of 13.4973 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:07:46 2021
-
-timestep 3.333333333303046e-06
-run 1 post no
-Setting up run at Fri Dec  3 15:07:46 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  215011    30000  0.00095598099      0.0004608      2.1499967 
-  215012    30000  0.00095592463      0.0004608           2.15 
-Loop time of 0.0153353 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:07:46 2021
-
-timestep 1e-05
-run 833.0 post no
-Setting up run at Fri Dec  3 15:07:46 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  215012    30000  0.00095592463      0.0004608           2.15 
-  215845    30000  0.00094847626      0.0004608        2.15833 
-Loop time of 13.5103 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:08:00 2021
-
-timestep 3.333333333303046e-06
-run 1 post no
-Setting up run at Fri Dec  3 15:08:00 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  215845    30000  0.00094847626      0.0004608        2.15833 
-  215846    30000  0.00094844471      0.0004608      2.1583333 
-Loop time of 0.0140677 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:08:00 2021
-
-timestep 1e-05
-run 833.0 post no
-Setting up run at Fri Dec  3 15:08:00 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  215846    30000  0.00094844471      0.0004608      2.1583333 
-  216000    30000  0.00095009822      0.0004608      2.1598733 
-  216679    30000   0.0009677494      0.0004608      2.1666633 
-Loop time of 13.4855 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:08:14 2021
-
-timestep 3.333333333303046e-06
-run 1 post no
-Setting up run at Fri Dec  3 15:08:14 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  216679    30000   0.0009677494      0.0004608      2.1666633 
-  216680    30000  0.00096773378      0.0004608      2.1666667 
-Loop time of 0.0145499 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:08:14 2021
-
-timestep 1e-05
-run 833.0 post no
-Setting up run at Fri Dec  3 15:08:14 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  216680    30000  0.00096773378      0.0004608      2.1666667 
-  217000    30000  0.00097192639      0.0004608      2.1698667 
-  217513    30000  0.00097090285      0.0004608      2.1749967 
-Loop time of 13.5403 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:08:28 2021
-
-timestep 3.333333333303046e-06
-run 1 post no
-Setting up run at Fri Dec  3 15:08:28 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  217513    30000  0.00097090285      0.0004608      2.1749967 
-  217514    30000  0.00097085501      0.0004608          2.175 
-Loop time of 0.0149008 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:08:28 2021
-
-timestep 1e-05
-run 833.0 post no
-Setting up run at Fri Dec  3 15:08:28 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  217514    30000  0.00097085501      0.0004608          2.175 
-  218000    30000  0.00096583194      0.0004608        2.17986 
-  218347    30000  0.00096022594      0.0004608        2.18333 
-Loop time of 13.5903 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:08:42 2021
-
-timestep 3.333333333303046e-06
-run 1 post no
-Setting up run at Fri Dec  3 15:08:42 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  218347    30000  0.00096022594      0.0004608        2.18333 
-  218348    30000  0.00096016719      0.0004608      2.1833333 
-Loop time of 0.0141977 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:08:42 2021
-
-timestep 1e-05
-run 833.0 post no
-Setting up run at Fri Dec  3 15:08:42 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  218348    30000  0.00096016719      0.0004608      2.1833333 
-  219000    30000  0.00094894132      0.0004608      2.1898533 
-  219181    30000  0.00095392681      0.0004608      2.1916633 
-Loop time of 13.5418 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:08:56 2021
-
-timestep 3.333333333303046e-06
-run 1 post no
-Setting up run at Fri Dec  3 15:08:56 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  219181    30000  0.00095392681      0.0004608      2.1916633 
-  219182    30000  0.00095390431      0.0004608      2.1916667 
-Loop time of 0.0140556 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:08:56 2021
-
-timestep 1e-05
-run 833.0 post no
-Setting up run at Fri Dec  3 15:08:56 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  219182    30000  0.00095390431      0.0004608      2.1916667 
-  220000    30000  0.00094841011      0.0004608      2.1998467 
-  220015    30000  0.00094829638      0.0004608      2.1999967 
-Loop time of 13.5056 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:09:10 2021
-
-timestep 3.333333333303046e-06
-run 1 post no
-Setting up run at Fri Dec  3 15:09:10 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  220015    30000  0.00094829638      0.0004608      2.1999967 
-  220016    30000  0.00094824933      0.0004608            2.2 
-Loop time of 0.0141141 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:09:10 2021
-
-timestep 1e-05
-run 833.0 post no
-Setting up run at Fri Dec  3 15:09:10 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  220016    30000  0.00094824933      0.0004608            2.2 
-  220849    30000  0.00095179228      0.0004608        2.20833 
-Loop time of 13.4845 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:09:24 2021
-
-timestep 3.333333333303046e-06
-run 1 post no
-Setting up run at Fri Dec  3 15:09:24 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  220849    30000  0.00095179228      0.0004608        2.20833 
-  220850    30000  0.00095174777      0.0004608      2.2083333 
-Loop time of 0.0151928 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:09:24 2021
-
-timestep 1e-05
-run 833.0 post no
-Setting up run at Fri Dec  3 15:09:24 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  220850    30000  0.00095174777      0.0004608      2.2083333 
-  221000    30000  0.00095010736      0.0004608      2.2098333 
-  221683    30000  0.00094498073      0.0004608      2.2166633 
-Loop time of 13.4608 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:09:38 2021
-
-timestep 3.333333333303046e-06
-run 1 post no
-Setting up run at Fri Dec  3 15:09:38 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  221683    30000  0.00094498073      0.0004608      2.2166633 
-  221684    30000  0.00094495062      0.0004608      2.2166667 
-Loop time of 0.0150039 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:09:38 2021
-
-timestep 1e-05
-run 833.0 post no
-Setting up run at Fri Dec  3 15:09:38 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  221684    30000  0.00094495062      0.0004608      2.2166667 
-  222000    30000  0.00094485517      0.0004608      2.2198267 
-  222517    30000  0.00094648435      0.0004608      2.2249967 
-Loop time of 13.3331 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:09:51 2021
-
-timestep 3.333333333303046e-06
-run 1 post no
-Setting up run at Fri Dec  3 15:09:51 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  222517    30000  0.00094648435      0.0004608      2.2249967 
-  222518    30000  0.00094644611      0.0004608          2.225 
-Loop time of 0.0149459 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:09:52 2021
-
-timestep 1e-05
-run 833.0 post no
-Setting up run at Fri Dec  3 15:09:52 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  222518    30000  0.00094644611      0.0004608          2.225 
-  223000    30000  0.00094942586      0.0004608        2.22982 
-  223351    30000  0.00095136864      0.0004608        2.23333 
-Loop time of 13.4191 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:10:05 2021
-
-timestep 3.333333333303046e-06
-run 1 post no
-Setting up run at Fri Dec  3 15:10:05 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  223351    30000  0.00095136864      0.0004608        2.23333 
-  223352    30000  0.00095133432      0.0004608      2.2333333 
-Loop time of 0.0140789 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:10:05 2021
-
-timestep 1e-05
-run 833.0 post no
-Setting up run at Fri Dec  3 15:10:05 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  223352    30000  0.00095133432      0.0004608      2.2333333 
-  224000    30000  0.00095312343      0.0004608      2.2398133 
-  224185    30000  0.00094891076      0.0004608      2.2416633 
-Loop time of 13.275 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:10:19 2021
-
-timestep 3.333333333303046e-06
-run 1 post no
-Setting up run at Fri Dec  3 15:10:19 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  224185    30000  0.00094891076      0.0004608      2.2416633 
-  224186    30000  0.00094885666      0.0004608      2.2416667 
-Loop time of 0.0149326 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:10:19 2021
-
-timestep 1e-05
-run 833.0 post no
-Setting up run at Fri Dec  3 15:10:19 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  224186    30000  0.00094885666      0.0004608      2.2416667 
-  225000    30000  0.00094023395      0.0004608      2.2498067 
-  225019    30000  0.00093989048      0.0004608      2.2499967 
-Loop time of 13.2351 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:10:32 2021
-
-timestep 3.333333333303046e-06
-run 1 post no
-Setting up run at Fri Dec  3 15:10:32 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  225019    30000  0.00093989048      0.0004608      2.2499967 
-  225020    30000  0.00093985187      0.0004608           2.25 
-Loop time of 0.0146766 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:10:33 2021
-
-timestep 1e-05
-run 833.0 post no
-Setting up run at Fri Dec  3 15:10:33 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  225020    30000  0.00093985187      0.0004608           2.25 
-  225853    30000  0.00093275568      0.0004608        2.25833 
-Loop time of 13.1234 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:10:46 2021
-
-timestep 3.333333333303046e-06
-run 1 post no
-Setting up run at Fri Dec  3 15:10:46 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  225853    30000  0.00093275568      0.0004608        2.25833 
-  225854    30000  0.00093271651      0.0004608      2.2583333 
-Loop time of 0.0145515 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:10:46 2021
-
-timestep 1e-05
-run 833.0 post no
-Setting up run at Fri Dec  3 15:10:46 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  225854    30000  0.00093271651      0.0004608      2.2583333 
-  226000    30000  0.00093370253      0.0004608      2.2597933 
-  226687    30000  0.00094457316      0.0004608      2.2666633 
-Loop time of 13.0737 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:10:59 2021
-
-timestep 3.333333333303046e-06
-run 1 post no
-Setting up run at Fri Dec  3 15:10:59 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  226687    30000  0.00094457316      0.0004608      2.2666633 
-  226688    30000  0.00094454804      0.0004608      2.2666667 
-Loop time of 0.014101 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:10:59 2021
-
-timestep 1e-05
-run 833.0 post no
-Setting up run at Fri Dec  3 15:11:00 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  226688    30000  0.00094454804      0.0004608      2.2666667 
-  227000    30000  0.00095342845      0.0004608      2.2697867 
-  227521    30000  0.00095464596      0.0004608      2.2749967 
-Loop time of 13.1012 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:11:13 2021
-
-timestep 3.333333333303046e-06
-run 1 post no
-Setting up run at Fri Dec  3 15:11:13 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  227521    30000  0.00095464596      0.0004608      2.2749967 
-  227522    30000  0.00095459315      0.0004608          2.275 
-Loop time of 0.0153905 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:11:13 2021
-
-timestep 1e-05
-run 833.0 post no
-Setting up run at Fri Dec  3 15:11:13 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  227522    30000  0.00095459315      0.0004608          2.275 
-  228000    30000  0.00095120203      0.0004608        2.27978 
-  228355    30000  0.00095018127      0.0004608        2.28333 
-Loop time of 12.8911 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:11:26 2021
-
-timestep 3.333333333303046e-06
-run 1 post no
-Setting up run at Fri Dec  3 15:11:26 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  228355    30000  0.00095018127      0.0004608        2.28333 
-  228356    30000  0.00095015691      0.0004608      2.2833333 
-Loop time of 0.014809 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:11:26 2021
-
-timestep 1e-05
-run 833.0 post no
-Setting up run at Fri Dec  3 15:11:26 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  228356    30000  0.00095015691      0.0004608      2.2833333 
-  229000    30000  0.00096222831      0.0004608      2.2897733 
-  229189    30000  0.00096388942      0.0004608      2.2916633 
-Loop time of 12.7684 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:11:39 2021
-
-timestep 3.333333333303046e-06
-run 1 post no
-Setting up run at Fri Dec  3 15:11:39 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  229189    30000  0.00096388942      0.0004608      2.2916633 
-  229190    30000  0.00096385388      0.0004608      2.2916667 
-Loop time of 0.014934 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:11:39 2021
-
-timestep 1e-05
-run 833.0 post no
-Setting up run at Fri Dec  3 15:11:39 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  229190    30000  0.00096385388      0.0004608      2.2916667 
-  230000    30000  0.00095382486      0.0004608      2.2997667 
-  230023    30000  0.00095348852      0.0004608      2.2999967 
-Loop time of 12.713 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:11:52 2021
-
-timestep 3.333333333303046e-06
-run 1 post no
-Setting up run at Fri Dec  3 15:11:52 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  230023    30000  0.00095348852      0.0004608      2.2999967 
-  230024    30000  0.00095343779      0.0004608            2.3 
-Loop time of 0.0147868 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:11:52 2021
-
-timestep 1e-05
-run 833.0 post no
-Setting up run at Fri Dec  3 15:11:52 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  230024    30000  0.00095343779      0.0004608            2.3 
-  230857    30000  0.00095172974      0.0004608        2.30833 
-Loop time of 12.5661 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:12:05 2021
-
-timestep 3.333333333303046e-06
-run 1 post no
-Setting up run at Fri Dec  3 15:12:05 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  230857    30000  0.00095172974      0.0004608        2.30833 
-  230858    30000  0.00095169864      0.0004608      2.3083333 
-Loop time of 0.0140544 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:12:05 2021
-
-timestep 1e-05
-run 833.0 post no
-Setting up run at Fri Dec  3 15:12:05 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  230858    30000  0.00095169864      0.0004608      2.3083333 
-  231000    30000  0.00095282252      0.0004608      2.3097533 
-  231691    30000  0.00095752693      0.0004608      2.3166633 
-Loop time of 12.4627 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:12:18 2021
-
-timestep 3.333333333303046e-06
-run 1 post no
-Setting up run at Fri Dec  3 15:12:18 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  231691    30000  0.00095752693      0.0004608      2.3166633 
-  231692    30000  0.00095748661      0.0004608      2.3166667 
-Loop time of 0.0149713 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:12:18 2021
-
-timestep 1e-05
-run 833.0 post no
-Setting up run at Fri Dec  3 15:12:18 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  231692    30000  0.00095748661      0.0004608      2.3166667 
-  232000    30000  0.00094969159      0.0004608      2.3197467 
-  232525    30000  0.00094982329      0.0004608      2.3249967 
-Loop time of 12.4842 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:12:30 2021
-
-timestep 3.333333333303046e-06
-run 1 post no
-Setting up run at Fri Dec  3 15:12:30 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  232525    30000  0.00094982329      0.0004608      2.3249967 
-  232526    30000  0.00094978278      0.0004608          2.325 
-Loop time of 0.0161289 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:12:31 2021
-
-timestep 1e-05
-run 833.0 post no
-Setting up run at Fri Dec  3 15:12:31 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  232526    30000  0.00094978278      0.0004608          2.325 
-  233000    30000  0.00095817519      0.0004608        2.32974 
-  233359    30000  0.00095762098      0.0004608        2.33333 
-Loop time of 12.3304 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:12:43 2021
-
-timestep 3.333333333303046e-06
-run 1 post no
-Setting up run at Fri Dec  3 15:12:43 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  233359    30000  0.00095762098      0.0004608        2.33333 
-  233360    30000   0.0009575671      0.0004608      2.3333333 
-Loop time of 0.014952 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:12:43 2021
-
-timestep 1e-05
-run 833.0 post no
-Setting up run at Fri Dec  3 15:12:43 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  233360    30000   0.0009575671      0.0004608      2.3333333 
-  234000    30000  0.00094993636      0.0004608      2.3397333 
-  234193    30000  0.00094951064      0.0004608      2.3416633 
-Loop time of 12.3001 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:12:56 2021
-
-timestep 3.333333333303046e-06
-run 1 post no
-Setting up run at Fri Dec  3 15:12:56 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  234193    30000  0.00094951064      0.0004608      2.3416633 
-  234194    30000  0.00094947322      0.0004608      2.3416667 
-Loop time of 0.0147931 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:12:56 2021
-
-timestep 1e-05
-run 833.0 post no
-Setting up run at Fri Dec  3 15:12:56 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  234194    30000  0.00094947322      0.0004608      2.3416667 
-  235000    30000  0.00095374081      0.0004608      2.3497267 
-  235027    30000  0.00095412342      0.0004608      2.3499967 
-Loop time of 12.3495 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:13:08 2021
-
-timestep 3.333333333303046e-06
-run 1 post no
-Setting up run at Fri Dec  3 15:13:08 2021
-
-Memory usage per processor = 41.4109 Mbytes
-    Step    Atoms         KinEng         Volume           Time 
-  235027    30000  0.00095412342      0.0004608      2.3499967 
-  235028    30000  0.00095409776      0.0004608           2.35 
-Loop time of 0.0148661 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:13:08 2021
+    1000    14862   0.0037101693      0.0004608           0.01 
+    2000    14862   0.0043171042      0.0004608           0.02 
+    3000    14862   0.0045864585      0.0004608           0.03 
+    4000    14862   0.0038821357      0.0004608           0.04 
+    5000    14862    0.002713318      0.0004608           0.05 
+    6000    14862   0.0012284631      0.0004608           0.06 
+INFO: Particle insertion ins: inserted 15092 particle templates (mass 2.308640e-02) at step 6001
+ - a total of 29954 particle templates (mass 4.690762e-02) inserted so far.
+    7000    29954   0.0032646757      0.0004608           0.07 
+    8000    29954   0.0030878163      0.0004608           0.08 
+    9000    29954   0.0034080031      0.0004608           0.09 
+   10000    29954   0.0046882946      0.0004608            0.1 
+   11000    29954   0.0066436238      0.0004608           0.11 
+   12000    29954    0.011120954      0.0004608           0.12 
+   13000    29954     0.12874504      0.0004608           0.13 
+   14000    29954    0.020902731      0.0004608           0.14 
+   15000    29954   0.0044208724      0.0004608           0.15 
+   16000    29954   0.0015331975      0.0004608           0.16 
+   17000    29954  0.00085131438      0.0004608           0.17 
+   18000    29954  0.00092771775      0.0004608           0.18 
+   19000    29954   0.0015124473      0.0004608           0.19 
+   20000    29954   0.0025286519      0.0004608            0.2 
+   21000    29954   0.0039043894      0.0004608           0.21 
+   22000    29954   0.0055466601      0.0004608           0.22 
+   23000    29954   0.0072561648      0.0004608           0.23 
+   24000    29954   0.0086390748      0.0004608           0.24 
+   25000    29954   0.0085996446      0.0004608           0.25 
+   26000    29954   0.0053727768      0.0004608           0.26 
+   27000    29954  0.00093311496      0.0004608           0.27 
+   28000    29954  0.00067010276      0.0004608           0.28 
+   29000    29954   0.0005723711      0.0004608           0.29 
+   30000    29954  0.00050289995      0.0004608            0.3 
+   31000    29954  0.00048323251      0.0004608           0.31 
+   32000    29954  0.00046287648      0.0004608           0.32 
+   33000    29954  0.00046341907      0.0004608           0.33 
+   34000    29954  0.00046518671      0.0004608           0.34 
+   35000    29954  0.00046509113      0.0004608           0.35 
+   36000    29954  0.00046366242      0.0004608           0.36 
+   37000    29954  0.00046017669      0.0004608           0.37 
+   38000    29954  0.00045552039      0.0004608           0.38 
+   39000    29954  0.00044891998      0.0004608           0.39 
+   40000    29954  0.00044249162      0.0004608            0.4 
+   41000    29954  0.00043844668      0.0004608           0.41 
+   42000    29954  0.00043480143      0.0004608           0.42 
+   43000    29954  0.00043288458      0.0004608           0.43 
+   44000    29954  0.00043563572      0.0004608           0.44 
+   45000    29954  0.00045046734      0.0004608           0.45 
+   46000    29954  0.00047064418      0.0004608           0.46 
+   47000    29954  0.00050439299      0.0004608           0.47 
+   48000    29954  0.00055404111      0.0004608           0.48 
+   49000    29954  0.00061811937      0.0004608           0.49 
+   50000    29954  0.00070201111      0.0004608            0.5 
+   51000    29954  0.00079946555      0.0004608           0.51 
+   52000    29954  0.00090280461      0.0004608           0.52 
+   53000    29954  0.00099962409      0.0004608           0.53 
+   54000    29954   0.0010995165      0.0004608           0.54 
+   55000    29954   0.0011632525      0.0004608           0.55 
+   56000    29954   0.0012002429      0.0004608           0.56 
+   57000    29954   0.0011948941      0.0004608           0.57 
+   58000    29954   0.0011617124      0.0004608           0.58 
+   59000    29954   0.0011322537      0.0004608           0.59 
+   60000    29954   0.0010971605      0.0004608            0.6 
+   61000    29954    0.001052855      0.0004608           0.61 
+   62000    29954   0.0010171503      0.0004608           0.62 
+   63000    29954   0.0009896722      0.0004608           0.63 
+   64000    29954    0.000958347      0.0004608           0.64 
+   65000    29954  0.00094364713      0.0004608           0.65 
+   66000    29954   0.0009120046      0.0004608           0.66 
+   67000    29954  0.00089406278      0.0004608           0.67 
+   68000    29954  0.00087776726      0.0004608           0.68 
+   69000    29954  0.00086197444      0.0004608           0.69 
+   70000    29954  0.00084304971      0.0004608            0.7 
+   71000    29954  0.00083994265      0.0004608           0.71 
+   72000    29954  0.00083447213      0.0004608           0.72 
+   73000    29954  0.00081192658      0.0004608           0.73 
+   74000    29954  0.00081743897      0.0004608           0.74 
+   75000    29954  0.00081521072      0.0004608           0.75 
+   76000    29954   0.0008197508      0.0004608           0.76 
+   77000    29954  0.00082137289      0.0004608           0.77 
+   78000    29954  0.00081604044      0.0004608           0.78 
+   79000    29954  0.00081384541      0.0004608           0.79 
+   80000    29954  0.00082036958      0.0004608            0.8 
+   81000    29954  0.00082898497      0.0004608           0.81 
+   82000    29954  0.00083772372      0.0004608           0.82 
+   83000    29954   0.0008498252      0.0004608           0.83 
+   84000    29954  0.00084214661      0.0004608           0.84 
+   85000    29954  0.00084900756      0.0004608           0.85 
+   86000    29954  0.00085630804      0.0004608           0.86 
+   87000    29954  0.00085332599      0.0004608           0.87 
+   88000    29954  0.00085799493      0.0004608           0.88 
+   89000    29954  0.00086771427      0.0004608           0.89 
+   90000    29954  0.00086332333      0.0004608            0.9 
+   91000    29954  0.00085876534      0.0004608           0.91 
+   92000    29954  0.00087116146      0.0004608           0.92 
+   93000    29954  0.00086947426      0.0004608           0.93 
+   94000    29954  0.00087975888      0.0004608           0.94 
+   95000    29954  0.00088329044      0.0004608           0.95 
+   96000    29954  0.00086964607      0.0004608           0.96 
+   97000    29954  0.00086476209      0.0004608           0.97 
+   98000    29954  0.00087237118      0.0004608           0.98 
+   99000    29954  0.00086088541      0.0004608           0.99 
+  100000    29954  0.00086622576      0.0004608              1 
+  101000    29954  0.00085881889      0.0004608           1.01 
+  102000    29954  0.00085848801      0.0004608           1.02 
+  103000    29954  0.00086738042      0.0004608           1.03 
+  104000    29954  0.00085372144      0.0004608           1.04 
+  105000    29954  0.00085454374      0.0004608           1.05 
+  106000    29954  0.00085207831      0.0004608           1.06 
+  107000    29954  0.00085105828      0.0004608           1.07 
+  108000    29954  0.00086221229      0.0004608           1.08 
+  109000    29954  0.00085989126      0.0004608           1.09 
+  110000    29954  0.00085511827      0.0004608            1.1 
+  111000    29954   0.0008607964      0.0004608           1.11 
+  112000    29954  0.00085054392      0.0004608           1.12 
+  113000    29954   0.0008562498      0.0004608           1.13 
+  114000    29954  0.00084921404      0.0004608           1.14 
+  115000    29954  0.00085098209      0.0004608           1.15 
+  116000    29954  0.00084380267      0.0004608           1.16 
+  117000    29954  0.00084266761      0.0004608           1.17 
+  118000    29954  0.00085239235      0.0004608           1.18 
+  119000    29954   0.0008469377      0.0004608           1.19 
+  120000    29954  0.00084595137      0.0004608            1.2 
+  121000    29954   0.0008476175      0.0004608           1.21 
+  122000    29954  0.00085288919      0.0004608           1.22 
+  123000    29954  0.00085682537      0.0004608           1.23 
+  124000    29954  0.00085384532      0.0004608           1.24 
+  125000    29954   0.0008557187      0.0004608           1.25 
+  126000    29954  0.00085690922      0.0004608           1.26 
+  127000    29954  0.00086423623      0.0004608           1.27 
+  128000    29954  0.00086848955      0.0004608           1.28 
+  129000    29954   0.0008642703      0.0004608           1.29 
+  130000    29954  0.00086290693      0.0004608            1.3 
+  131000    29954  0.00086403643      0.0004608           1.31 
+  132000    29954  0.00086852208      0.0004608           1.32 
+  133000    29954  0.00085794915      0.0004608           1.33 
+  134000    29954  0.00085741753      0.0004608           1.34 
+  135000    29954  0.00085455145      0.0004608           1.35 
+  136000    29954    0.000853382      0.0004608           1.36 
+  137000    29954  0.00084640721      0.0004608           1.37 
+  138000    29954  0.00084854892      0.0004608           1.38 
+  139000    29954   0.0008513899      0.0004608           1.39 
+  140000    29954  0.00085546812      0.0004608            1.4 
+  141000    29954  0.00086616615      0.0004608           1.41 
+  142000    29954  0.00085550343      0.0004608           1.42 
+  143000    29954  0.00085649449      0.0004608           1.43 
+  144000    29954  0.00085689646      0.0004608           1.44 
+  145000    29954  0.00086964379      0.0004608           1.45 
+  146000    29954  0.00086534679      0.0004608           1.46 
+  147000    29954   0.0008596306      0.0004608           1.47 
+  148000    29954  0.00085408295      0.0004608           1.48 
+  149000    29954  0.00085669987      0.0004608           1.49 
+  150000    29954  0.00085038091      0.0004608            1.5 
+  151000    29954  0.00085002796      0.0004608           1.51 
+  152000    29954  0.00085354454      0.0004608           1.52 
+  153000    29954  0.00086587225      0.0004608           1.53 
+  154000    29954  0.00085359779      0.0004608           1.54 
+  155000    29954  0.00084926061      0.0004608           1.55 
+  156000    29954  0.00084823913      0.0004608           1.56 
+  157000    29954  0.00085145282      0.0004608           1.57 
+  158000    29954  0.00085527848      0.0004608           1.58 
+  159000    29954  0.00085880947      0.0004608           1.59 
+  160000    29954  0.00085649157      0.0004608            1.6 
+  161000    29954  0.00085850277      0.0004608           1.61 
+  162000    29954  0.00087149361      0.0004608           1.62 
+  163000    29954  0.00087013363      0.0004608           1.63 
+  164000    29954  0.00086865774      0.0004608           1.64 
+  165000    29954  0.00086939888      0.0004608           1.65 
+  166000    29954   0.0008753371      0.0004608           1.66 
+  167000    29954   0.0008673788      0.0004608           1.67 
+  168000    29954   0.0008617488      0.0004608           1.68 
+  169000    29954  0.00085724343      0.0004608           1.69 
+  170000    29954  0.00085212767      0.0004608            1.7 
+  171000    29954  0.00085407314      0.0004608           1.71 
+  172000    29954  0.00086145396      0.0004608           1.72 
+  173000    29954  0.00086069986      0.0004608           1.73 
+  174000    29954  0.00086128004      0.0004608           1.74 
+  175000    29954  0.00086253872      0.0004608           1.75 
+  176000    29954  0.00086818218      0.0004608           1.76 
+  177000    29954  0.00087154327      0.0004608           1.77 
+  178000    29954  0.00086837421      0.0004608           1.78 
+  179000    29954  0.00086887034      0.0004608           1.79 
+  180000    29954  0.00085926853      0.0004608            1.8 
+  181000    29954  0.00085433093      0.0004608           1.81 
+  182000    29954   0.0008572396      0.0004608           1.82 
+  183000    29954  0.00085774549      0.0004608           1.83 
+  184000    29954  0.00087399703      0.0004608           1.84 
+  185000    29954  0.00087169755      0.0004608           1.85 
+  186000    29954  0.00085549199      0.0004608           1.86 
+  187000    29954  0.00085835392      0.0004608           1.87 
+  188000    29954    0.000863094      0.0004608           1.88 
+  189000    29954  0.00087455585      0.0004608           1.89 
+  190000    29954  0.00085917014      0.0004608            1.9 
+  191000    29954  0.00086677108      0.0004608           1.91 
+  192000    29954  0.00086816417      0.0004608           1.92 
+  193000    29954   0.0008565107      0.0004608           1.93 
+  194000    29954  0.00086830194      0.0004608           1.94 
+  195000    29954  0.00086892814      0.0004608           1.95 
+  196000    29954  0.00086622168      0.0004608           1.96 
+  197000    29954  0.00086523842      0.0004608           1.97 
+  198000    29954   0.0008678884      0.0004608           1.98 
+  199000    29954  0.00087009463      0.0004608           1.99 
+  200000    29954   0.0008572143      0.0004608              2 
+  201000    29954  0.00085574226      0.0004608           2.01 
+  202000    29954  0.00084822977      0.0004608           2.02 
+  203000    29954  0.00085172857      0.0004608           2.03 
+  204000    29954   0.0008558917      0.0004608           2.04 
+  205000    29954  0.00085089918      0.0004608           2.05 
+  206000    29954  0.00084511385      0.0004608           2.06 
+  207000    29954  0.00084722449      0.0004608           2.07 
+  208000    29954  0.00084384536      0.0004608           2.08 
+  209000    29954  0.00084557168      0.0004608           2.09 
+  210000    29954  0.00085003977      0.0004608            2.1 
+  211000    29954  0.00085203333      0.0004608           2.11 
+  212000    29954   0.0008537482      0.0004608           2.12 
+  213000    29954  0.00085664795      0.0004608           2.13 
+  214000    29954  0.00086630219      0.0004608           2.14 
+  215000    29954     0.00085809      0.0004608           2.15 
+  216000    29954  0.00085062494      0.0004608           2.16 
+  217000    29954  0.00085609256      0.0004608           2.17 
+  218000    29954  0.00086330204      0.0004608           2.18 
+  219000    29954  0.00085489987      0.0004608           2.19 
+  220000    29954  0.00085673719      0.0004608            2.2 
+  221000    29954  0.00084291529      0.0004608           2.21 
+  222000    29954  0.00083985338      0.0004608           2.22 
+  223000    29954  0.00083298771      0.0004608           2.23 
+  224000    29954  0.00084117808      0.0004608           2.24 
+  225000    29954  0.00084192414      0.0004608           2.25 
+  226000    29954  0.00084387393      0.0004608           2.26 
+  227000    29954  0.00085356034      0.0004608           2.27 
+  228000    29954  0.00084308223      0.0004608           2.28 
+  229000    29954  0.00085163038      0.0004608           2.29 
+  230000    29954  0.00085600399      0.0004608            2.3 
+  231000    29954  0.00086081932      0.0004608           2.31 
+  232000    29954  0.00085936758      0.0004608           2.32 
+  233000    29954  0.00085979725      0.0004608           2.33 
+  233333    29954  0.00085662022      0.0004608        2.33333 
+Loop time of 4398.61 on 1 procs for 233333 steps with 29954 atoms, finish time Mon Dec  6 10:43:15 2021
+
+timestep 3.3333333332904896e-06
+run 1 post no
+Setting up run at Mon Dec  6 10:43:15 2021
+
+Memory usage per processor = 40.6476 Mbytes
+    Step    Atoms         KinEng         Volume           Time 
+  233333    29954  0.00085662022      0.0004608        2.33333 
+  233334    29954  0.00085656309      0.0004608      2.3333333 
+Loop time of 0.0142294 on 1 procs for 1 steps with 29954 atoms, finish time Mon Dec  6 10:43:15 2021
+
+timestep 1e-05
+run 833.0 post no
+Setting up run at Mon Dec  6 10:43:15 2021
+
+Memory usage per processor = 40.6476 Mbytes
+    Step    Atoms         KinEng         Volume           Time 
+  233334    29954  0.00085656309      0.0004608      2.3333333 
+  234000    29954  0.00085572578      0.0004608      2.3399933 
+  234167    29954   0.0008560784      0.0004608      2.3416633 
+Loop time of 12.7432 on 1 procs for 833 steps with 29954 atoms, finish time Mon Dec  6 10:43:28 2021
+
+timestep 3.333333333303046e-06
+run 1 post no
+Setting up run at Mon Dec  6 10:43:28 2021
+
+Memory usage per processor = 40.6476 Mbytes
+    Step    Atoms         KinEng         Volume           Time 
+  234167    29954   0.0008560784      0.0004608      2.3416633 
+  234168    29954  0.00085602902      0.0004608      2.3416667 
+Loop time of 0.0141828 on 1 procs for 1 steps with 29954 atoms, finish time Mon Dec  6 10:43:28 2021
+
+timestep 1e-05
+run 833.0 post no
+Setting up run at Mon Dec  6 10:43:28 2021
+
+Memory usage per processor = 40.6476 Mbytes
+    Step    Atoms         KinEng         Volume           Time 
+  234168    29954  0.00085602902      0.0004608      2.3416667 
+  235000    29954  0.00085413383      0.0004608      2.3499867 
+  235001    29954  0.00085413028      0.0004608      2.3499967 
+Loop time of 12.9184 on 1 procs for 833 steps with 29954 atoms, finish time Mon Dec  6 10:43:41 2021
+
+timestep 3.333333333303046e-06
+run 1 post no
+Setting up run at Mon Dec  6 10:43:41 2021
+
+Memory usage per processor = 40.6476 Mbytes
+    Step    Atoms         KinEng         Volume           Time 
+  235001    29954  0.00085413028      0.0004608      2.3499967 
+  235002    29954  0.00085407765      0.0004608           2.35 
+Loop time of 0.0142745 on 1 procs for 1 steps with 29954 atoms, finish time Mon Dec  6 10:43:41 2021
 
 timestep 1e-05
 run 833.0 post no
-Setting up run at Fri Dec  3 15:13:08 2021
+Setting up run at Mon Dec  6 10:43:41 2021
 
-Memory usage per processor = 41.4109 Mbytes
+Memory usage per processor = 40.6476 Mbytes
     Step    Atoms         KinEng         Volume           Time 
-  235028    30000  0.00095409776      0.0004608           2.35 
-  235861    30000  0.00096172185      0.0004608        2.35833 
-Loop time of 12.4238 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:13:21 2021
+  235002    29954  0.00085407765      0.0004608           2.35 
+  235835    29954  0.00085403758      0.0004608        2.35833 
+Loop time of 12.8857 on 1 procs for 833 steps with 29954 atoms, finish time Mon Dec  6 10:43:54 2021
 
 timestep 3.333333333303046e-06
 run 1 post no
-Setting up run at Fri Dec  3 15:13:21 2021
+Setting up run at Mon Dec  6 10:43:54 2021
 
-Memory usage per processor = 41.4109 Mbytes
+Memory usage per processor = 40.6476 Mbytes
     Step    Atoms         KinEng         Volume           Time 
-  235861    30000  0.00096172185      0.0004608        2.35833 
-  235862    30000  0.00096169203      0.0004608      2.3583333 
-Loop time of 0.0144028 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:13:21 2021
+  235835    29954  0.00085403758      0.0004608        2.35833 
+  235836    29954  0.00085399653      0.0004608      2.3583333 
+Loop time of 0.0141255 on 1 procs for 1 steps with 29954 atoms, finish time Mon Dec  6 10:43:55 2021
 
 timestep 1e-05
 run 833.0 post no
-Setting up run at Fri Dec  3 15:13:21 2021
+Setting up run at Mon Dec  6 10:43:55 2021
 
-Memory usage per processor = 41.4109 Mbytes
+Memory usage per processor = 40.6476 Mbytes
     Step    Atoms         KinEng         Volume           Time 
-  235862    30000  0.00096169203      0.0004608      2.3583333 
-  236000    30000  0.00096300513      0.0004608      2.3597133 
-  236695    30000   0.0009558617      0.0004608      2.3666633 
-Loop time of 12.5589 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:13:34 2021
+  235836    29954  0.00085399653      0.0004608      2.3583333 
+  236000    29954  0.00085514127      0.0004608      2.3599733 
+  236669    29954  0.00086226039      0.0004608      2.3666633 
+Loop time of 13.5227 on 1 procs for 833 steps with 29954 atoms, finish time Mon Dec  6 10:44:08 2021
 
 timestep 3.333333333303046e-06
 run 1 post no
-Setting up run at Fri Dec  3 15:13:34 2021
+Setting up run at Mon Dec  6 10:44:08 2021
 
-Memory usage per processor = 41.4109 Mbytes
+Memory usage per processor = 40.6476 Mbytes
     Step    Atoms         KinEng         Volume           Time 
-  236695    30000   0.0009558617      0.0004608      2.3666633 
-  236696    30000  0.00095580706      0.0004608      2.3666667 
-Loop time of 0.0144856 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:13:34 2021
+  236669    29954  0.00086226039      0.0004608      2.3666633 
+  236670    29954  0.00086220711      0.0004608      2.3666667 
+Loop time of 0.01533 on 1 procs for 1 steps with 29954 atoms, finish time Mon Dec  6 10:44:08 2021
 
 timestep 1e-05
 run 833.0 post no
-Setting up run at Fri Dec  3 15:13:34 2021
+Setting up run at Mon Dec  6 10:44:08 2021
 
-Memory usage per processor = 41.4109 Mbytes
+Memory usage per processor = 40.6476 Mbytes
     Step    Atoms         KinEng         Volume           Time 
-  236696    30000  0.00095580706      0.0004608      2.3666667 
-  237000    30000  0.00095304322      0.0004608      2.3697067 
-  237529    30000  0.00095921961      0.0004608      2.3749967 
-Loop time of 12.6588 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:13:47 2021
+  236670    29954  0.00086220711      0.0004608      2.3666667 
+  237000    29954  0.00086090754      0.0004608      2.3699667 
+  237503    29954  0.00085793464      0.0004608      2.3749967 
+Loop time of 13.8921 on 1 procs for 833 steps with 29954 atoms, finish time Mon Dec  6 10:44:22 2021
 
 timestep 3.333333333303046e-06
 run 1 post no
-Setting up run at Fri Dec  3 15:13:47 2021
+Setting up run at Mon Dec  6 10:44:22 2021
 
-Memory usage per processor = 41.4109 Mbytes
+Memory usage per processor = 40.6476 Mbytes
     Step    Atoms         KinEng         Volume           Time 
-  237529    30000  0.00095921961      0.0004608      2.3749967 
-  237530    30000  0.00095918149      0.0004608          2.375 
-Loop time of 0.01495 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:13:47 2021
+  237503    29954  0.00085793464      0.0004608      2.3749967 
+  237504    29954  0.00085788332      0.0004608          2.375 
+Loop time of 0.0141908 on 1 procs for 1 steps with 29954 atoms, finish time Mon Dec  6 10:44:23 2021
 
 timestep 1e-05
 run 833.0 post no
-Setting up run at Fri Dec  3 15:13:47 2021
+Setting up run at Mon Dec  6 10:44:23 2021
 
-Memory usage per processor = 41.4109 Mbytes
+Memory usage per processor = 40.6476 Mbytes
     Step    Atoms         KinEng         Volume           Time 
-  237530    30000  0.00095918149      0.0004608          2.375 
-  238000    30000   0.0009617351      0.0004608         2.3797 
-  238363    30000   0.0009511895      0.0004608        2.38333 
-Loop time of 12.7765 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:14:00 2021
+  237504    29954  0.00085788332      0.0004608          2.375 
+  238000    29954  0.00085412937      0.0004608        2.37996 
+  238337    29954  0.00085443332      0.0004608        2.38333 
+Loop time of 13.2535 on 1 procs for 833 steps with 29954 atoms, finish time Mon Dec  6 10:44:36 2021
 
 timestep 3.333333333303046e-06
 run 1 post no
-Setting up run at Fri Dec  3 15:14:00 2021
+Setting up run at Mon Dec  6 10:44:36 2021
 
-Memory usage per processor = 41.4109 Mbytes
+Memory usage per processor = 40.6476 Mbytes
     Step    Atoms         KinEng         Volume           Time 
-  238363    30000   0.0009511895      0.0004608        2.38333 
-  238364    30000  0.00095114244      0.0004608      2.3833333 
-Loop time of 0.0141035 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:14:00 2021
+  238337    29954  0.00085443332      0.0004608        2.38333 
+  238338    29954  0.00085438204      0.0004608      2.3833333 
+Loop time of 0.0141475 on 1 procs for 1 steps with 29954 atoms, finish time Mon Dec  6 10:44:36 2021
 
 timestep 1e-05
 run 833.0 post no
-Setting up run at Fri Dec  3 15:14:00 2021
+Setting up run at Mon Dec  6 10:44:36 2021
 
-Memory usage per processor = 41.4109 Mbytes
+Memory usage per processor = 40.6476 Mbytes
     Step    Atoms         KinEng         Volume           Time 
-  238364    30000  0.00095114244      0.0004608      2.3833333 
-  239000    30000  0.00095530279      0.0004608      2.3896933 
-  239197    30000  0.00095743515      0.0004608      2.3916633 
-Loop time of 12.8179 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:14:13 2021
+  238338    29954  0.00085438204      0.0004608      2.3833333 
+  239000    29954  0.00084497623      0.0004608      2.3899533 
+  239171    29954  0.00084559486      0.0004608      2.3916633 
+Loop time of 13.3103 on 1 procs for 833 steps with 29954 atoms, finish time Mon Dec  6 10:44:50 2021
 
 timestep 3.333333333303046e-06
 run 1 post no
-Setting up run at Fri Dec  3 15:14:13 2021
+Setting up run at Mon Dec  6 10:44:50 2021
 
-Memory usage per processor = 41.4109 Mbytes
+Memory usage per processor = 40.6476 Mbytes
     Step    Atoms         KinEng         Volume           Time 
-  239197    30000  0.00095743515      0.0004608      2.3916633 
-  239198    30000  0.00095740358      0.0004608      2.3916667 
-Loop time of 0.0149245 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:14:13 2021
+  239171    29954  0.00084559486      0.0004608      2.3916633 
+  239172    29954  0.00084555545      0.0004608      2.3916667 
+Loop time of 0.0141439 on 1 procs for 1 steps with 29954 atoms, finish time Mon Dec  6 10:44:50 2021
 
 timestep 1e-05
 run 833.0 post no
-Setting up run at Fri Dec  3 15:14:13 2021
+Setting up run at Mon Dec  6 10:44:50 2021
 
-Memory usage per processor = 41.4109 Mbytes
+Memory usage per processor = 40.6476 Mbytes
     Step    Atoms         KinEng         Volume           Time 
-  239198    30000  0.00095740358      0.0004608      2.3916667 
-  240000    30000  0.00095257123      0.0004608      2.3996867 
-  240031    30000  0.00095261056      0.0004608      2.3999967 
-Loop time of 12.9972 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:14:26 2021
+  239172    29954  0.00084555545      0.0004608      2.3916667 
+  240000    29954  0.00085579557      0.0004608      2.3999467 
+  240005    29954  0.00085583368      0.0004608      2.3999967 
+Loop time of 14.0883 on 1 procs for 833 steps with 29954 atoms, finish time Mon Dec  6 10:45:04 2021
 
 timestep 3.333333333303046e-06
 run 1 post no
-Setting up run at Fri Dec  3 15:14:26 2021
+Setting up run at Mon Dec  6 10:45:04 2021
 
-Memory usage per processor = 41.4109 Mbytes
+Memory usage per processor = 40.6476 Mbytes
     Step    Atoms         KinEng         Volume           Time 
-  240031    30000  0.00095261056      0.0004608      2.3999967 
-  240032    30000  0.00095256436      0.0004608            2.4 
-Loop time of 0.0140894 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:14:26 2021
+  240005    29954  0.00085583368      0.0004608      2.3999967 
+  240006    29954   0.0008557899      0.0004608            2.4 
+Loop time of 0.0153508 on 1 procs for 1 steps with 29954 atoms, finish time Mon Dec  6 10:45:04 2021
 
 timestep 1e-05
 run 833.0 post no
-Setting up run at Fri Dec  3 15:14:26 2021
+Setting up run at Mon Dec  6 10:45:04 2021
 
-Memory usage per processor = 41.4109 Mbytes
+Memory usage per processor = 40.6476 Mbytes
     Step    Atoms         KinEng         Volume           Time 
-  240032    30000  0.00095256436      0.0004608            2.4 
-  240865    30000  0.00096367251      0.0004608        2.40833 
-Loop time of 13.1811 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:14:40 2021
+  240006    29954   0.0008557899      0.0004608            2.4 
+  240839    29954    0.000860309      0.0004608        2.40833 
+Loop time of 14.023 on 1 procs for 833 steps with 29954 atoms, finish time Mon Dec  6 10:45:18 2021
 
 timestep 3.333333333303046e-06
 run 1 post no
-Setting up run at Fri Dec  3 15:14:40 2021
+Setting up run at Mon Dec  6 10:45:18 2021
 
-Memory usage per processor = 41.4109 Mbytes
+Memory usage per processor = 40.6476 Mbytes
     Step    Atoms         KinEng         Volume           Time 
-  240865    30000  0.00096367251      0.0004608        2.40833 
-  240866    30000  0.00096362987      0.0004608      2.4083333 
-Loop time of 0.0143911 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:14:40 2021
+  240839    29954    0.000860309      0.0004608        2.40833 
+  240840    29954   0.0008602515      0.0004608      2.4083333 
+Loop time of 0.015699 on 1 procs for 1 steps with 29954 atoms, finish time Mon Dec  6 10:45:19 2021
 
 timestep 1e-05
 run 833.0 post no
-Setting up run at Fri Dec  3 15:14:40 2021
+Setting up run at Mon Dec  6 10:45:19 2021
 
-Memory usage per processor = 41.4109 Mbytes
+Memory usage per processor = 40.6476 Mbytes
     Step    Atoms         KinEng         Volume           Time 
-  240866    30000  0.00096362987      0.0004608      2.4083333 
-  241000    30000  0.00096271093      0.0004608      2.4096733 
-  241699    30000  0.00096124356      0.0004608      2.4166633 
-Loop time of 13.2035 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:14:53 2021
+  240840    29954   0.0008602515      0.0004608      2.4083333 
+  241000    29954  0.00085629296      0.0004608      2.4099333 
+  241673    29954   0.0008617687      0.0004608      2.4166633 
+Loop time of 13.9827 on 1 procs for 833 steps with 29954 atoms, finish time Mon Dec  6 10:45:33 2021
 
 timestep 3.333333333303046e-06
 run 1 post no
-Setting up run at Fri Dec  3 15:14:53 2021
+Setting up run at Mon Dec  6 10:45:33 2021
 
-Memory usage per processor = 41.4109 Mbytes
+Memory usage per processor = 40.6476 Mbytes
     Step    Atoms         KinEng         Volume           Time 
-  241699    30000  0.00096124356      0.0004608      2.4166633 
-  241700    30000   0.0009611951      0.0004608      2.4166667 
-Loop time of 0.0147912 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:14:53 2021
+  241673    29954   0.0008617687      0.0004608      2.4166633 
+  241674    29954  0.00086172034      0.0004608      2.4166667 
+Loop time of 0.0142332 on 1 procs for 1 steps with 29954 atoms, finish time Mon Dec  6 10:45:33 2021
 
 timestep 1e-05
 run 833.0 post no
-Setting up run at Fri Dec  3 15:14:53 2021
+Setting up run at Mon Dec  6 10:45:33 2021
 
-Memory usage per processor = 41.4109 Mbytes
+Memory usage per processor = 40.6476 Mbytes
     Step    Atoms         KinEng         Volume           Time 
-  241700    30000   0.0009611951      0.0004608      2.4166667 
-  242000    30000  0.00095597404      0.0004608      2.4196667 
-  242533    30000  0.00095436122      0.0004608      2.4249967 
-Loop time of 13.174 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:15:07 2021
+  241674    29954  0.00086172034      0.0004608      2.4166667 
+  242000    29954  0.00085972755      0.0004608      2.4199267 
+  242507    29954  0.00086202184      0.0004608      2.4249967 
+Loop time of 13.8316 on 1 procs for 833 steps with 29954 atoms, finish time Mon Dec  6 10:45:47 2021
 
 timestep 3.333333333303046e-06
 run 1 post no
-Setting up run at Fri Dec  3 15:15:07 2021
+Setting up run at Mon Dec  6 10:45:47 2021
 
-Memory usage per processor = 41.4109 Mbytes
+Memory usage per processor = 40.6476 Mbytes
     Step    Atoms         KinEng         Volume           Time 
-  242533    30000  0.00095436122      0.0004608      2.4249967 
-  242534    30000  0.00095432219      0.0004608          2.425 
-Loop time of 0.0148878 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:15:07 2021
+  242507    29954  0.00086202184      0.0004608      2.4249967 
+  242508    29954  0.00086198288      0.0004608          2.425 
+Loop time of 0.0143447 on 1 procs for 1 steps with 29954 atoms, finish time Mon Dec  6 10:45:47 2021
 
 timestep 1e-05
 run 833.0 post no
-Setting up run at Fri Dec  3 15:15:07 2021
+Setting up run at Mon Dec  6 10:45:47 2021
 
-Memory usage per processor = 41.4109 Mbytes
+Memory usage per processor = 40.6476 Mbytes
     Step    Atoms         KinEng         Volume           Time 
-  242534    30000  0.00095432219      0.0004608          2.425 
-  243000    30000  0.00095499698      0.0004608        2.42966 
-  243367    30000  0.00095690826      0.0004608        2.43333 
-Loop time of 13.4081 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:15:20 2021
+  242508    29954  0.00086198288      0.0004608          2.425 
+  243000    29954  0.00086567757      0.0004608        2.42992 
+  243341    29954  0.00085730736      0.0004608        2.43333 
+Loop time of 14.3366 on 1 procs for 833 steps with 29954 atoms, finish time Mon Dec  6 10:46:02 2021
 
 timestep 3.333333333303046e-06
 run 1 post no
-Setting up run at Fri Dec  3 15:15:20 2021
+Setting up run at Mon Dec  6 10:46:02 2021
 
-Memory usage per processor = 41.4109 Mbytes
+Memory usage per processor = 40.6476 Mbytes
     Step    Atoms         KinEng         Volume           Time 
-  243367    30000  0.00095690826      0.0004608        2.43333 
-  243368    30000   0.0009568732      0.0004608      2.4333333 
-Loop time of 0.0145999 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:15:21 2021
+  243341    29954  0.00085730736      0.0004608        2.43333 
+  243342    29954  0.00085724897      0.0004608      2.4333333 
+Loop time of 0.0143399 on 1 procs for 1 steps with 29954 atoms, finish time Mon Dec  6 10:46:02 2021
 
 timestep 1e-05
 run 833.0 post no
-Setting up run at Fri Dec  3 15:15:21 2021
+Setting up run at Mon Dec  6 10:46:02 2021
 
-Memory usage per processor = 41.4109 Mbytes
+Memory usage per processor = 40.6476 Mbytes
     Step    Atoms         KinEng         Volume           Time 
-  243368    30000   0.0009568732      0.0004608      2.4333333 
-  244000    30000  0.00095823612      0.0004608      2.4396533 
-  244201    30000   0.0009575487      0.0004608      2.4416633 
-Loop time of 13.3511 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:15:34 2021
+  243342    29954  0.00085724897      0.0004608      2.4333333 
+  244000    29954  0.00084945273      0.0004608      2.4399133 
+  244175    29954  0.00085331347      0.0004608      2.4416633 
+Loop time of 14.0983 on 1 procs for 833 steps with 29954 atoms, finish time Mon Dec  6 10:46:16 2021
 
 timestep 3.333333333303046e-06
 run 1 post no
-Setting up run at Fri Dec  3 15:15:34 2021
+Setting up run at Mon Dec  6 10:46:16 2021
 
-Memory usage per processor = 41.4109 Mbytes
+Memory usage per processor = 40.6476 Mbytes
     Step    Atoms         KinEng         Volume           Time 
-  244201    30000   0.0009575487      0.0004608      2.4416633 
-  244202    30000  0.00095751761      0.0004608      2.4416667 
-Loop time of 0.0155663 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:15:34 2021
+  244175    29954  0.00085331347      0.0004608      2.4416633 
+  244176    29954   0.0008532753      0.0004608      2.4416667 
+Loop time of 0.0143425 on 1 procs for 1 steps with 29954 atoms, finish time Mon Dec  6 10:46:16 2021
 
 timestep 1e-05
 run 833.0 post no
-Setting up run at Fri Dec  3 15:15:34 2021
+Setting up run at Mon Dec  6 10:46:16 2021
 
-Memory usage per processor = 41.4109 Mbytes
+Memory usage per processor = 40.6476 Mbytes
     Step    Atoms         KinEng         Volume           Time 
-  244202    30000  0.00095751761      0.0004608      2.4416667 
-  245000    30000   0.0009573037      0.0004608      2.4496467 
-  245035    30000  0.00095690481      0.0004608      2.4499967 
-Loop time of 13.3956 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:15:48 2021
+  244176    29954   0.0008532753      0.0004608      2.4416667 
+  245000    29954  0.00086420921      0.0004608      2.4499067 
+  245009    29954  0.00086405854      0.0004608      2.4499967 
+Loop time of 14.2387 on 1 procs for 833 steps with 29954 atoms, finish time Mon Dec  6 10:46:31 2021
 
 timestep 3.333333333303046e-06
 run 1 post no
-Setting up run at Fri Dec  3 15:15:48 2021
+Setting up run at Mon Dec  6 10:46:31 2021
 
-Memory usage per processor = 41.4109 Mbytes
+Memory usage per processor = 40.6476 Mbytes
     Step    Atoms         KinEng         Volume           Time 
-  245035    30000  0.00095690481      0.0004608      2.4499967 
-  245036    30000  0.00095685702      0.0004608           2.45 
-Loop time of 0.0147961 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:15:48 2021
+  245009    29954  0.00086405854      0.0004608      2.4499967 
+  245010    29954  0.00086400434      0.0004608           2.45 
+Loop time of 0.014367 on 1 procs for 1 steps with 29954 atoms, finish time Mon Dec  6 10:46:31 2021
 
 timestep 1e-05
 run 833.0 post no
-Setting up run at Fri Dec  3 15:15:48 2021
+Setting up run at Mon Dec  6 10:46:31 2021
 
-Memory usage per processor = 41.4109 Mbytes
+Memory usage per processor = 40.6476 Mbytes
     Step    Atoms         KinEng         Volume           Time 
-  245036    30000  0.00095685702      0.0004608           2.45 
-  245869    30000  0.00095599203      0.0004608        2.45833 
-Loop time of 13.4269 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:16:02 2021
+  245010    29954  0.00086400434      0.0004608           2.45 
+  245843    29954  0.00086398572      0.0004608        2.45833 
+Loop time of 14.8137 on 1 procs for 833 steps with 29954 atoms, finish time Mon Dec  6 10:46:46 2021
 
 timestep 3.333333333303046e-06
 run 1 post no
-Setting up run at Fri Dec  3 15:16:02 2021
+Setting up run at Mon Dec  6 10:46:46 2021
 
-Memory usage per processor = 41.4109 Mbytes
+Memory usage per processor = 40.6476 Mbytes
     Step    Atoms         KinEng         Volume           Time 
-  245869    30000  0.00095599203      0.0004608        2.45833 
-  245870    30000  0.00095594486      0.0004608      2.4583333 
-Loop time of 0.0148165 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:16:02 2021
+  245843    29954  0.00086398572      0.0004608        2.45833 
+  245844    29954  0.00086394347      0.0004608      2.4583333 
+Loop time of 0.0157729 on 1 procs for 1 steps with 29954 atoms, finish time Mon Dec  6 10:46:46 2021
 
 timestep 1e-05
 run 833.0 post no
-Setting up run at Fri Dec  3 15:16:02 2021
+Setting up run at Mon Dec  6 10:46:46 2021
 
-Memory usage per processor = 41.4109 Mbytes
+Memory usage per processor = 40.6476 Mbytes
     Step    Atoms         KinEng         Volume           Time 
-  245870    30000  0.00095594486      0.0004608      2.4583333 
-  246000    30000  0.00095395768      0.0004608      2.4596333 
-  246703    30000  0.00096103087      0.0004608      2.4666633 
-Loop time of 13.4427 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:16:16 2021
+  245844    29954  0.00086394347      0.0004608      2.4583333 
+  246000    29954  0.00086378016      0.0004608      2.4598933 
+  246677    29954  0.00086795685      0.0004608      2.4666633 
+Loop time of 15.4963 on 1 procs for 833 steps with 29954 atoms, finish time Mon Dec  6 10:47:02 2021
 
 timestep 3.333333333303046e-06
 run 1 post no
-Setting up run at Fri Dec  3 15:16:16 2021
+Setting up run at Mon Dec  6 10:47:02 2021
 
-Memory usage per processor = 41.4109 Mbytes
+Memory usage per processor = 40.6476 Mbytes
     Step    Atoms         KinEng         Volume           Time 
-  246703    30000  0.00096103087      0.0004608      2.4666633 
-  246704    30000  0.00096098949      0.0004608      2.4666667 
-Loop time of 0.0150546 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:16:16 2021
+  246677    29954  0.00086795685      0.0004608      2.4666633 
+  246678    29954  0.00086792959      0.0004608      2.4666667 
+Loop time of 0.0159704 on 1 procs for 1 steps with 29954 atoms, finish time Mon Dec  6 10:47:02 2021
 
 timestep 1e-05
 run 833.0 post no
-Setting up run at Fri Dec  3 15:16:16 2021
+Setting up run at Mon Dec  6 10:47:02 2021
 
-Memory usage per processor = 41.4109 Mbytes
+Memory usage per processor = 40.6476 Mbytes
     Step    Atoms         KinEng         Volume           Time 
-  246704    30000  0.00096098949      0.0004608      2.4666667 
-  247000    30000  0.00096100822      0.0004608      2.4696267 
-  247537    30000  0.00096537656      0.0004608      2.4749967 
-Loop time of 13.4971 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:16:30 2021
+  246678    29954  0.00086792959      0.0004608      2.4666667 
+  247000    29954  0.00086874657      0.0004608      2.4698867 
+  247511    29954  0.00086331482      0.0004608      2.4749967 
+Loop time of 15.0213 on 1 procs for 833 steps with 29954 atoms, finish time Mon Dec  6 10:47:17 2021
 
 timestep 3.333333333303046e-06
 run 1 post no
-Setting up run at Fri Dec  3 15:16:30 2021
+Setting up run at Mon Dec  6 10:47:17 2021
 
-Memory usage per processor = 41.4109 Mbytes
+Memory usage per processor = 40.6476 Mbytes
     Step    Atoms         KinEng         Volume           Time 
-  247537    30000  0.00096537656      0.0004608      2.4749967 
-  247538    30000  0.00096533124      0.0004608          2.475 
-Loop time of 0.0141569 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:16:30 2021
+  247511    29954  0.00086331482      0.0004608      2.4749967 
+  247512    29954  0.00086326191      0.0004608          2.475 
+Loop time of 0.0142712 on 1 procs for 1 steps with 29954 atoms, finish time Mon Dec  6 10:47:18 2021
 
 timestep 1e-05
 run 833.0 post no
-Setting up run at Fri Dec  3 15:16:30 2021
+Setting up run at Mon Dec  6 10:47:18 2021
 
-Memory usage per processor = 41.4109 Mbytes
+Memory usage per processor = 40.6476 Mbytes
     Step    Atoms         KinEng         Volume           Time 
-  247538    30000  0.00096533124      0.0004608          2.475 
-  248000    30000  0.00095922616      0.0004608        2.47962 
-  248371    30000  0.00095516175      0.0004608        2.48333 
-Loop time of 13.5243 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:16:44 2021
+  247512    29954  0.00086326191      0.0004608          2.475 
+  248000    29954  0.00085615446      0.0004608        2.47988 
+  248345    29954  0.00085202304      0.0004608        2.48333 
+Loop time of 14.6529 on 1 procs for 833 steps with 29954 atoms, finish time Mon Dec  6 10:47:32 2021
 
 timestep 3.333333333303046e-06
 run 1 post no
-Setting up run at Fri Dec  3 15:16:44 2021
+Setting up run at Mon Dec  6 10:47:32 2021
 
-Memory usage per processor = 41.4109 Mbytes
+Memory usage per processor = 40.6476 Mbytes
     Step    Atoms         KinEng         Volume           Time 
-  248371    30000  0.00095516175      0.0004608        2.48333 
-  248372    30000  0.00095512038      0.0004608      2.4833333 
-Loop time of 0.0146178 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:16:44 2021
+  248345    29954  0.00085202304      0.0004608        2.48333 
+  248346    29954  0.00085195898      0.0004608      2.4833333 
+Loop time of 0.0151825 on 1 procs for 1 steps with 29954 atoms, finish time Mon Dec  6 10:47:33 2021
 
 timestep 1e-05
 run 833.0 post no
-Setting up run at Fri Dec  3 15:16:44 2021
+Setting up run at Mon Dec  6 10:47:33 2021
 
-Memory usage per processor = 41.4109 Mbytes
+Memory usage per processor = 40.6476 Mbytes
     Step    Atoms         KinEng         Volume           Time 
-  248372    30000  0.00095512038      0.0004608      2.4833333 
-  249000    30000  0.00095373631      0.0004608      2.4896133 
-  249205    30000  0.00095058613      0.0004608      2.4916633 
-Loop time of 13.5361 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:16:57 2021
+  248346    29954  0.00085195898      0.0004608      2.4833333 
+  249000    29954  0.00085387229      0.0004608      2.4898733 
+  249179    29954  0.00085431184      0.0004608      2.4916633 
+Loop time of 15.1851 on 1 procs for 833 steps with 29954 atoms, finish time Mon Dec  6 10:47:48 2021
 
 timestep 3.333333333303046e-06
 run 1 post no
-Setting up run at Fri Dec  3 15:16:57 2021
+Setting up run at Mon Dec  6 10:47:48 2021
 
-Memory usage per processor = 41.4109 Mbytes
+Memory usage per processor = 40.6476 Mbytes
     Step    Atoms         KinEng         Volume           Time 
-  249205    30000  0.00095058613      0.0004608      2.4916633 
-  249206    30000  0.00095054796      0.0004608      2.4916667 
-Loop time of 0.014652 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:16:58 2021
+  249179    29954  0.00085431184      0.0004608      2.4916633 
+  249180    29954  0.00085426292      0.0004608      2.4916667 
+Loop time of 0.0161745 on 1 procs for 1 steps with 29954 atoms, finish time Mon Dec  6 10:47:48 2021
 
 timestep 1e-05
 run 833.0 post no
-Setting up run at Fri Dec  3 15:16:58 2021
+Setting up run at Mon Dec  6 10:47:48 2021
 
-Memory usage per processor = 41.4109 Mbytes
+Memory usage per processor = 40.6476 Mbytes
     Step    Atoms         KinEng         Volume           Time 
-  249206    30000  0.00095054796      0.0004608      2.4916667 
-  250000    30000  0.00094072995      0.0004608      2.4996067 
-  250039    30000  0.00094089639      0.0004608      2.4999967 
-Loop time of 13.5836 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:17:11 2021
+  249180    29954  0.00085426292      0.0004608      2.4916667 
+  250000    29954  0.00085762361      0.0004608      2.4998667 
+  250013    29954  0.00085776755      0.0004608      2.4999967 
+Loop time of 15.2152 on 1 procs for 833 steps with 29954 atoms, finish time Mon Dec  6 10:48:04 2021
 
 timestep 3.333333333303046e-06
 run 1 post no
-Setting up run at Fri Dec  3 15:17:11 2021
+Setting up run at Mon Dec  6 10:48:04 2021
 
-Memory usage per processor = 41.4109 Mbytes
+Memory usage per processor = 40.6476 Mbytes
     Step    Atoms         KinEng         Volume           Time 
-  250039    30000  0.00094089639      0.0004608      2.4999967 
-  250040    30000  0.00094084874      0.0004608            2.5 
-Loop time of 0.0144543 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:17:12 2021
+  250013    29954  0.00085776755      0.0004608      2.4999967 
+  250014    29954  0.00085772202      0.0004608            2.5 
+Loop time of 0.0154177 on 1 procs for 1 steps with 29954 atoms, finish time Mon Dec  6 10:48:04 2021
 
 timestep 1e-05
 run 833.0 post no
-Setting up run at Fri Dec  3 15:17:12 2021
+Setting up run at Mon Dec  6 10:48:04 2021
 
-Memory usage per processor = 41.4109 Mbytes
+Memory usage per processor = 40.6476 Mbytes
     Step    Atoms         KinEng         Volume           Time 
-  250040    30000  0.00094084874      0.0004608            2.5 
-  250873    30000  0.00095727093      0.0004608        2.50833 
-Loop time of 13.5175 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:17:25 2021
+  250014    29954  0.00085772202      0.0004608            2.5 
+  250847    29954  0.00086576159      0.0004608        2.50833 
+Loop time of 15.4552 on 1 procs for 833 steps with 29954 atoms, finish time Mon Dec  6 10:48:20 2021
 
 timestep 3.333333333303046e-06
 run 1 post no
-Setting up run at Fri Dec  3 15:17:25 2021
+Setting up run at Mon Dec  6 10:48:20 2021
 
-Memory usage per processor = 41.4109 Mbytes
+Memory usage per processor = 40.6476 Mbytes
     Step    Atoms         KinEng         Volume           Time 
-  250873    30000  0.00095727093      0.0004608        2.50833 
-  250874    30000  0.00095724758      0.0004608      2.5083333 
-Loop time of 0.0140471 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:17:26 2021
+  250847    29954  0.00086576159      0.0004608        2.50833 
+  250848    29954  0.00086570412      0.0004608      2.5083333 
+Loop time of 0.0169007 on 1 procs for 1 steps with 29954 atoms, finish time Mon Dec  6 10:48:20 2021
 
 timestep 1e-05
 run 833.0 post no
-Setting up run at Fri Dec  3 15:17:26 2021
+Setting up run at Mon Dec  6 10:48:20 2021
 
-Memory usage per processor = 41.4109 Mbytes
+Memory usage per processor = 40.6476 Mbytes
     Step    Atoms         KinEng         Volume           Time 
-  250874    30000  0.00095724758      0.0004608      2.5083333 
-  251000    30000  0.00096113616      0.0004608      2.5095933 
-  251707    30000   0.0009549508      0.0004608      2.5166633 
-Loop time of 13.531 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:17:39 2021
+  250848    29954  0.00086570412      0.0004608      2.5083333 
+  251000    29954  0.00086424677      0.0004608      2.5098533 
+  251681    29954  0.00085722529      0.0004608      2.5166633 
+Loop time of 15.2954 on 1 procs for 833 steps with 29954 atoms, finish time Mon Dec  6 10:48:35 2021
 
 timestep 3.333333333303046e-06
 run 1 post no
-Setting up run at Fri Dec  3 15:17:39 2021
+Setting up run at Mon Dec  6 10:48:35 2021
 
-Memory usage per processor = 41.4109 Mbytes
+Memory usage per processor = 40.6476 Mbytes
     Step    Atoms         KinEng         Volume           Time 
-  251707    30000   0.0009549508      0.0004608      2.5166633 
-  251708    30000  0.00095491461      0.0004608      2.5166667 
-Loop time of 0.0141287 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:17:40 2021
+  251681    29954  0.00085722529      0.0004608      2.5166633 
+  251682    29954  0.00085717652      0.0004608      2.5166667 
+Loop time of 0.0157083 on 1 procs for 1 steps with 29954 atoms, finish time Mon Dec  6 10:48:35 2021
 
 timestep 1e-05
 run 833.0 post no
-Setting up run at Fri Dec  3 15:17:40 2021
+Setting up run at Mon Dec  6 10:48:36 2021
 
-Memory usage per processor = 41.4109 Mbytes
+Memory usage per processor = 40.6476 Mbytes
     Step    Atoms         KinEng         Volume           Time 
-  251708    30000  0.00095491461      0.0004608      2.5166667 
-  252000    30000  0.00095277455      0.0004608      2.5195867 
-  252541    30000  0.00094926808      0.0004608      2.5249967 
-Loop time of 13.5091 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:17:53 2021
+  251682    29954  0.00085717652      0.0004608      2.5166667 
+  252000    29954   0.0008566289      0.0004608      2.5198467 
+  252515    29954  0.00086412168      0.0004608      2.5249967 
+Loop time of 15.2888 on 1 procs for 833 steps with 29954 atoms, finish time Mon Dec  6 10:48:51 2021
 
 timestep 3.333333333303046e-06
 run 1 post no
-Setting up run at Fri Dec  3 15:17:53 2021
+Setting up run at Mon Dec  6 10:48:51 2021
 
-Memory usage per processor = 41.4109 Mbytes
+Memory usage per processor = 40.6476 Mbytes
     Step    Atoms         KinEng         Volume           Time 
-  252541    30000  0.00094926808      0.0004608      2.5249967 
-  252542    30000  0.00094920961      0.0004608          2.525 
-Loop time of 0.0141225 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:17:53 2021
+  252515    29954  0.00086412168      0.0004608      2.5249967 
+  252516    29954  0.00086407532      0.0004608          2.525 
+Loop time of 0.015751 on 1 procs for 1 steps with 29954 atoms, finish time Mon Dec  6 10:48:51 2021
 
 timestep 1e-05
 run 833.0 post no
-Setting up run at Fri Dec  3 15:17:53 2021
+Setting up run at Mon Dec  6 10:48:51 2021
 
-Memory usage per processor = 41.4109 Mbytes
+Memory usage per processor = 40.6476 Mbytes
     Step    Atoms         KinEng         Volume           Time 
-  252542    30000  0.00094920961      0.0004608          2.525 
-  253000    30000  0.00094121277      0.0004608        2.52958 
-  253375    30000   0.0009406331      0.0004608        2.53333 
-Loop time of 13.5279 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:18:07 2021
+  252516    29954  0.00086407532      0.0004608          2.525 
+  253000    29954  0.00086574282      0.0004608        2.52984 
+  253349    29954  0.00086436611      0.0004608        2.53333 
+Loop time of 15.438 on 1 procs for 833 steps with 29954 atoms, finish time Mon Dec  6 10:49:07 2021
 
 timestep 3.333333333303046e-06
 run 1 post no
-Setting up run at Fri Dec  3 15:18:07 2021
+Setting up run at Mon Dec  6 10:49:07 2021
 
-Memory usage per processor = 41.4109 Mbytes
+Memory usage per processor = 40.6476 Mbytes
     Step    Atoms         KinEng         Volume           Time 
-  253375    30000   0.0009406331      0.0004608        2.53333 
-  253376    30000  0.00094060313      0.0004608      2.5333333 
-Loop time of 0.0150878 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:18:07 2021
+  253349    29954  0.00086436611      0.0004608        2.53333 
+  253350    29954  0.00086430474      0.0004608      2.5333333 
+Loop time of 0.015287 on 1 procs for 1 steps with 29954 atoms, finish time Mon Dec  6 10:49:07 2021
 
 timestep 1e-05
 run 833.0 post no
-Setting up run at Fri Dec  3 15:18:07 2021
+Setting up run at Mon Dec  6 10:49:07 2021
 
-Memory usage per processor = 41.4109 Mbytes
+Memory usage per processor = 40.6476 Mbytes
     Step    Atoms         KinEng         Volume           Time 
-  253376    30000  0.00094060313      0.0004608      2.5333333 
-  254000    30000  0.00094005238      0.0004608      2.5395733 
-  254209    30000  0.00094077642      0.0004608      2.5416633 
-Loop time of 13.4235 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:18:21 2021
+  253350    29954  0.00086430474      0.0004608      2.5333333 
+  254000    29954  0.00085899845      0.0004608      2.5398333 
+  254183    29954  0.00085849088      0.0004608      2.5416633 
+Loop time of 15.5953 on 1 procs for 833 steps with 29954 atoms, finish time Mon Dec  6 10:49:23 2021
 
 timestep 3.333333333303046e-06
 run 1 post no
-Setting up run at Fri Dec  3 15:18:21 2021
+Setting up run at Mon Dec  6 10:49:23 2021
 
-Memory usage per processor = 41.4109 Mbytes
+Memory usage per processor = 40.6476 Mbytes
     Step    Atoms         KinEng         Volume           Time 
-  254209    30000  0.00094077642      0.0004608      2.5416633 
-  254210    30000  0.00094074141      0.0004608      2.5416667 
-Loop time of 0.0145479 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:18:21 2021
+  254183    29954  0.00085849088      0.0004608      2.5416633 
+  254184    29954  0.00085843909      0.0004608      2.5416667 
+Loop time of 0.0157705 on 1 procs for 1 steps with 29954 atoms, finish time Mon Dec  6 10:49:23 2021
 
 timestep 1e-05
 run 833.0 post no
-Setting up run at Fri Dec  3 15:18:21 2021
+Setting up run at Mon Dec  6 10:49:23 2021
 
-Memory usage per processor = 41.4109 Mbytes
+Memory usage per processor = 40.6476 Mbytes
     Step    Atoms         KinEng         Volume           Time 
-  254210    30000  0.00094074141      0.0004608      2.5416667 
-  255000    30000   0.0009470321      0.0004608      2.5495667 
-  255043    30000  0.00094695137      0.0004608      2.5499967 
-Loop time of 13.3917 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:18:35 2021
+  254184    29954  0.00085843909      0.0004608      2.5416667 
+  255000    29954  0.00085626442      0.0004608      2.5498267 
+  255017    29954  0.00085642938      0.0004608      2.5499967 
+Loop time of 15.6318 on 1 procs for 833 steps with 29954 atoms, finish time Mon Dec  6 10:49:39 2021
 
 timestep 3.333333333303046e-06
 run 1 post no
-Setting up run at Fri Dec  3 15:18:35 2021
+Setting up run at Mon Dec  6 10:49:39 2021
 
-Memory usage per processor = 41.4109 Mbytes
+Memory usage per processor = 40.6476 Mbytes
     Step    Atoms         KinEng         Volume           Time 
-  255043    30000  0.00094695137      0.0004608      2.5499967 
-  255044    30000  0.00094690905      0.0004608           2.55 
-Loop time of 0.0147408 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:18:35 2021
+  255017    29954  0.00085642938      0.0004608      2.5499967 
+  255018    29954  0.00085637863      0.0004608           2.55 
+Loop time of 0.0167829 on 1 procs for 1 steps with 29954 atoms, finish time Mon Dec  6 10:49:39 2021
 
 timestep 1e-05
 run 833.0 post no
-Setting up run at Fri Dec  3 15:18:35 2021
+Setting up run at Mon Dec  6 10:49:39 2021
 
-Memory usage per processor = 41.4109 Mbytes
+Memory usage per processor = 40.6476 Mbytes
     Step    Atoms         KinEng         Volume           Time 
-  255044    30000  0.00094690905      0.0004608           2.55 
-  255877    30000  0.00094805295      0.0004608        2.55833 
-Loop time of 13.3917 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:18:49 2021
+  255018    29954  0.00085637863      0.0004608           2.55 
+  255851    29954  0.00085969276      0.0004608        2.55833 
+Loop time of 15.3552 on 1 procs for 833 steps with 29954 atoms, finish time Mon Dec  6 10:49:55 2021
 
 timestep 3.333333333303046e-06
 run 1 post no
-Setting up run at Fri Dec  3 15:18:49 2021
+Setting up run at Mon Dec  6 10:49:55 2021
 
-Memory usage per processor = 41.4109 Mbytes
+Memory usage per processor = 40.6476 Mbytes
     Step    Atoms         KinEng         Volume           Time 
-  255877    30000  0.00094805295      0.0004608        2.55833 
-  255878    30000  0.00094801869      0.0004608      2.5583333 
-Loop time of 0.0145091 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:18:49 2021
+  255851    29954  0.00085969276      0.0004608        2.55833 
+  255852    29954  0.00085965631      0.0004608      2.5583333 
+Loop time of 0.0156111 on 1 procs for 1 steps with 29954 atoms, finish time Mon Dec  6 10:49:55 2021
 
 timestep 1e-05
 run 833.0 post no
-Setting up run at Fri Dec  3 15:18:49 2021
+Setting up run at Mon Dec  6 10:49:55 2021
 
-Memory usage per processor = 41.4109 Mbytes
+Memory usage per processor = 40.6476 Mbytes
     Step    Atoms         KinEng         Volume           Time 
-  255878    30000  0.00094801869      0.0004608      2.5583333 
-  256000    30000  0.00094720505      0.0004608      2.5595533 
-  256711    30000  0.00093853115      0.0004608      2.5666633 
-Loop time of 13.443 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:19:02 2021
+  255852    29954  0.00085965631      0.0004608      2.5583333 
+  256000    29954  0.00086203398      0.0004608      2.5598133 
+  256685    29954  0.00085367789      0.0004608      2.5666633 
+Loop time of 15.4711 on 1 procs for 833 steps with 29954 atoms, finish time Mon Dec  6 10:50:11 2021
 
 timestep 3.333333333303046e-06
 run 1 post no
-Setting up run at Fri Dec  3 15:19:02 2021
+Setting up run at Mon Dec  6 10:50:11 2021
 
-Memory usage per processor = 41.4109 Mbytes
+Memory usage per processor = 40.6476 Mbytes
     Step    Atoms         KinEng         Volume           Time 
-  256711    30000  0.00093853115      0.0004608      2.5666633 
-  256712    30000  0.00093849617      0.0004608      2.5666667 
-Loop time of 0.0149782 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:19:03 2021
+  256685    29954  0.00085367789      0.0004608      2.5666633 
+  256686    29954  0.00085361749      0.0004608      2.5666667 
+Loop time of 0.0158032 on 1 procs for 1 steps with 29954 atoms, finish time Mon Dec  6 10:50:11 2021
 
 timestep 1e-05
 run 833.0 post no
-Setting up run at Fri Dec  3 15:19:03 2021
+Setting up run at Mon Dec  6 10:50:11 2021
 
-Memory usage per processor = 41.4109 Mbytes
+Memory usage per processor = 40.6476 Mbytes
     Step    Atoms         KinEng         Volume           Time 
-  256712    30000  0.00093849617      0.0004608      2.5666667 
-  257000    30000  0.00093587027      0.0004608      2.5695467 
-  257545    30000  0.00094825146      0.0004608      2.5749967 
-Loop time of 13.2524 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:19:16 2021
+  256686    29954  0.00085361749      0.0004608      2.5666667 
+  257000    29954  0.00084839172      0.0004608      2.5698067 
+  257519    29954  0.00084562207      0.0004608      2.5749967 
+Loop time of 15.0874 on 1 procs for 833 steps with 29954 atoms, finish time Mon Dec  6 10:50:26 2021
 
 timestep 3.333333333303046e-06
 run 1 post no
-Setting up run at Fri Dec  3 15:19:16 2021
+Setting up run at Mon Dec  6 10:50:26 2021
 
-Memory usage per processor = 41.4109 Mbytes
+Memory usage per processor = 40.6476 Mbytes
     Step    Atoms         KinEng         Volume           Time 
-  257545    30000  0.00094825146      0.0004608      2.5749967 
-  257546    30000   0.0009482179      0.0004608          2.575 
-Loop time of 0.014353 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:19:16 2021
+  257519    29954  0.00084562207      0.0004608      2.5749967 
+  257520    29954  0.00084557886      0.0004608          2.575 
+Loop time of 0.0153197 on 1 procs for 1 steps with 29954 atoms, finish time Mon Dec  6 10:50:26 2021
 
 timestep 1e-05
 run 833.0 post no
-Setting up run at Fri Dec  3 15:19:16 2021
+Setting up run at Mon Dec  6 10:50:26 2021
 
-Memory usage per processor = 41.4109 Mbytes
+Memory usage per processor = 40.6476 Mbytes
     Step    Atoms         KinEng         Volume           Time 
-  257546    30000   0.0009482179      0.0004608          2.575 
-  258000    30000  0.00095518571      0.0004608        2.57954 
-  258379    30000  0.00095245984      0.0004608        2.58333 
-Loop time of 13.1488 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:19:30 2021
+  257520    29954  0.00084557886      0.0004608          2.575 
+  258000    29954  0.00084916028      0.0004608         2.5798 
+  258353    29954  0.00085173606      0.0004608        2.58333 
+Loop time of 14.9587 on 1 procs for 833 steps with 29954 atoms, finish time Mon Dec  6 10:50:41 2021
 
 timestep 3.333333333303046e-06
 run 1 post no
-Setting up run at Fri Dec  3 15:19:30 2021
+Setting up run at Mon Dec  6 10:50:41 2021
 
-Memory usage per processor = 41.4109 Mbytes
+Memory usage per processor = 40.6476 Mbytes
     Step    Atoms         KinEng         Volume           Time 
-  258379    30000  0.00095245984      0.0004608        2.58333 
-  258380    30000  0.00095242671      0.0004608      2.5833333 
-Loop time of 0.0147954 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:19:30 2021
+  258353    29954  0.00085173606      0.0004608        2.58333 
+  258354    29954  0.00085168878      0.0004608      2.5833333 
+Loop time of 0.0160692 on 1 procs for 1 steps with 29954 atoms, finish time Mon Dec  6 10:50:42 2021
 
 timestep 1e-05
 run 833.0 post no
-Setting up run at Fri Dec  3 15:19:30 2021
+Setting up run at Mon Dec  6 10:50:42 2021
 
-Memory usage per processor = 41.4109 Mbytes
+Memory usage per processor = 40.6476 Mbytes
     Step    Atoms         KinEng         Volume           Time 
-  258380    30000  0.00095242671      0.0004608      2.5833333 
-  259000    30000   0.0009648522      0.0004608      2.5895333 
-  259213    30000  0.00096242719      0.0004608      2.5916633 
-Loop time of 13.077 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:19:43 2021
+  258354    29954  0.00085168878      0.0004608      2.5833333 
+  259000    29954  0.00085606189      0.0004608      2.5897933 
+  259187    29954  0.00085598627      0.0004608      2.5916633 
+Loop time of 15.0232 on 1 procs for 833 steps with 29954 atoms, finish time Mon Dec  6 10:50:57 2021
 
 timestep 3.333333333303046e-06
 run 1 post no
-Setting up run at Fri Dec  3 15:19:43 2021
+Setting up run at Mon Dec  6 10:50:57 2021
 
-Memory usage per processor = 41.4109 Mbytes
+Memory usage per processor = 40.6476 Mbytes
     Step    Atoms         KinEng         Volume           Time 
-  259213    30000  0.00096242719      0.0004608      2.5916633 
-  259214    30000  0.00096238343      0.0004608      2.5916667 
-Loop time of 0.0141019 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:19:43 2021
+  259187    29954  0.00085598627      0.0004608      2.5916633 
+  259188    29954  0.00085592753      0.0004608      2.5916667 
+Loop time of 0.01585 on 1 procs for 1 steps with 29954 atoms, finish time Mon Dec  6 10:50:57 2021
 
 timestep 1e-05
 run 833.0 post no
-Setting up run at Fri Dec  3 15:19:43 2021
+Setting up run at Mon Dec  6 10:50:57 2021
 
-Memory usage per processor = 41.4109 Mbytes
+Memory usage per processor = 40.6476 Mbytes
     Step    Atoms         KinEng         Volume           Time 
-  259214    30000  0.00096238343      0.0004608      2.5916667 
-  260000    30000  0.00095557189      0.0004608      2.5995267 
-  260047    30000  0.00095524818      0.0004608      2.5999967 
-Loop time of 13.0395 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:19:56 2021
+  259188    29954  0.00085592753      0.0004608      2.5916667 
+  260000    29954  0.00085636007      0.0004608      2.5997867 
+  260021    29954  0.00085655126      0.0004608      2.5999967 
+Loop time of 14.8448 on 1 procs for 833 steps with 29954 atoms, finish time Mon Dec  6 10:51:12 2021
 
 timestep 3.333333333303046e-06
 run 1 post no
-Setting up run at Fri Dec  3 15:19:56 2021
+Setting up run at Mon Dec  6 10:51:12 2021
 
-Memory usage per processor = 41.4109 Mbytes
+Memory usage per processor = 40.6476 Mbytes
     Step    Atoms         KinEng         Volume           Time 
-  260047    30000  0.00095524818      0.0004608      2.5999967 
-  260048    30000  0.00095520415      0.0004608            2.6 
-Loop time of 0.0148448 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:19:57 2021
+  260021    29954  0.00085655126      0.0004608      2.5999967 
+  260022    29954  0.00085650637      0.0004608            2.6 
+Loop time of 0.0157055 on 1 procs for 1 steps with 29954 atoms, finish time Mon Dec  6 10:51:12 2021
 
 timestep 1e-05
 run 833.0 post no
-Setting up run at Fri Dec  3 15:19:57 2021
+Setting up run at Mon Dec  6 10:51:12 2021
 
-Memory usage per processor = 41.4109 Mbytes
+Memory usage per processor = 40.6476 Mbytes
     Step    Atoms         KinEng         Volume           Time 
-  260048    30000  0.00095520415      0.0004608            2.6 
-  260881    30000  0.00095945542      0.0004608        2.60833 
-Loop time of 12.9277 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:20:10 2021
+  260022    29954  0.00085650637      0.0004608            2.6 
+  260855    29954  0.00085991436      0.0004608        2.60833 
+Loop time of 14.9214 on 1 procs for 833 steps with 29954 atoms, finish time Mon Dec  6 10:51:27 2021
 
 timestep 3.333333333303046e-06
 run 1 post no
-Setting up run at Fri Dec  3 15:20:10 2021
+Setting up run at Mon Dec  6 10:51:27 2021
 
-Memory usage per processor = 41.4109 Mbytes
+Memory usage per processor = 40.6476 Mbytes
     Step    Atoms         KinEng         Volume           Time 
-  260881    30000  0.00095945542      0.0004608        2.60833 
-  260882    30000  0.00095941291      0.0004608      2.6083333 
-Loop time of 0.0149205 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:20:10 2021
+  260855    29954  0.00085991436      0.0004608        2.60833 
+  260856    29954  0.00085987366      0.0004608      2.6083333 
+Loop time of 0.0152976 on 1 procs for 1 steps with 29954 atoms, finish time Mon Dec  6 10:51:27 2021
 
 timestep 1e-05
 run 833.0 post no
-Setting up run at Fri Dec  3 15:20:10 2021
+Setting up run at Mon Dec  6 10:51:27 2021
 
-Memory usage per processor = 41.4109 Mbytes
+Memory usage per processor = 40.6476 Mbytes
     Step    Atoms         KinEng         Volume           Time 
-  260882    30000  0.00095941291      0.0004608      2.6083333 
-  261000    30000  0.00095797294      0.0004608      2.6095133 
-  261715    30000  0.00096311773      0.0004608      2.6166633 
-Loop time of 12.8016 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:20:23 2021
+  260856    29954  0.00085987366      0.0004608      2.6083333 
+  261000    29954  0.00086032097      0.0004608      2.6097733 
+  261689    29954  0.00085153336      0.0004608      2.6166633 
+Loop time of 14.7958 on 1 procs for 833 steps with 29954 atoms, finish time Mon Dec  6 10:51:42 2021
 
 timestep 3.333333333303046e-06
 run 1 post no
-Setting up run at Fri Dec  3 15:20:23 2021
+Setting up run at Mon Dec  6 10:51:42 2021
 
-Memory usage per processor = 41.4109 Mbytes
+Memory usage per processor = 40.6476 Mbytes
     Step    Atoms         KinEng         Volume           Time 
-  261715    30000  0.00096311773      0.0004608      2.6166633 
-  261716    30000  0.00096306998      0.0004608      2.6166667 
-Loop time of 0.0144305 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:20:23 2021
+  261689    29954  0.00085153336      0.0004608      2.6166633 
+  261690    29954  0.00085148709      0.0004608      2.6166667 
+Loop time of 0.0158947 on 1 procs for 1 steps with 29954 atoms, finish time Mon Dec  6 10:51:42 2021
 
 timestep 1e-05
 run 833.0 post no
-Setting up run at Fri Dec  3 15:20:23 2021
+Setting up run at Mon Dec  6 10:51:43 2021
 
-Memory usage per processor = 41.4109 Mbytes
+Memory usage per processor = 40.6476 Mbytes
     Step    Atoms         KinEng         Volume           Time 
-  261716    30000  0.00096306998      0.0004608      2.6166667 
-  262000    30000  0.00096352177      0.0004608      2.6195067 
-  262549    30000  0.00096700758      0.0004608      2.6249967 
-Loop time of 12.6809 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:20:36 2021
+  261690    29954  0.00085148709      0.0004608      2.6166667 
+  262000    29954   0.0008453759      0.0004608      2.6197667 
+  262523    29954  0.00084727827      0.0004608      2.6249967 
+Loop time of 14.6771 on 1 procs for 833 steps with 29954 atoms, finish time Mon Dec  6 10:51:57 2021
 
 timestep 3.333333333303046e-06
 run 1 post no
-Setting up run at Fri Dec  3 15:20:36 2021
+Setting up run at Mon Dec  6 10:51:57 2021
 
-Memory usage per processor = 41.4109 Mbytes
+Memory usage per processor = 40.6476 Mbytes
     Step    Atoms         KinEng         Volume           Time 
-  262549    30000  0.00096700758      0.0004608      2.6249967 
-  262550    30000  0.00096695737      0.0004608          2.625 
-Loop time of 0.015228 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:20:36 2021
+  262523    29954  0.00084727827      0.0004608      2.6249967 
+  262524    29954  0.00084722669      0.0004608          2.625 
+Loop time of 0.0161226 on 1 procs for 1 steps with 29954 atoms, finish time Mon Dec  6 10:51:57 2021
 
 timestep 1e-05
 run 833.0 post no
-Setting up run at Fri Dec  3 15:20:36 2021
+Setting up run at Mon Dec  6 10:51:58 2021
 
-Memory usage per processor = 41.4109 Mbytes
+Memory usage per processor = 40.6476 Mbytes
     Step    Atoms         KinEng         Volume           Time 
-  262550    30000  0.00096695737      0.0004608          2.625 
-  263000    30000  0.00096134152      0.0004608         2.6295 
-  263383    30000  0.00095602813      0.0004608        2.63333 
-Loop time of 12.6399 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:20:49 2021
+  262524    29954  0.00084722669      0.0004608          2.625 
+  263000    29954  0.00084257756      0.0004608        2.62976 
+  263357    29954   0.0008469509      0.0004608        2.63333 
+Loop time of 14.81 on 1 procs for 833 steps with 29954 atoms, finish time Mon Dec  6 10:52:12 2021
 
 timestep 3.333333333303046e-06
 run 1 post no
-Setting up run at Fri Dec  3 15:20:49 2021
+Setting up run at Mon Dec  6 10:52:12 2021
 
-Memory usage per processor = 41.4109 Mbytes
+Memory usage per processor = 40.6476 Mbytes
     Step    Atoms         KinEng         Volume           Time 
-  263383    30000  0.00095602813      0.0004608        2.63333 
-  263384    30000  0.00095598676      0.0004608      2.6333333 
-Loop time of 0.0142459 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:20:49 2021
+  263357    29954   0.0008469509      0.0004608        2.63333 
+  263358    29954  0.00084691504      0.0004608      2.6333333 
+Loop time of 0.0156366 on 1 procs for 1 steps with 29954 atoms, finish time Mon Dec  6 10:52:13 2021
 
 timestep 1e-05
 run 833.0 post no
-Setting up run at Fri Dec  3 15:20:49 2021
+Setting up run at Mon Dec  6 10:52:13 2021
 
-Memory usage per processor = 41.4109 Mbytes
+Memory usage per processor = 40.6476 Mbytes
     Step    Atoms         KinEng         Volume           Time 
-  263384    30000  0.00095598676      0.0004608      2.6333333 
-  264000    30000   0.0009543281      0.0004608      2.6394933 
-  264217    30000   0.0009580719      0.0004608      2.6416633 
-Loop time of 12.5095 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:21:02 2021
+  263358    29954  0.00084691504      0.0004608      2.6333333 
+  264000    29954  0.00085336655      0.0004608      2.6397533 
+  264191    29954  0.00085558062      0.0004608      2.6416633 
+Loop time of 14.3261 on 1 procs for 833 steps with 29954 atoms, finish time Mon Dec  6 10:52:27 2021
 
 timestep 3.333333333303046e-06
 run 1 post no
-Setting up run at Fri Dec  3 15:21:02 2021
+Setting up run at Mon Dec  6 10:52:27 2021
 
-Memory usage per processor = 41.4109 Mbytes
+Memory usage per processor = 40.6476 Mbytes
     Step    Atoms         KinEng         Volume           Time 
-  264217    30000   0.0009580719      0.0004608      2.6416633 
-  264218    30000  0.00095804485      0.0004608      2.6416667 
-Loop time of 0.0147671 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:21:02 2021
+  264191    29954  0.00085558062      0.0004608      2.6416633 
+  264192    29954  0.00085553366      0.0004608      2.6416667 
+Loop time of 0.0161523 on 1 procs for 1 steps with 29954 atoms, finish time Mon Dec  6 10:52:27 2021
 
 timestep 1e-05
 run 833.0 post no
-Setting up run at Fri Dec  3 15:21:02 2021
+Setting up run at Mon Dec  6 10:52:27 2021
 
-Memory usage per processor = 41.4109 Mbytes
+Memory usage per processor = 40.6476 Mbytes
     Step    Atoms         KinEng         Volume           Time 
-  264218    30000  0.00095804485      0.0004608      2.6416667 
-  265000    30000  0.00095946752      0.0004608      2.6494867 
-  265051    30000  0.00095974425      0.0004608      2.6499967 
-Loop time of 12.4168 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:21:14 2021
+  264192    29954  0.00085553366      0.0004608      2.6416667 
+  265000    29954  0.00084999698      0.0004608      2.6497467 
+  265025    29954  0.00085014778      0.0004608      2.6499967 
+Loop time of 14.37 on 1 procs for 833 steps with 29954 atoms, finish time Mon Dec  6 10:52:42 2021
 
 timestep 3.333333333303046e-06
 run 1 post no
-Setting up run at Fri Dec  3 15:21:14 2021
+Setting up run at Mon Dec  6 10:52:42 2021
 
-Memory usage per processor = 41.4109 Mbytes
+Memory usage per processor = 40.6476 Mbytes
     Step    Atoms         KinEng         Volume           Time 
-  265051    30000  0.00095974425      0.0004608      2.6499967 
-  265052    30000  0.00095970539      0.0004608           2.65 
-Loop time of 0.0141878 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:21:14 2021
+  265025    29954  0.00085014778      0.0004608      2.6499967 
+  265026    29954  0.00085010531      0.0004608           2.65 
+Loop time of 0.015601 on 1 procs for 1 steps with 29954 atoms, finish time Mon Dec  6 10:52:42 2021
 
 timestep 1e-05
 run 833.0 post no
-Setting up run at Fri Dec  3 15:21:14 2021
+Setting up run at Mon Dec  6 10:52:42 2021
 
-Memory usage per processor = 41.4109 Mbytes
+Memory usage per processor = 40.6476 Mbytes
     Step    Atoms         KinEng         Volume           Time 
-  265052    30000  0.00095970539      0.0004608           2.65 
-  265885    30000  0.00096112106      0.0004608        2.65833 
-Loop time of 12.3317 on 1 procs for 833 steps with 30000 atoms, finish time Fri Dec  3 15:21:27 2021
+  265026    29954  0.00085010531      0.0004608           2.65 
+  265859    29954  0.00085318052      0.0004608        2.65833 
+Loop time of 14.1824 on 1 procs for 833 steps with 29954 atoms, finish time Mon Dec  6 10:52:56 2021
 
 timestep 3.333333333303046e-06
 run 1 post no
-Setting up run at Fri Dec  3 15:21:27 2021
+Setting up run at Mon Dec  6 10:52:56 2021
 
-Memory usage per processor = 41.4109 Mbytes
+Memory usage per processor = 40.6476 Mbytes
     Step    Atoms         KinEng         Volume           Time 
-  265885    30000  0.00096112106      0.0004608        2.65833 
-  265886    30000  0.00096108079      0.0004608      2.6583333 
-Loop time of 0.0145919 on 1 procs for 1 steps with 30000 atoms, finish time Fri Dec  3 15:21:27 2021
+  265859    29954  0.00085318052      0.0004608        2.65833 
+  265860    29954  0.00085312543      0.0004608      2.6583333 
+Loop time of 0.0156854 on 1 procs for 1 steps with 29954 atoms, finish time Mon Dec  6 10:52:56 2021
 
 timestep 1e-05

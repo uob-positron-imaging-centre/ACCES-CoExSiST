@@ -7,22 +7,23 @@ log simulation_inputs/granudrum_mcc_000000.log
 # Simulation constants
 variable timestep       equal 1e-5
 variable rotationPeriod equal 60/45         # s per revolution
-variable N equal 30000.0
+variable N equal 29954.0
 variable NRate          equal ${N}/0.1      # Particle insertion rate
 
 
 variable youngmodP      equal 5e6
 variable poissP         equal 0.3
 
-variable fricPP equal 0.4
-variable fricPW equal 0.4
-variable fricPSW equal 0.4
+variable fricPP equal 0.3197
+variable fricPW equal 0.3197
+variable fricPSW equal 0.3197
+variable fricPSW        equal 0.3197        # Optimise
 variable fric           equal 0.5           # Dummy value, Wall-Sidewall
-
-variable fricRollPP equal 0.1
-variable fricRollPW equal 0.1
-variable fricRollPSW equal 0.1
-variable fricRoll       equal 0.5           # Dummy value, Wall-Sidewall
+variable fricRollPP equal 0.00248
+variable fricRollPW equal 0.00248
+variable fricRollPSW equal 0.00248
+variable fricRollPSW    equal 0.00248       # Optimise
+variable fricRoll       equal 0.00248       # Dummy value, Wall-Sidewall
 
 variable corPP          equal 0.3           # Optimise
 variable corPW          equal 0.3           # Optimise
