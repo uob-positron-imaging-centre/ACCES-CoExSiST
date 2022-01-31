@@ -45,7 +45,7 @@ class UploadCommand(setuptools.Command):
     @staticmethod
     def status(s):
         """Prints things in bold."""
-        print('\033[1m{0}\033[0m'.format(s))
+        print(f'\033[1m{s}\033[0m')
 
     def initialize_options(self):
         pass
@@ -67,7 +67,7 @@ class UploadCommand(setuptools.Command):
         os.system('twine upload dist/*')
 
         self.status('Pushing git tags…')
-        os.system('git tag v{0}'.format(about['__version__']))
+        os.system(f'git tag v{about["__version__"]}')
         os.system('git push --tags')
 
         sys.exit()
@@ -75,14 +75,21 @@ class UploadCommand(setuptools.Command):
 
 setuptools.setup(
     name = "coexist",
-    version = "0.1.0",
+    version = about["__version__"],
     author = (
         "Andrei Leonard Nicusan <a.l.nicusan@bham.ac.uk>, "
         "Dominik Werner <d.werner.1@bham.ac.uk>"
     ),
 
-    keywords = "simulation optimisation DEM",
-    description = "Coupling experimental granular data with DEM simulations",
+    keywords = (
+        "simulation optimization calibration parameter-estimation "
+        "parameter-tuning physics-simulation computational-fluid-dynamics"
+        "granular DEM discrete-element-method medical-imaging"
+    ),
+    description = (
+        "Learning simulation parameters from experimental data, from the "
+        "micro to the macro, from the laptop to the cluster."
+    ),
     long_description = long_description,
     long_description_content_type = "text/markdown",
     url = "https://github.com/uob-positron-imaging-centre/Coexist",
@@ -94,17 +101,33 @@ setuptools.setup(
 
     license = 'GNU',
     classifiers = [
-        "Programming Language :: Python :: 3",
-        "Development Status :: 2 - Pre-Alpha",
+        "Development Status :: 4 - Beta",
+        "Intended Audience :: Education",
         "Intended Audience :: Science/Research",
+        "Intended Audience :: Healthcare Industry",
+        "Intended Audience :: Manufacturing",
         "License :: OSI Approved :: GNU General Public License v3 or later " +
         "(GPLv3+)",
         "Operating System :: OS Independent",
+        "Programming Language :: Python",
+        "Programming Language :: Python :: 3.6",
+        "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
+        "Topic :: Education",
         "Topic :: Scientific/Engineering",
         "Topic :: Scientific/Engineering :: Physics",
+        "Topic :: Scientific/Engineering :: Artificial Intelligence",
+        "Topic :: Scientific/Engineering :: Artificial Life",
+        "Topic :: Scientific/Engineering :: Mathematics",
+        "Topic :: System :: Distributed Computing",
+        "Topic :: System :: Clustering",
     ],
 
     python_requires = '>=3.6',
+
     # $ setup.py publish support.
     cmdclass = {
         'upload': UploadCommand,

@@ -1,0 +1,12 @@
+[flake8]
+ignore = E303, E271, E272, W504, E251
+
+# I like whitespace and indentation - the easier my eyes parse, the quicker and
+# more productive I am
+# E303: too many blank lines
+# E271: multiple spaces after keyword
+# E272: multiple spaces before keyword
+# W504: line break after binary operator
+
+# Controversial, but I don't like fun(x=2, y=3) - I prefer fun(x = 2, y = 3)
+# E251: unexpected spaces around keyword / parameter equals

@@ -34,7 +34,6 @@ class Scheduler(ABC):
     `job_submission.sh` SLURM script must be generated beforehand. This is
     implemented in the ``SlurmScheduler`` class.
 
-
     **Subclassing:**
 
     If you want to implement a concrete scheduler for another system, subclass
@@ -44,7 +43,6 @@ class Scheduler(ABC):
     - Return a list of the system commands to be prepended to the Python
       scripts (e.g. ["python3"] and ["sbatch", "job_submission.sh"] in the
       examples above).
-
     '''
 
     @abstractmethod
@@ -86,7 +84,7 @@ class SlurmScheduler(Scheduler):
     ----------
     time : str
         The time allocated for *a single simulation*, given as a string, e.g.
-        "1:0:0". Will be added as "#SBATCH --time 1:0:0"
+        "1:0:0". Will be added as "#SBATCH --time 1:0:0".
 
     qos : str, optional
         The "#SBATCH --qos bbdefault" ``sbatch`` command.
@@ -136,7 +134,6 @@ class SlurmScheduler(Scheduler):
     >>>     account = "windowcr-rt-royalsociety",
     >>>     constraint = "cascadelake",   # Any other #SBATCH --<CMD> = "VAL"
     >>> )
-
     '''
 
     def __init__(

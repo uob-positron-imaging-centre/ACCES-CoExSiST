@@ -7,8 +7,11 @@
 
 import coexist
 
-# Use path to either the `access_info_<hash>` folder itself, or the parent
+# Use path to either the `access_<seed>` folder itself, or the parent
 access_data = coexist.AccessData.read(".")
 
 fig = coexist.plots.access2d(access_data)
 fig.show()
+
+# Or more tersely:
+# coexist.plots.access2d(".").show()
