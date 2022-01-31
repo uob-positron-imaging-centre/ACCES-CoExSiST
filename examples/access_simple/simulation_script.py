@@ -17,26 +17,25 @@ Importantly, use `parameters.at[<free parameter name>, "value"]` to get this
 simulation's free / optimisable variable values.
 '''
 
-#### ACCESS PARAMETERS START
+# ACCESS PARAMETERS START
 import coexist
 parameters = coexist.create_parameters(
-    variables = ["cor", "separation"],
-    minimums = [-3, -7],
-    maximums = [+5, +3],
-    values = [3, 2],                # Optional, initial guess
+    variables = ["CED", "CoR", "Epsilon", "Mu"],
+    minimums = [-5, -5, -5, -5],
+    maximums = [+5, +5, +5, +5],
+    values = [0, 0, 0, 0],          # Optional, initial guess
 )
 
 access_id = 0                       # Optional, unique ID for each simulation
-#### ACCESS PARAMETERS END
+# ACCESS PARAMETERS END
 
 
 # Extract variables
-x = parameters.at["cor", "value"]
-y = parameters.at["separation", "value"]
+x = parameters["value"][0]
+y = parameters["value"][1]
+z = parameters["value"][2]
+t = parameters["value"][3]
 
 
 # Define the error value in any way - run a simulation, analyse data, etc.
-a = 1
-b = 100
-
-error = (a - x) ** 2 + b * (y - x ** 2) ** 2
+error = (x**2 + y - 11)**2 + (x + y**2 - 7)**2 + z * t

@@ -28,19 +28,12 @@ Exported functionality related to the ACCES macro calibration suite.
 
 
 
-.. toctree::
-   :caption: Submodules
-
-   schedulers
-   plots
-
-
-
 LIGGGHTS
 ========
 
 Helpers for driving LIGGGHTS simulations with less code that is more memory efficient and
-error-proof.
+error-proof. **You need the** ``liggghts`` **Python interface to LIGGGHTS to be installed to
+use** ``LiggghtsSimulation``. The `PICI-LIGGGHTS <https://github.com/uob-positron-imaging-centre/PICI-LIGGGHTS>`_ repository has instructions for this.
 
 .. autosummary::
    :toctree: generated/
@@ -49,5 +42,17 @@ error-proof.
    coexist.Simulation
    coexist.to_vtk
 
+
+
+
+Submodules
+==========
+
+.. toctree::
+   :caption: Submodules
+
+   access
+   plots
+   schedulers
 
 
