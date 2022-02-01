@@ -87,7 +87,7 @@ If you use this library in your research, you are kindly asked to cite:
 
 Until the ACCES paper is published, you may cite this repository:
 
-> Nicusan AL, Werner D, Seville JPK, Windows-Yule CR. ACCES: Autonomous Characterisation and Calibration via Evolutionary Simulation. GitHub repository. 2021 December 1.
+> Nicusan AL, Werner D, Sykes J, Seville JPK, Windows-Yule CR. ACCES: Autonomous Characterisation and Calibration via Evolutionary Simulation. GitHub repository. 2022 February 1.
 
 
 
@@ -103,6 +103,7 @@ Copyright (C) 2020-2021 the Coexist developers. Until now, this library was buil
 
 - Andrei Leonard Nicusan (University of Birmingham)
 - Dominik Werner (University of Birmingham)
+- Jack Sykes (University of Birmingham)
 - Dr. Kit Windows-Yule (University of Birmingham)
 - Prof. Jonathan Seville (University of Birmingham)
 
