@@ -16,7 +16,7 @@ ACCES is ready for production use; it was successfully used to calibrate coarse-
 
 
 ![Calibrated GranuDrum](/docs/source/_static/calibrated.png?raw=true "Calibrated GranuDrum.")
-*Example of an ACCES-calibrated DEM Digital Twin of a GranuTools GranuDrum; the calibration was done effectively against a single experimental data point - a photograph of the free surface shape yielded by MCC particles (left panel). The occupancy grid of a LIGGGHTS simulation was optimised against the free surface shape (middle panel).*
+*Example of an ACCES-calibrated DEM Digital Twin of a GranuTools GranuDrum; the calibration was done effectively against a single experimental data point - a photograph of the free surface shape yielded by MCC particles (left panel). The occupancy grid of a LIGGGHTS simulation was optimised against the free surface shape (right panel). The two superimposed grids amount to 4 mm² dissimilarity (dark blue pixels, middle panel).*
 
 
 ACCES was implemented in the `coexist.Access` class, providing an interface that is easy to use, but powerful enough to **automatically parallelise arbitrary Python scripts** through code inspection and metaprogramming. It was used successfully from laptop-scale shared-memory machines to multi-node supercomputing clusters.
@@ -42,7 +42,17 @@ pip install git+https://github.com/uob-positron-imaging-centre/Coexist
 
 The [documentation](https://coexist.readthedocs.io/) website contains an ACCES [tutorial](https://coexist.readthedocs.io/en/latest/tutorials/index.html) with explained code and output figures produced by `coexist`; all public functionality is fully documented in the [manual](https://coexist.readthedocs.io/en/latest/manual/index.html).
 
-Want something more hands on? Check out the `examples` folder for example scripts using `coexist.Coexist` and `coexist.Access`; `examples/access_simple` is a very simple, hackable example script (remember that the `simulation_script.py` can execute *anything*), while `examples/access_granudrum` contains a more involved LIGGGHTS digital twin of a GranuTools GranuDrum, calibrated against an experimental image.
+Want something more hands on? Check out the `examples` folder for example scripts using `coexist.Coexist` and `coexist.Access`; `examples/access_simple` is a very simple, hackable example script (remember that the `simulation_script.py` can execute *anything*). For a more involved, complete calibration of a GranuTools GranuDrum digital twin - using LIGGGHTS - see our collection of peer-reviewed digital twins [repository](https://github.com/uob-positron-imaging-centre/DigitalTwins).
+
+
+![GranuDrum ACCES Example](/docs/source/_static/access_example.png?raw=true "GranuDrum ACCES Example.")
+
+
+The `coexist.plots` submodule can plot the convergence of ACCES onto optimally-calibrated parameters - or check intermediate results while your 50-hour simulations run:
+
+
+![Convergence Plot](/docs/source/_static/access_example.png?raw=true "ACCES Convergence Plot.")
+
 
 
 
