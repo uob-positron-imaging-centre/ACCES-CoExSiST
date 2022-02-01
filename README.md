@@ -51,7 +51,7 @@ Want something more hands on? Check out the `examples` folder for example script
 The `coexist.plots` submodule can plot the convergence of ACCES onto optimally-calibrated parameters - or check intermediate results while your 50-hour simulations run:
 
 
-![Convergence Plot](/docs/source/_static/access_example.png?raw=true "ACCES Convergence Plot.")
+![Convergence Plot](/docs/source/_static/access_convergence.png?raw=true "ACCES Convergence Plot.")
 
 
 
