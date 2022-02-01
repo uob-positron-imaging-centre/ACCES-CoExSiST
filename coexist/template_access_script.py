@@ -7,7 +7,7 @@
 '''Run a user-defined simulation script with a given set of free parameter
 values, then save the `error` value to disk.
 
-Access takes an arbitrary simulation script that defines its set of free
+ACCES takes an arbitrary simulation script that defines its set of free
 parameters between two `# ACCESS PARAMETERS START / END` directives and
 substitutes them with an ACCESS-predicted solution. After the simulation, it
 saves the `error` variable to disk.
@@ -20,7 +20,7 @@ called in a massively parallel environment with two command-line arguments:
     1. The path to this run's `parameters`, as predicted by ACCESS.
     2. A path to save the user-defined `error` variable to.
 
-You can find them in the `access_info_<seed>/simulations` directory.
+You can find them in the `access_seed<seed>/results` directory.
 '''
 
 
@@ -41,5 +41,6 @@ with open(sys.argv[2], "wb") as f:
 
 if "extra" in locals() or "extra" in globals():
     path = os.path.split(sys.argv[2])
-    with open(path[0] + path[1].replace("result", "extra"), "wb") as f:
+    path = os.path.join(path[0], path[1].replace("result", "extra"))
+    with open(path, "wb") as f:
         pickle.dump(extra, f)

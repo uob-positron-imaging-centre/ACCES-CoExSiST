@@ -11,7 +11,7 @@ from textwrap import indent
 
 
 
-def auto_repr(c):
+def autorepr(c):
     '''Automatically create a `__repr__` method for pretty-printing class
     attributes; they are discovered at runtime following some rules:
 
