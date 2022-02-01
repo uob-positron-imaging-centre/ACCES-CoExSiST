@@ -11,10 +11,21 @@ import textwrap
 import coexist
 
 
+def test_access_data():
+    # Current, modern format
+    data = coexist.AccessData.read("access_data/access_seed123")
+    print(data)
+
+    # Legacy coexist-0.1.0 format
+    data = coexist.AccessData.read("access_data/access_info_000042")
+    print(data)
+
+
 def test_access():
     # Simple, idiomatic, correct test
     code = textwrap.dedent('''
         # ACCESS PARAMETERS START
+        import sys
         import coexist
 
         parameters = coexist.create_parameters(
@@ -23,6 +34,9 @@ def test_access():
             [10, 10, 10],
         )
         # ACCESS PARAMETERS END
+
+        print("Example stdout message.")
+        print("Example stderr message.", file=sys.stderr)
 
         values = parameters["value"]
         error = values["fp1"]**2 + values["fp2"]**2
@@ -45,6 +59,7 @@ def test_access():
     # Weird parameters directives
     code = textwrap.dedent('''
         #####   ACCES \t PARAMETERS    START\tmama mia pizzeria
+        import sys
         import coexist
 
         parameters = coexist.create_parameters(
@@ -53,6 +68,9 @@ def test_access():
             [10, 10, 10],
         )
         ##   ACCESS   PARAMETERS   END
+
+        print("Example stdout message.")
+        print("Example stderr message.", file=sys.stderr)
 
         values = parameters["value"]
         error = values["fp1"]**2 + values["fp2"]**2 + values["fp3"]**4
@@ -63,3 +81,19 @@ def test_access():
         f.write(code)
 
     coexist.Access(file).learn(random_seed = 124)
+
+
+def test_access_plots():
+    # Using AccessData
+    data = coexist.AccessData.read("access_data/access_seed123")
+    coexist.plots.access(data)
+    coexist.plots.access2d(data)
+
+    # Using the filepaths only
+    coexist.plots.access("access_data/access_seed123")
+    coexist.plots.access2d("access_data/access_seed123")
+
+
+if __name__ == "__main__":
+    test_access_data()
+    test_access()

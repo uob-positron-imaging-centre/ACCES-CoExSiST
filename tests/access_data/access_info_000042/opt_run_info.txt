@@ -1,0 +1,21 @@
+--------------------------------------------------------
+Starting ACCESS run at 14:21:00 - 01/30/22
+
+Generated ACCESS code:    access_info_000042/access_code.py
+ACCESS parameters:
+            value  min  max  sigma
+cor           3.0 -3.0  5.0    3.2
+separation    2.0 -7.0  3.0    4.0
+
+target_sigma =            0.1
+num_solutions =           10
+random_seed =             42
+
+save_path =               access_info_000042
+simulations_path =        access_info_000042/simulations
+outputs_path =            access_info_000042/outputs
+
+history_path =            access_info_000042/opt_history_10.csv
+history_scaled_path =     access_info_000042/opt_history_10_scaled.csv
+--------------------------------------------------------
+
