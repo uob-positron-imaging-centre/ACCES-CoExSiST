@@ -1,0 +1,41 @@
+--------------------------------------------------------------------------------
+Starting ACCESS run at 14:02:38 on 01/02/2022
+
+Access
+------
+paths = 
+  AccessPaths
+  -----------
+  directory = access_seed123
+  epochs = access_seed123/epochs_pop8.csv
+  epochs_scaled = access_seed123/epochs_pop8_scaled.csv
+  history = access_seed123/history_pop8.csv
+  history_scaled = access_seed123/history_pop8_scaled.csv
+  outputs = access_seed123/outputs
+  results = access_seed123/results
+  script = access_seed123/access_script.py
+  setup = access_seed123/access_setup.pickle
+progress = 
+  AccessProgress
+  --------------
+  epochs = None
+  epochs_scaled = None
+  history = None
+  history_scaled = None
+  stderr = None
+  stdout = None
+setup = 
+  AccessSetup
+  -----------
+  parameters = 
+         value  min   max  sigma
+    fp1    2.5 -5.0  10.0    6.0
+    fp2    2.5 -5.0  10.0    6.0
+    fp3    2.5 -5.0  10.0    6.0
+  population = 8
+  rng = Generator(PCG64)
+  scheduler_cmd = ['/home/andreinicusan/anaconda3/envs/coexist-dev37/...
+  script = #!/usr/bin/env python3\n# -*- coding: utf-8 -*-\n# File   ...
+  seed = 123
+  target = 0.1
+verbose = 4
