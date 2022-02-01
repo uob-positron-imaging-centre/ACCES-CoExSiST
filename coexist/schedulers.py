@@ -11,6 +11,8 @@ import  sys
 from    abc         import  ABC, abstractmethod
 
 
+
+
 class Scheduler(ABC):
     '''An abstract class defining the interface that concrete schedulers need
     to implement.
@@ -48,6 +50,7 @@ class Scheduler(ABC):
     @abstractmethod
     def generate(self):
         pass
+
 
 
 

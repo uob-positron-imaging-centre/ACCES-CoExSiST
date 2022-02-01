@@ -12,6 +12,8 @@ import textwrap
 import astunparse
 
 
+
+
 def code_contains_variables(code, variables, root = False):
     '''Check whether the given `code` (either string or list of strings)
     defines multiple `variables` names (a string or list of strings).

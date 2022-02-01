@@ -12,10 +12,10 @@ import  textwrap
 import  subprocess
 import  pickle
 
-import  attr
 import  numpy               as      np
 import  pandas              as      pd
 import  cma
+from    attrs               import  define
 
 import  coexist
 from    coexist             import  Simulation, Experiment
@@ -908,7 +908,7 @@ class Coexist:
 
 
 
-@attr.s(auto_attribs = True)
+@define(slots = False)
 class AccessInfo:
     '''Legacy class here only for backwards-compatibility in AccessData.legacy.
     Needs to be in `coexist/optimisation.py`.
