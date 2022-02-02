@@ -178,7 +178,11 @@ class SlurmScheduler(Scheduler):
                 f.write(f"#SBATCH --qos {self.qos}\n")
 
             if self.account is not None:
-                f.write(f"#SBATCH --account {self.account}\n")
+                acc = self.accounts
+                f.write(
+                    "#SBATCH --account " +
+                    f"{acc}\n" # lgtm [py/clear-text-storage-sensitive-data]
+                )
 
             if self.mail_type is not None:
                 f.write(f"#SBATCH --mail-type {self.mail_type}\n")
@@ -202,10 +206,15 @@ class SlurmScheduler(Scheduler):
                 f.write(f"#SBATCH --{key.replace('_', '-')} {val}\n")
 
             f.write("\n\n")
-            for cmd in self.commands:
-                if not cmd.endswith("\n"):
-                    cmd += "\n"
+            if isinstance(cmd, str):
                 f.write(cmd)
+            else:
+                for cmd in self.commands:
+                    # Small convenience, but if the strings in the list of
+                    # commands don't end with a '\n', append it
+                    if not cmd.endswith("\n"):
+                        cmd += "\n"
+                    f.write(cmd)
 
             f.write((
                 "\n\n# Run a single function evaluation with all command-line "

@@ -55,8 +55,8 @@ for i, t in enumerate(tqdm(simulation_times)):
     times.append(t)
 
 # Save the particle locations as numpy arrays in binary format
-positions = np.array(positions)
-times = np.array(times)
+# positions = np.array(positions)
+# times = np.array(times)
 
 
 # Test auto timesteps
