@@ -177,7 +177,6 @@ def access(
     epochs_scaled = access_data.epochs_scaled.to_numpy()
 
     ns = access_data.population
-    num_epochs = access_data.num_epochs
 
     # The number of parameters
     num_parameters = len(parameters)
@@ -339,9 +338,6 @@ def access(
 
     # Set graph ranges and axis labels
     for i in range(num_parameters):
-        row = i // ncols + 1
-        col = i % ncols + 1
-
         xaxis = "xaxis" if i == 0 else f"xaxis{i + 1}"
         yaxis = "yaxis" if i == 0 else f"yaxis{i + 1}"
 

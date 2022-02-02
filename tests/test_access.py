@@ -97,3 +97,4 @@ def test_access_plots():
 if __name__ == "__main__":
     test_access_data()
     test_access()
+    test_access_plots()

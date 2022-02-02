@@ -17,7 +17,6 @@ import  pandas              as      pd
 import  cma
 from    attrs               import  define
 
-import  coexist
 from    coexist             import  Simulation, Experiment
 
 
