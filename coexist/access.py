@@ -22,7 +22,6 @@ import  pandas              as      pd
 import  cma
 from    attrs               import  define
 
-import  coexist
 from    coexist             import  Simulation
 from    coexist             import  schedulers
 
@@ -1349,27 +1348,11 @@ class AccessData:
         history = np.loadtxt(history_path)
         history_scaled = np.loadtxt(history_scaled_path)
 
-        results_columns = list(access_info.parameters.index)
-        results_columns += [rc + "_std" for rc in results_columns]
-        results_columns += ["overall_std", "error"]
-
-        results = pd.DataFrame(
-            data = history,
-            columns = results_columns,
-            dtype = float,
-        )
-
-        results_scaled = pd.DataFrame(
-            data = history_scaled,
-            columns = results_columns,
-            dtype = float,
-        )
-
         # Translate legacy data into modern format
         def __repr__(self):
             return "AccessFileNotFoundLegacy"
 
-        notfound = type("FileNotFoundLegacy", (), {})
+        notfound = type("AccessFileNotFoundLegacy", (), {})
         notfound.__repr__ = __repr__
         notfound = notfound()
 
