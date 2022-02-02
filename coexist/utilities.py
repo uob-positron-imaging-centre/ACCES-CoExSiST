@@ -6,19 +6,21 @@
 # Date   : 04.08.2021
 
 
-from textwrap import indent
+import  sys
+import  signal
+from    textwrap    import  indent
 
 
 
 
 def autorepr(c):
-    '''Automatically create a `__repr__` method for pretty-printing class
-    attributes; they are discovered at runtime following some rules:
+    '''Automatically create a ``__repr__`` method for pretty-printing class
+    attributes; they are discovered at runtime following some rules.
 
     1. Attribute names do not start with underscores and are not callable.
-    2. If the class attribute `_repr_hidden` (set[str]) is defined, those
+    2. If the class attribute ``_repr_hidden`` (set[str]) is defined, those
        attribute names are skipped.
-    3. If the class attribute `_repr_short` (set[str]) is defined, those
+    3. If the class attribute ``_repr_short`` (set[str]) is defined, those
        attributes' representations are shortened to 80 characters.
     4. If the attribute representation is multiline (i.e. has newlines) then it
        is printed on a separate line and indented with 2 spaces.
@@ -36,7 +38,6 @@ def autorepr(c):
     ---------
     x = spam
     y = eggs
-
     '''
 
     def __repr__(self):
@@ -73,3 +74,62 @@ def autorepr(c):
 
     c.__repr__ = __repr__
     return c
+
+
+
+
+def interrupt_handler(signum, stackframe):
+    li = "\n" + "*" * 80 + "\n"
+    print(
+        f"{li}Caught signal {signum} - will kill subprocesses and abort!{li}",
+        flush = True, file = sys.stderr,
+    )
+    raise KeyboardInterrupt
+
+
+
+
+class SignalHandlerKI:
+    '''Handle typical OS termination signals by raising a ``KeyboardInterrupt``
+    exception.
+
+    If a signal is not found on a given platform (e.g. SIGBREAK only exists on
+    Windows) it is simply skipped.
+    '''
+
+    def __init__(
+        self,
+        signals = [
+            "SIGINT",
+            "SIGTERM",
+            "SIGBREAK",
+            "SIGABRT",
+            "CTRL_C_EVENT",
+            "CTRL_BREAK_EVENT",
+        ],
+    ):
+        self.signals = signals
+        self.previous_handlers = {}
+
+
+    def set(self):
+        '''Set the signals' handlers. Save the previous handlers.
+        '''
+        for sig in self.signals:
+            try:
+                s = getattr(signal, sig)        # This may raise AttributeError
+                self.previous_handlers[sig] = signal.getsignal(s)
+                signal.signal(s, interrupt_handler)
+            except AttributeError:
+                pass
+
+
+    def unset(self):
+        '''Unset the signals' handlers. Return to previous handlers.
+        '''
+        for sig in self.signals:
+            try:
+                s = getattr(signal, sig)        # This may raise AttributeError
+                signal.signal(s, self.previous_handlers[sig])
+            except AttributeError:
+                pass

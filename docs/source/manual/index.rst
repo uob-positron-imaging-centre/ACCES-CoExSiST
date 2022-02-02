@@ -54,5 +54,6 @@ Submodules
    access
    plots
    schedulers
+   utilities
 
 

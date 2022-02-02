@@ -22,13 +22,21 @@ import  pandas              as      pd
 import  cma
 from    attrs               import  define
 
-from    coexist             import  Simulation
-from    coexist             import  schedulers
+import  coexist
+
+from    .base               import  Simulation
+from    .                   import  schedulers
 
 from    .code_trees         import  code_contains_variable
 from    .code_trees         import  code_substitute_variable
 
 from    .utilities          import  autorepr
+from    .utilities          import  SignalHandlerKI
+
+
+
+
+signal_handler = SignalHandlerKI()
 
 
 
@@ -987,6 +995,52 @@ class Access:
         pd.set_option("display.max_rows", old_max_rows)
 
 
+    def print_status_eval(self, stdout_rec, stderr_rec, crashed):
+        # Print messages for errors, outputs and simulation crashes
+        line = "-" * 80
+        if len(stderr_rec):
+            stderr_rec_str = textwrap.fill(" ".join(
+                str(s) for s in stderr_rec
+            ))
+            print(
+                line + "\n" +
+                "New stderr messages were recorded while running jobs:\n" +
+                textwrap.indent(stderr_rec_str, "  ") + "\n" +
+                f"The error messages were logged in:\n  {self.paths.outputs}",
+                flush = True,
+            )
+
+        if len(stdout_rec):
+            stdout_rec_str = textwrap.fill(" ".join(
+                str(s) for s in stdout_rec
+            ))
+            print(
+                line + "\n" +
+                "New stdout messages were recorded while running jobs:\n" +
+                textwrap.indent(stdout_rec_str, "  ") + "\n" +
+                f"The output messages were logged in:\n  {self.paths.outputs}",
+                flush = True,
+            )
+
+        if len(crashed):
+            crashed_str = textwrap.fill(" ".join(
+                str(c) for c in crashed
+            ))
+
+            print(
+                line + "\n" +
+                "No results were found for these jobs:\n" +
+                textwrap.indent(crashed_str, "  ") + "\n" +
+                "They crashed or terminated early; for details, check the "
+                f"output logs in:\n  {self.paths.outputs}\n"
+                "The error values for these simulations were set to NaN.",
+                flush = True,
+            )
+
+        if len(stderr_rec) or len(stdout_rec) or len(crashed):
+            print(line + "\n")
+
+
     def print_after_eval(
         self,
         es,
@@ -1095,6 +1149,8 @@ class Access:
         # Catch the KeyboardInterrupt (Ctrl-C) signal to shut down the spawned
         # processes before aborting.
         try:
+            signal_handler.set()
+
             # Spawn a separate process for every solution to try / sim to run
             for i, sol in enumerate(solutions):
                 # Create new set of parameters and save them to disk
@@ -1134,50 +1190,10 @@ class Access:
 
             raise KeyboardInterrupt
 
-        # Print messages for errors, outputs and simulation crashes
-        line = "-" * 80
-        if len(stderr_rec):
-            stderr_rec_str = textwrap.fill(" ".join(
-                str(s) for s in stderr_rec
-            ))
-            print(
-                line + "\n" +
-                "New stderr messages were recorded while running jobs:\n" +
-                textwrap.indent(stderr_rec_str, "  ") + "\n" +
-                f"The error messages were logged in:\n  {self.paths.outputs}",
-                flush = True,
-            )
+        finally:
+            signal_handler.unset()
 
-        if len(stdout_rec):
-            stdout_rec_str = textwrap.fill(" ".join(
-                str(s) for s in stdout_rec
-            ))
-            print(
-                line + "\n" +
-                "New stdout messages were recorded while running jobs:\n" +
-                textwrap.indent(stdout_rec_str, "  ") + "\n" +
-                f"The output messages were logged in:\n  {self.paths.outputs}",
-                flush = True,
-            )
-
-        if len(crashed):
-            crashed_str = textwrap.fill(" ".join(
-                str(c) for c in crashed
-            ))
-
-            print(
-                line + "\n" +
-                "No results were found for these jobs:\n" +
-                textwrap.indent(crashed_str, "  ") + "\n" +
-                "They crashed or terminated early; for details, check the "
-                f"output logs in:\n  {self.paths.outputs}\n"
-                "The error values for these simulations were set to NaN.",
-                flush = True,
-            )
-
-        if len(stderr_rec) or len(stdout_rec) or len(crashed):
-            print(line + "\n")
-
+        self.print_status_eval(stdout_rec, stderr_rec, crashed)
         return np.array(results)
 
 
