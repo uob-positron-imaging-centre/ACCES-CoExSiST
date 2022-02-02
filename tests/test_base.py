@@ -43,3 +43,8 @@ def test_create_parameters():
 
     coexist.create_parameters(["a", "b"], [0, 0], [1, 1], [0.5, 0.5])
     coexist.create_parameters(["a", "b"], [0, 0], [1, 1], [0.5, 0.5], [1, 1])
+
+
+if __name__ == "__main__":
+    test_to_vtk()
+    test_create_parameters()
