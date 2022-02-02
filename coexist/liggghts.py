@@ -15,7 +15,7 @@ import  textwrap
 import  numpy       as      np
 
 # `liggghts` is an optional dependency for LiggghtsSimulation
-from    liggghts    import  liggghts
+from    liggghts    import  liggghts        # lgtm [py/import-own-module]
 from    pyevtk.hl   import  pointsToVTK
 
 # Local imports
