@@ -4,7 +4,7 @@
 
 
 # CoExSiST & ACCES
-### Coupling Experimental Granular Data with DEM Simulations
+### Data-Driven Evolutionary Calibration & Optimisation of Simulations
 
 A Python library for autonomously learning simulation parameters from experimental data, from the *micro* to the *macro*, from laptops to clusters. This is done using either of two closely related frameworks:
 
@@ -14,7 +14,7 @@ A Python library for autonomously learning simulation parameters from experiment
 Both libraries learn a given set of free parameters, such that an experiment is synchronised with an equivalent simulation; this synchronisation is done in one of two ways:
 
 - CoExSiST calibrates **microscopically**: in a Discrete Element Method (DEM) context, all simulated particles follow their experimental counterparts *exactly*. Naturally, this technique is limited to dilute systems and experimental imaging techniques that can capture the 3D position of *all* moving particles (e.g. PIV) - however, it provides information about the fundamental aspects of particle collision.
-- ACCES calibrates / optimises **macroscopically**: a given simulation reproduces a system-specific *macroscopic* quantity (e.g. residence time distribution, angle of repose). This technique is completely agnostic to the simulation method and the quantity to be reproduced. In a DEM context, it can train *coarse-grained* simulations, using larger meso-particles to model multiple smaller ones.
+- ACCES calibrates / optimises **macroscopically**: a given simulation reproduces a system-specific *macroscopic* quantity (e.g. residence time distribution, angle of repose). This technique is completely agnostic to the simulation method and the quantity to be reproduced. For example, it can train *coarse-grained DEM* simulations, using larger meso-particles to model multiple smaller ones.
 
 
 ACCES is ready for production use; it was successfully used to calibrate coarse-grained DEM digital twins of [GranuTools](https://www.granutools.com/en/) equipment (Andrei Leonard Nicusan and Dominik Werner, *paper under review*), CFDEM fluidised beds (Hanqiao Cha, *paper under review*) and even signal processing parameters in a PET scanner model (Matthew Herald, *paper under review*).
@@ -64,7 +64,7 @@ The `coexist.plots` submodule can plot the convergence of ACCES onto optimally-c
 
 ### Show me some code already...
 
-Alright, here's the gist of it: instead of having to rewrite your complex simulation into a function for calibration / optimisation, ACCES takes in an _entire simulation script_; here's a simple example, say in a file called `simulation_script.py`:
+Alright, here's the gist of it: instead of having to rewrite your complex simulation into a function for calibration / optimisation (which is what virtually all optimisation frameworks require...), ACCES takes in an _entire simulation script_; here's a simple example, say in a file called `simulation_script.py`:
 
 ```python
 # File: simulation_script.py
@@ -253,7 +253,7 @@ Until the ACCES paper is published, you may cite this repository:
 > Nicusan AL, Werner D, Sykes J, Seville JPK, Windows-Yule CR. ACCES: Autonomous Characterisation and Calibration via Evolutionary Simulation. GitHub repository. 2022 February 1.
 
 
-ACCES is built on top of the excellent CMA-ES evolutionary algorithm - specifically the `pycma` implementation. If you use ACCES in your research, please also cite:
+ACCES is built on top of the excellent CMA-ES evolutionary algorithm - specifically the [`pycma`](https://github.com/CMA-ES/pycma) implementation. If you use ACCES in your research, please also cite:
 
 > Nikolaus Hansen, Youhei Akimoto, and Petr Baudis. CMA-ES/pycma on Github. Zenodo, DOI:10.5281/zenodo.2559634, February 2019.
 
