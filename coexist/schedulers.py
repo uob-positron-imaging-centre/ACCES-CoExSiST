@@ -81,7 +81,7 @@ class SlurmScheduler(Scheduler):
 
     First a bash script must be defined for launching each simulation job; this
     class generates this script, but some details must be defined by you; they
-    are specified as class parameters, see examples below:
+    are specified as class parameters, see examples below.
 
     Parameters
     ----------
@@ -107,7 +107,7 @@ class SlurmScheduler(Scheduler):
     output : str, default "logs/sim_slurm_%j.out"
         The output logs directory.
 
-    commands : list[str], default ["module load Python"]
+    commands : str or list[str], default "module load Python"
         Any other *non-SLURM* commands to run in the job submission script
         before executing the simulation; this is normally the setup work, e.g.
         loading necessary modules, environments, etc.
@@ -120,7 +120,8 @@ class SlurmScheduler(Scheduler):
     **kwargs : other keyword arguments
         Other "#SBATCH" commands to include at the top of the job submission
         script; e.g. ``constraint = "cascadelake"`` is transformed into
-        "#SBATCH --constraint cascadelake".
+        ``"#SBATCH --constraint cascadelake"``; ``mem_per_cpu = "4"`` is
+        transformed into ``"#SBATCH --mem-per-cpu 4"``.
 
     Examples
     --------
@@ -128,11 +129,12 @@ class SlurmScheduler(Scheduler):
     >>> from coexist.schedulers import SlurmScheduler
     >>> scheduler = SlurmScheduler(
     >>>     "10:0:0",          # Time allocated for a single simulation
-    >>>     commands = [       # Commands to add in the sbatch script after `#`
-    >>>         "set -e",
-    >>>         "module purge; module load bluebear",
-    >>>         "module load BEAR-Python-DataScience",
-    >>>     ],
+    >>>     commands = """
+    >>>         # Commands to add in the sbatch script after `#`
+    >>>         set -e
+    >>>         module purge; module load bluebear
+    >>>         module load BEAR-Python-DataScience
+    >>>     """,
     >>>     qos = "bbdefault",
     >>>     account = "windowcr-rt-royalsociety",
     >>>     constraint = "cascadelake",   # Any other #SBATCH --<CMD> = "VAL"
@@ -143,21 +145,19 @@ class SlurmScheduler(Scheduler):
         self,
         time,
         qos = None,
-        account = None,
         mail_type = "FAIL",
         ntasks = "1",
         mem = None,
         output = "logs/sim_slurm_%j.out",
-        commands = ["module load Python"],
+        commands = "module load Python\n",
         interpreter = os.path.split(sys.executable)[1],
         **kwargs,
     ):
         self.time = str(time)
-        self.commands = list(commands)
+        self.commands = commands
         self.interpreter = str(interpreter)
 
         self.qos = str(qos) if qos is not None else None
-        self.account = str(account) if account is not None else None
         self.mail_type = str(mail_type) if mail_type is not None else None
 
         self.ntasks = str(ntasks) if ntasks is not None else None
@@ -176,13 +176,6 @@ class SlurmScheduler(Scheduler):
 
             if self.qos is not None:
                 f.write(f"#SBATCH --qos {self.qos}\n")
-
-            if self.account is not None:
-                acc = self.accounts
-                f.write(
-                    "#SBATCH --account " +
-                    f"{acc}\n" # lgtm [py/clear-text-storage-sensitive-data]
-                )
 
             if self.mail_type is not None:
                 f.write(f"#SBATCH --mail-type {self.mail_type}\n")
@@ -206,8 +199,8 @@ class SlurmScheduler(Scheduler):
                 f.write(f"#SBATCH --{key.replace('_', '-')} {val}\n")
 
             f.write("\n\n")
-            if isinstance(cmd, str):
-                f.write(cmd)
+            if isinstance(self.commands, str):
+                f.write(self.commands)
             else:
                 for cmd in self.commands:
                     # Small convenience, but if the strings in the list of

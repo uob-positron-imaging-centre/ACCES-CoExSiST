@@ -6,6 +6,8 @@
 # Date   : 30.01.2022
 
 
+import os
+import sys
 import textwrap
 
 import coexist
@@ -94,7 +96,32 @@ def test_access_plots():
     coexist.plots.access2d("access_data/access_seed123")
 
 
+def test_schedulers():
+    s1 = coexist.schedulers.LocalScheduler()
+    print(s1)
+    assert s1.generate()[0] == sys.executable
+
+    s2 = coexist.schedulers.SlurmScheduler(
+        "10:0:0",
+        commands = """
+            # Commands to add in the sbatch script after `#`
+            set -e
+            module purge; module load bluebear
+            module load BEAR-Python-DataScience
+        """,
+        qos = "bbdefault",
+        account = "windowcr-rt-royalsociety",
+        constraint = "cascadelake",
+        mem_per_cpu = "4G",
+    )
+    print(s2)
+
+    assert s2.generate()[0] == "sbatch"
+    assert os.path.isfile("access_single_submission.sh")
+
+
 if __name__ == "__main__":
     test_access_data()
     test_access()
     test_access_plots()
+    test_schedulers()

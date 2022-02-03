@@ -1188,7 +1188,7 @@ class Access:
             for proc in processes:
                 proc.kill()
 
-            raise KeyboardInterrupt
+            raise
 
         finally:
             signal_handler.unset()
