@@ -236,16 +236,16 @@ We are more than happy to discuss the library architecture and calibration / opt
 
 The authors gratefully acknowledge funding from the following UK funding bodies and industrial partners:
 
-*M²E³D: Multiphase Materials Exploration via Evolutionary Equation Discovery*  
+**M²E³D: Multiphase Materials Exploration via Evolutionary Equation Discovery**  
 Royce Materials 4.0 Feasibility and Pilot Scheme Grant, £57,477  
 
-*CoExSiST: Coupled Experimental-Simulational Technique*  
+**CoExSiST: Coupled Experimental-Simulational Technique**  
 EPSRC MAPP Grant, Feasibility Study, £60,246  
 
-*ACCES: Autonomous Calibration and Characterisation via Evolutionary Simulation*  
+**ACCES: Autonomous Calibration and Characterisation via Evolutionary Simulation**  
 EPSRC IAA, Follow-Up Grant to CoExSiST, £52,762  
 
-*Improving ACCES: Towards the Multi-Tool Multi-Parameter Optimisation of Complex Particulate System*  
+**Improving ACCES: Towards the Multi-Tool Multi-Parameter Optimisation of Complex Particulate Systems**  
 EPSRC MAPP, Grant, £48,871 + £48,871 matched funding from GranuTools Belgium  
 
 Thank you.
