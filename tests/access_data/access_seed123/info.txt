@@ -1,5 +1,5 @@
 --------------------------------------------------------------------------------
-Starting ACCESS run at 14:02:38 on 01/02/2022
+Starting ACCESS run at 15:04:41 on 17/02/2022
 
 Access
 ------
@@ -32,9 +32,15 @@ setup =
     fp1    2.5 -5.0  10.0    6.0
     fp2    2.5 -5.0  10.0    6.0
     fp3    2.5 -5.0  10.0    6.0
+  parameters_scaled = 
+            value       min       max  sigma
+    fp1  0.416667 -0.833333  1.666667    1.0
+    fp2  0.416667 -0.833333  1.666667    1.0
+    fp3  0.416667 -0.833333  1.666667    1.0
   population = 8
   rng = Generator(PCG64)
-  scheduler_cmd = ['/home/andreinicusan/anaconda3/envs/coexist-dev37/...
+  scaling = [6. 6. 6.]
+  scheduler_cmd = ['/home/andreinicusan/anaconda3/envs/coexist-dev/bin/python3.7']
   script = #!/usr/bin/env python3\n# -*- coding: utf-8 -*-\n# File   ...
   seed = 123
   target = 0.1

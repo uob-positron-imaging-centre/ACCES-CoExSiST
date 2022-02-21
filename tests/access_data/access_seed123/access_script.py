@@ -31,7 +31,6 @@ import pickle
 
 ###############################################################################
 # ACCESS INJECT USER CODE START ###############################################
-
 # ACCESS PARAMETERS START
 
 # Unpickle `parameters` from this script's first command-line argument and set
@@ -50,6 +49,7 @@ print("Example stderr message.", file=sys.stderr)
 
 values = parameters["value"]
 error = values["fp1"]**2 + values["fp2"]**2
+extra = 42
 # ACCESS INJECT USER CODE END   ###############################################
 ###############################################################################
 

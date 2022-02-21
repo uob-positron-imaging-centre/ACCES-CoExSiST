@@ -49,6 +49,8 @@ class AccessSetup:
     Code validation and generation are handled too.
     '''
     parameters: pd.DataFrame
+    parameters_scaled: pd.DataFrame
+    scaling: np.ndarray
     script: str
     scheduler_cmd: list
     population: int
@@ -176,6 +178,12 @@ class AccessSetup:
 
         self.script = generated_code
 
+        # Scale free parameters (+ bounds and sigma) to unit variance
+        self.scaling = self.parameters["sigma"].to_numpy().copy()
+        self.parameters_scaled = self.parameters.copy()
+        for i in range(len(self.parameters_scaled.columns)):
+            self.parameters_scaled.iloc[:, i] /= self.scaling
+
 
     @staticmethod
     def validate_parameters(parameters):
@@ -234,21 +242,15 @@ class AccessSetup:
     def starting_guess(self):
         '''Return the initial parameter combinations to start CMA-ES with.
         '''
-        # Minimum and maximum possible values for the DEM parameters
-        params_mins = self.parameters["min"].to_numpy()
-        params_maxs = self.parameters["max"].to_numpy()
-
-        # Scale sigma, bounds, solutions, results to unit variance
-        scaling = self.parameters["sigma"].to_numpy()
 
         # First guess, scaled
-        x0 = self.parameters["value"].to_numpy() / scaling
+        x0 = self.parameters_scaled["value"].to_numpy()
         bounds = [
-            params_mins / scaling,
-            params_maxs / scaling
+            self.parameters_scaled["min"].to_numpy(),
+            self.parameters_scaled["max"].to_numpy(),
         ]
 
-        return x0, scaling, bounds
+        return x0, bounds
 
 
 
@@ -868,7 +870,8 @@ class Access:
         self.paths.load_epochs(self)
 
         # Scale sigma, bounds, solutions, results to unit variance
-        x0, scaling, bounds = self.setup.starting_guess()
+        scaling = self.setup.scaling
+        x0, bounds = self.setup.starting_guess()
         sigma0 = 1.
 
         # Instantiate CMA-ES optimiser; silence initial CMA-ES message
@@ -1233,6 +1236,8 @@ class AccessData:
 
     paths: AccessPaths
     parameters: pd.DataFrame
+    parameters_scaled: pd.DataFrame
+    scaling: np.ndarray
     population: int
     num_epochs: int
     target: float
@@ -1268,6 +1273,8 @@ class AccessData:
             setup = pickle.load(f)
 
         parameters = setup.parameters
+        parameters_scaled = setup.parameters_scaled
+        scaling = setup.scaling
         population = setup.population
         target = setup.target
         seed = setup.seed
@@ -1311,9 +1318,18 @@ class AccessData:
         parameters["value"] = results.iloc[results["error"].idxmin()][:-1]
         parameters["sigma"] = epochs.iloc[-1, ns:ns + ns].to_numpy()
 
+        parameters_scaled["value"] = results_scaled.iloc[
+            results_scaled["error"].idxmin()
+        ][:-1]
+        parameters_scaled["sigma"] = epochs_scaled.iloc[
+            -1, ns:ns + ns
+        ].to_numpy()
+
         return AccessData(
             paths = paths,
             parameters = parameters,
+            parameters_scaled = parameters_scaled,
+            scaling = scaling,
             population = population,
             num_epochs = num_epochs,
             target = target,
@@ -1390,10 +1406,19 @@ class AccessData:
         target = access_info.target_sigma
         seed = access_info.random_seed
 
-        # Infer epochs data
+        # Infer scaled parameters
         pop = population
         nparams = len(parameters)
 
+        scaling = np.mean(
+            history[:, :nparams] / history_scaled[:, :nparams],
+            axis = 0,
+        )
+        parameters_scaled = parameters.copy()
+        for i in range(len(parameters_scaled.columns)):
+            parameters_scaled.iloc[:, i] /= scaling
+
+        # Infer epochs data
         means = np.array([
             history[i * pop:i * pop + pop, :nparams].mean(axis = 0)
             for i in range(num_epochs)
@@ -1444,9 +1469,18 @@ class AccessData:
         parameters["value"] = results.iloc[results["error"].idxmin()][:-1]
         parameters["sigma"] = epochs.iloc[-1, ns:ns + ns].to_numpy()
 
+        parameters_scaled["value"] = results_scaled.iloc[
+            results_scaled["error"].idxmin()
+        ][:-1]
+        parameters_scaled["sigma"] = epochs_scaled.iloc[
+            -1, ns:ns + ns
+        ].to_numpy()
+
         return AccessData(
             paths = paths,
             parameters = parameters,
+            parameters_scaled = parameters_scaled,
+            scaling = scaling,
             population = population,
             num_epochs = num_epochs,
             target = target,
@@ -1462,7 +1496,7 @@ class AccessData:
         name = self.__class__.__name__
         underline = "-" * 80
 
-        def wrap(text, prep = 27):
+        def wrap(text, prep = 30):
             return textwrap.fill(
                 text, width = 80,
                 initial_indent = prep * " ",
@@ -1484,29 +1518,37 @@ class AccessData:
         parameters = str(self.parameters).split("\n")
         parameters = "\n".join(
             parameters[0:1] +
-            [17 * " " + p for p in parameters[1:]]
+            [20 * " " + p for p in parameters[1:]]
+        )
+
+        parameters_scaled = str(self.parameters_scaled).split("\n")
+        parameters_scaled = "\n".join(
+            parameters_scaled[0:1] +
+            [20 * " " + p for p in parameters_scaled[1:]]
         )
 
         docstr = (
             f"{name}\n"
             f"{underline}\n"
-            f"paths            {self.paths.__class__.__name__}(...)\n"
-            f"parameters       {parameters}\n"
-            f"population       {self.population}\n"
-            f"num_epochs       {self.num_epochs}\n"
-            f"target           {self.target}\n"
-            f"seed             {self.seed}\n"
-            f"epochs           {epochs}\n"
-            f"epochs_scaled    {epochs_scaled}\n"
-            f"results          {results}\n"
-            f"results_scaled   {results_scaled}\n"
+            f"paths               {self.paths.__class__.__name__}(...)\n"
+            f"parameters          {parameters}\n"
+            f"parameters_scaled   {parameters_scaled}\n"
+            f"scaling             {self.scaling}\n"
+            f"population          {self.population}\n"
+            f"num_epochs          {self.num_epochs}\n"
+            f"target              {self.target}\n"
+            f"seed                {self.seed}\n"
+            f"epochs              {epochs}\n"
+            f"epochs_scaled       {epochs_scaled}\n"
+            f"results             {results}\n"
+            f"results_scaled      {results_scaled}\n"
         )
 
         # Add vertical line
         docstr = docstr.split("\n")
         for i in range(2, len(docstr) - 1):
             d = docstr[i]
-            docstr[i] = d[:15] + "╎" + d[16:]
+            docstr[i] = d[:18] + "╎" + d[19:]
 
         return "\n".join(docstr)
 
