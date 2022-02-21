@@ -20,7 +20,6 @@ from    concurrent.futures  import  ProcessPoolExecutor
 import  numpy               as      np
 import  pandas              as      pd
 import  cma
-from    attrs               import  define
 
 import  coexist
 
@@ -41,24 +40,45 @@ signal_handler = SignalHandlerKI()
 
 
 
-@define
-@autorepr
+@autorepr(short = {"script", "scheduler_cmd"})
 class AccessSetup:
     '''Structure storing constant attributes for an ACCES optimisation run.
 
     Code validation and generation are handled too.
-    '''
-    parameters: pd.DataFrame
-    parameters_scaled: pd.DataFrame
-    scaling: np.ndarray
-    script: str
-    scheduler_cmd: list
-    population: int
-    target: float
-    seed: int
-    rng: np.random.Generator
 
-    _repr_short = {"script", "scheduler_cmd"}
+    Attributes
+    ----------
+    parameters : pd.DataFrame
+        The free parameters extracted from the user script.
+
+    parameters_scaled : pd.DataFrame
+        The free parameters scaled to the phenotype space, such that the
+        initial variance (`sigma`) is unity.
+
+    scaling : np.ndarray
+        A vector of values that the free parameters are scaled by; it is the
+        initial variance (`sigma`) given by the user.
+
+    script : str
+        The modified user script that will be executed.
+
+    scheduler_cmd : list
+        The list of commands the will be prepended to each script execution,
+        defined by the `Scheduler`.
+
+    population : int
+        The number of simulations to be run in parallel in each epoch.
+
+    target : float
+        The target scaled variance - i.e. decrease the uncertainty from the
+        initial 1 down to `target`.
+
+    seed: int
+        The random seed defining a single ACCES run.
+
+    rng: np.random.Generator
+        The random number generator used, seeded with `seed`.
+    '''
 
     def __init__(self, script_path, scheduler):
         '''Given a path to a user-defined simulation script, extract the free
@@ -255,22 +275,64 @@ class AccessSetup:
 
 
 
-@define
 @autorepr
 class AccessPaths:
     '''Structure handling IO and storing all paths relevant for an ACCES run.
 
     Loading and saving epochs and history are handled too.
+
+    Attributes
+    ----------
+    directory : str
+        Path to the ACCES directory, e.g. ``access_seed123``.
+
+    results : str
+        Path to the results directory.
+
+    outputs : str
+        Path to the outputs directory.
+
+    script : str
+        Path to the ACCES-modified user script.
+
+    setup : str
+        Path to the pickled ``AccessSetup``.
+
+    epochs : str
+        Path to the epochs CSV data file.
+
+    epochs_scaled : str
+        Path to the scaled epochs CSV data file.
+
+    history : str
+        Path to the historical CSV data file.
+
+    history_scaled : str
+        Path to the scaled historical CSV data file.
     '''
-    directory: str = None
-    results: str = None
-    outputs: str = None
-    script: str = None
-    setup: str = None
-    epochs: str = None
-    epochs_scaled: str = None
-    history: str = None
-    history_scaled: str = None
+
+    def __init__(
+        self,
+        directory: str = None,
+        results: str = None,
+        outputs: str = None,
+        script: str = None,
+        setup: str = None,
+        epochs: str = None,
+        epochs_scaled: str = None,
+        history: str = None,
+        history_scaled: str = None,
+    ):
+        self.directory = directory
+        self.results = results
+        self.outputs = outputs
+        self.script = script
+        self.setup = setup
+        self.epochs = epochs
+        self.epochs_scaled = epochs_scaled
+        self.history = history
+        self.history_scaled = history_scaled
+
 
     def create_directories(self, access):
         '''Given a ``coexist.Access`` instance, create the required directory
@@ -581,8 +643,7 @@ class AccessPaths:
 
 
 
-@define
-@autorepr
+@autorepr(short = True)
 class AccessProgress:
     '''Structure saving the current ACCES optimisation progress.
 
@@ -591,16 +652,48 @@ class AccessProgress:
 
     The `history` array has columns [param1, param2, ..., error] for each
     function evaluation.
-    '''
-    epochs: np.ndarray = None
-    epochs_scaled: np.ndarray = None
-    history: np.ndarray = None
-    history_scaled: np.ndarray = None
-    stdout: str = None
-    stderr: str = None
 
-    _repr_short = {"epochs", "epochs_scaled", "history", "history_scaled",
-                   "stderr", "stdout"}
+    Attributes
+    ----------
+    epochs: np.ndarray
+        Matrix with columns [mean_param1, mean_param2, ..., std_param1,
+        std_param2, ..., std_overall] with one row per epoch.
+
+    epochs_scaled: np.ndarray
+        Same as ``epochs``, scaled such that the initial variance (``sigma``)
+        becomes unity.
+
+    history: np.ndarray = None
+        Matrix with columns [param1, param2, ..., error] for each parameter
+        combination tried - i.e. ``population * num_epochs``.
+
+    history_scaled: np.ndarray = None
+        Same as ``history``, scaled such that the initial variance (``sigma``)
+        becomes unity.
+
+    stdout: str = None
+        The latest unique recorded stdout message.
+
+    stderr: str = None
+        The latest unique recorded stderr message.
+    '''
+
+    def __init__(
+        self,
+        epochs: np.ndarray = None,
+        epochs_scaled: np.ndarray = None,
+        history: np.ndarray = None,
+        history_scaled: np.ndarray = None,
+        stdout: str = None,
+        stderr: str = None,
+    ):
+        self.epochs = None
+        self.epochs_scaled = None
+        self.history = None
+        self.history_scaled = None
+        self.stdout = None
+        self.stderr = None
+
 
     def update_epochs(self, es, scaling):
         self.epochs = np.vstack((
@@ -1202,10 +1295,62 @@ class Access:
 
 
 
-@define(frozen = True)
+class AccessFileNotFoundLegacy:
+    pass
+
+
+
+
 class AccessData:
     '''Access (pun intended) data generated by a ``coexist.Access`` run; read
     it in using ``coexist.AccessData.read("access_seed<seed>")``.
+
+    Attributes
+    ----------
+    paths : AccessPaths
+        Struct-like object storing relevant paths in the given ACCES directory.
+
+    parameters : pd.DataFrame
+        The optimum free parameters found (final or intermediate if ACCES is
+        still running).
+
+    parameters_scaled : pd.DataFrame
+        The optimum free parameters found, divided by ``scaling`` such that the
+        initial variance in the parameter values was unity.
+
+    scaling : np.ndarray
+        A vector with the values to scale each parameter by - they are the
+        initial variances (``sigma``).
+
+    population : int
+        The number of simulations to run in parallel within a single epoch, or
+        number of parameter combinations to try at once.
+
+    num_epochs : int
+        The number of epochs that were successfully executed.
+
+    target : float
+        The target variance, where the initial parameter uncertainty must be
+        decreased from 1 to ``target``.
+
+    seed : int
+        The random number generator seed uniquely defining this ACCES run.
+
+    epochs : np.ndarray
+        Matrix with columns [mean_param1, mean_param2, ..., std_param1,
+        std_param2, ..., std_overall] with one row per epoch.
+
+    epochs_scaled : np.ndarray
+        Same as ``epochs``, scaled such that the initial variance (``sigma``)
+        becomes unity.
+
+    results : np.ndarray
+        Matrix with columns [param1, param2, ..., error] for each parameter
+        combination tried - i.e. ``population * num_epochs``.
+
+    results_scaled : np.ndarray
+        Same as ``results``, scaled such that the initial variance (``sigma``)
+        becomes unity.
 
     Examples
     --------
@@ -1214,7 +1359,7 @@ class AccessData:
     intended) all data generated in a Python-friendly format using:
 
     >>> import coexist
-    >>> data = coexist.AccessData.read("access_123")
+    >>> data = coexist.AccessData("access_123")
     >>> data
     AccessData
     --------------------------------------------------------------------------
@@ -1234,21 +1379,25 @@ class AccessData:
     results_scaled ╎ DataFrame(fp1, fp2, fp3, error)
     '''
 
-    paths: AccessPaths
-    parameters: pd.DataFrame
-    parameters_scaled: pd.DataFrame
-    scaling: np.ndarray
-    population: int
-    num_epochs: int
-    target: float
-    seed: int
-    epochs: pd.DataFrame
-    epochs_scaled: pd.DataFrame
-    results: pd.DataFrame
-    results_scaled: pd.DataFrame
+    @staticmethod
+    def empty():
+        return AccessData.__new__(AccessData)
+
 
     @staticmethod
     def read(access_path = "."):
+        '''Read in data generated by ``coexist.Access``; the `access_path` can
+        be either the "`access_info_<hash>`" directory itself, or its
+        parent directory.
+
+        Here for backwards-compatibility; you can instantiate the class
+        directly with the ``access_path``.
+        '''
+
+        return AccessData(access_path)
+
+
+    def __init__(self, access_path = "."):
         '''Read in data generated by ``coexist.Access``; the `access_path` can
         be either the "`access_info_<hash>`" directory itself, or its
         parent directory.
@@ -1259,7 +1408,8 @@ class AccessData:
         # Check for data in the legacy coexist-0.1.0 format
         legacy_finder = re.compile(r"opt_history_[0-9]+.csv")
         if any(legacy_finder.match(f) for f in os.listdir(access_path)):
-            return AccessData.legacy(access_path)
+            self.legacy(access_path)
+            return
 
         paths_path = os.path.join(access_path, "access_paths.pickle")
         with open(paths_path, "rb") as f:
@@ -1325,24 +1475,22 @@ class AccessData:
             -1, ns:ns + ns
         ].to_numpy()
 
-        return AccessData(
-            paths = paths,
-            parameters = parameters,
-            parameters_scaled = parameters_scaled,
-            scaling = scaling,
-            population = population,
-            num_epochs = num_epochs,
-            target = target,
-            seed = seed,
-            epochs = epochs,
-            epochs_scaled = epochs_scaled,
-            results = results,
-            results_scaled = results_scaled,
-        )
+        # Set class attributes
+        self.paths = paths
+        self.parameters = parameters
+        self.parameters_scaled = parameters_scaled
+        self.scaling = scaling
+        self.population = population
+        self.num_epochs = num_epochs
+        self.target = target
+        self.seed = seed
+        self.epochs = epochs
+        self.epochs_scaled = epochs_scaled
+        self.results = results
+        self.results_scaled = results_scaled
 
 
-    @staticmethod
-    def legacy(access_path):
+    def legacy(self, access_path):
         '''Read in data from legacy coexist-0.1.0 ACCES format; this is
         normally called automatically by ``AccessData.read``.
         '''
@@ -1381,12 +1529,7 @@ class AccessData:
         history_scaled = np.loadtxt(history_scaled_path)
 
         # Translate legacy data into modern format
-        def __repr__(self):
-            return "AccessFileNotFoundLegacy"
-
-        notfound = type("AccessFileNotFoundLegacy", (), {})
-        notfound.__repr__ = __repr__
-        notfound = notfound()
+        notfound = AccessFileNotFoundLegacy()
 
         paths = AccessPaths(
             directory = access_path,
@@ -1476,20 +1619,19 @@ class AccessData:
             -1, ns:ns + ns
         ].to_numpy()
 
-        return AccessData(
-            paths = paths,
-            parameters = parameters,
-            parameters_scaled = parameters_scaled,
-            scaling = scaling,
-            population = population,
-            num_epochs = num_epochs,
-            target = target,
-            seed = seed,
-            epochs = epochs,
-            epochs_scaled = epochs_scaled,
-            results = results,
-            results_scaled = results_scaled,
-        )
+        # Set class attributes
+        self.paths = paths
+        self.parameters = parameters
+        self.parameters_scaled = parameters_scaled
+        self.scaling = scaling
+        self.population = population
+        self.num_epochs = num_epochs
+        self.target = target
+        self.seed = seed
+        self.epochs = epochs
+        self.epochs_scaled = epochs_scaled
+        self.results = results
+        self.results_scaled = results_scaled
 
 
     def __repr__(self):

@@ -13,21 +13,30 @@ from    textwrap    import  indent
 
 
 
-def autorepr(c):
+class UniversalSet:
+    def __contains__(self, x):
+        return True
+
+
+universal_set = UniversalSet()
+
+
+
+
+def autorepr(_c = None, *, short = {}, hide = {}):
     '''Automatically create a ``__repr__`` method for pretty-printing class
     attributes; they are discovered at runtime following some rules.
 
     1. Attribute names do not start with underscores and are not callable.
-    2. If the class attribute ``_repr_hidden`` (set[str]) is defined, those
-       attribute names are skipped.
-    3. If the class attribute ``_repr_short`` (set[str]) is defined, those
-       attributes' representations are shortened to 80 characters.
+    2. The attributes given in ``short`` (set[str] | bool) are printed up to
+       80 characters. If ``short == True``, then all attributes are shortened.
+    3. The attributes given in ``hide`` (set[str]) are skipped.
     4. If the attribute representation is multiline (i.e. has newlines) then it
        is printed on a separate line and indented with 2 spaces.
 
-    Example:
-
-    >>> @auto_repr
+    Examples
+    --------
+    >>> @autorepr
     >>> class SomeClass:
     >>>     def __init__(self):
     >>>         self.x = "spam"
@@ -38,25 +47,36 @@ def autorepr(c):
     ---------
     x = spam
     y = eggs
+
+    >>> @autorepr(hide = {"x"})
+    >>> class SomeClass:
+    >>>     def __init__(self):
+    >>>         self.x = "spam"
+    >>>         self.y = "eggs"
+    >>>
+    >>> print(SomeClass())
+    SomeClass
+    ---------
+    y = eggs
     '''
 
     def __repr__(self):
         # Skip those attributes from the representation
-        if hasattr(self, "_repr_hidden"):
-            _repr_hidden = set(self._repr_hidden)
+        if hasattr(self, "_repr_hide"):
+            _repr_hide = self._repr_hide
         else:
-            _repr_hidden = set()
+            _repr_hide = set()
 
         # Shorten those attributes' representation
         if hasattr(self, "_repr_short"):
-            _repr_short = set(self._repr_short)
+            _repr_short = self._repr_short
         else:
             _repr_short = set()
 
         # Return pretty string representation of an arbitrary object
         docs = []
         for att in dir(self):
-            if not att.startswith("_") and att not in _repr_hidden:
+            if not att.startswith("_") and att not in _repr_hide:
                 memb = getattr(self, att)
                 if not callable(memb):
                     # If memb_str is multiline, indent it
@@ -72,8 +92,22 @@ def autorepr(c):
         underline = "-" * len(name)
         return f"{name}\n{underline}\n" + "\n".join(docs)
 
-    c.__repr__ = __repr__
-    return c
+    def setrepr(c):
+        # Attach the attribute names to shorten / hide as class attributes
+        if isinstance(short, bool) and short is True:
+            c._repr_short = universal_set
+        elif len(short):
+            c._repr_short = set(short)
+
+        if len(hide):
+            c._repr_hide = set(hide)
+
+        c.__repr__ = __repr__
+        return c
+
+    if _c is None:
+        return setrepr
+    return setrepr(_c)
 
 
 
