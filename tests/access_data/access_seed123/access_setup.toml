@@ -1,0 +1,56 @@
+[paths]
+directory = "access_seed123"
+results = "access_seed123/results"
+outputs = "access_seed123/outputs"
+script = "access_seed123/access_script.py"
+setup = "access_seed123/access_setup.toml"
+epochs = "access_seed123/epochs_pop8.csv"
+epochs_scaled = "access_seed123/epochs_pop8_scaled.csv"
+history = "access_seed123/history_pop8.csv"
+history_scaled = "access_seed123/history_pop8_scaled.csv"
+
+[setup]
+scaling = [ 6.0, 6.0, 6.0,]
+population = 8
+target = 0.1
+seed = 123
+
+[setup.parameters.value]
+fp1 = 2.5
+fp2 = 2.5
+fp3 = 2.5
+
+[setup.parameters.min]
+fp1 = -5.0
+fp2 = -5.0
+fp3 = -5.0
+
+[setup.parameters.max]
+fp1 = 10.0
+fp2 = 10.0
+fp3 = 10.0
+
+[setup.parameters.sigma]
+fp1 = 6.0
+fp2 = 6.0
+fp3 = 6.0
+
+[setup.parameters_scaled.value]
+fp1 = 0.4166666666666667
+fp2 = 0.4166666666666667
+fp3 = 0.4166666666666667
+
+[setup.parameters_scaled.min]
+fp1 = -0.8333333333333334
+fp2 = -0.8333333333333334
+fp3 = -0.8333333333333334
+
+[setup.parameters_scaled.max]
+fp1 = 1.6666666666666667
+fp2 = 1.6666666666666667
+fp3 = 1.6666666666666667
+
+[setup.parameters_scaled.sigma]
+fp1 = 1.0
+fp2 = 1.0
+fp3 = 1.0

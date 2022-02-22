@@ -22,6 +22,9 @@ def test_access_data():
     data = coexist.AccessData.read("access_data/access_info_000042")
     print(data)
 
+    # Read data using direct class constructor
+    coexist.AccessData("access_data/access_seed123")
+
 
 def test_access():
     # Simple, idiomatic, correct test
