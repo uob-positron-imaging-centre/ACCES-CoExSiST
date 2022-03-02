@@ -384,15 +384,18 @@ class AccessPaths:
             os.mkdir(self.outputs)
 
         # Save information about the run
-        now = datetime.now().strftime(r"%H:%M:%S on %d/%m/%Y")
-        with open(os.path.join(self.directory, "loginfo.txt"), "a") as f:
+        now = datetime.now().strftime("%H:%M:%S on %d/%m/%Y")
+
+        logfile = os.path.join(self.directory, "loginfo.txt")
+        with open(logfile, "a", encoding = "utf-8") as f:
             f.write((
                 80 * "-" + "\n" +
                 f"Starting ACCESS run at {now}\n\n" +
                 access.__repr__() + "\n"
             ))
 
-        with open(os.path.join(self.directory, "readme.rst"), "w") as f:
+        readmefile = os.path.join(self.directory, "readme.rst")
+        with open(readmefile, "w", encoding = "utf-8") as f:
             f.write(textwrap.dedent(f'''
                 ACCES Optimisation Run Directory
                 --------------------------------
@@ -873,8 +876,6 @@ class Access:
         Integer denoting the level of verbosity, where 0 is quiet and 5 is
         maximally verbose.
     '''
-
-    __slots__ = "setup", "paths", "progress", "verbose"
 
     def __init__(
         self,
@@ -2170,7 +2171,8 @@ class AccessCoupled:
             # Save current checkpoint and extra data for parallel computation
             self.simulations[i].save(self.sim_paths[i])
 
-        with open(f"{self.save_path}/opt_run_info.txt", "a") as f:
+        infofile = f"{self.save_path}/opt_run_info.txt"
+        with open(infofile, "a", encoding = "utf-8") as f:
             now = datetime.now().strftime("%H:%M:%S - %D")
             f.writelines([
                 "--------------------------------------------------------\n",
