@@ -85,10 +85,7 @@ access_id = 0                       # Optional, unique ID for each simulation
 
 
 # Extract the free parameters' values - ACCES will modify / optimise them.
-x = parameters["value"][0]
-y = parameters["value"][1]
-z = parameters["value"][2]
-t = parameters["value"][3]
+x, y, z, t = parameters["value"]
 
 
 # Define the error value in *any* way - run a simulation, analyse data, etc.
