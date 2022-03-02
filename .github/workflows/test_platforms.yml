@@ -7,20 +7,22 @@ on: [push, pull_request]
 
 jobs:
   build_test:
-    name: Build coexist wheels on ${{ matrix.os }} - ${{ matrix.python-version }}
+    name: CI ${{ matrix.os }} ${{ matrix.python-version }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        python-version: ["3.6", "3.7", "3.8", "3.9", "3.10", "pypy-3.7", "pypy-3.8"]
+        python-version: ["3.7", "3.8", "3.9", "3.10"]
 
     steps:
     - uses: actions/checkout@v2
+
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v2
       with:
         python-version: ${{ matrix.python-version }}
+
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
@@ -33,4 +35,5 @@ jobs:
 
     - name: Test with pytest
       run: |
-        cd tests; pytest
+        cd tests
+        pytest
