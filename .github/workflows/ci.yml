@@ -1,4 +1,4 @@
-name: Build and test coexist on OS and Python version matrix
+name: CI
 
 # Build on every branch push, tag push, and pull request change:
 on: [push, pull_request]
