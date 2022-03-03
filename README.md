@@ -1,4 +1,4 @@
-![CI Status](https://github.com/uob-positron-imaging-centre/Coexist/actions/workflows/ci.yml/badge.svg)
+[![CI Status](https://github.com/uob-positron-imaging-centre/Coexist/actions/workflows/ci.yml/badge.svg)](https://github.com/uob-positron-imaging-centre/Coexist/actions/workflows/ci.yml)
 [![Documentation Status](https://readthedocs.org/projects/coexist/badge/?version=latest)](https://coexist.readthedocs.io/en/latest/?badge=latest)
 [![Language grade: Python](https://img.shields.io/lgtm/grade/python/g/uob-positron-imaging-centre/Coexist.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/uob-positron-imaging-centre/Coexist/context:python)
 [![License: GPL-3.0](https://img.shields.io/github/license/uob-positron-imaging-centre/Coexist?style=flat-square)](https://github.com/uob-positron-imaging-centre/Coexist)
