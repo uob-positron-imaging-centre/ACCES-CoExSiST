@@ -15,7 +15,6 @@ import  pickle
 import  numpy               as      np
 import  pandas              as      pd
 import  cma
-from    attrs               import  define
 
 from    coexist             import  Simulation, Experiment
 
@@ -907,13 +906,21 @@ class Coexist:
 
 
 
-@define(slots = False)
 class AccessInfo:
     '''Legacy class here only for backwards-compatibility in AccessData.legacy.
     Needs to be in `coexist/optimisation.py`.
     '''
-    parameters: pd.DataFrame
-    scheduler: list
-    num_solutions: int = None
-    target_sigma: float = None
-    random_seed: int = None
+
+    def __init__(
+        self,
+        parameters: pd.DataFrame,
+        scheduler: list,
+        num_solutions: int = None,
+        target_sigma: float = None,
+        random_seed: int = None,
+    ):
+        self.parameters = parameters
+        self.scheduler = scheduler
+        self.num_solutions = num_solutions
+        self.target_sigma = target_sigma
+        self.random_seed = random_seed
