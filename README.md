@@ -284,5 +284,6 @@ Copyright (C) 2020-2021 the Coexist developers. Until now, this library was buil
 - Jack Sykes (University of Birmingham)
 - Dr. Kit Windows-Yule (University of Birmingham)
 - Prof. Jonathan Seville (University of Birmingham)
+- Albert Bauer (TU Berlin)
 
 Thank you.
