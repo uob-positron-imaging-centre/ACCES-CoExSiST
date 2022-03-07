@@ -40,6 +40,40 @@ signal_handler = SignalHandlerKI()
 
 
 
+# Multi-objective functionality
+class Product:
+
+    def __init__(self, weights = None):
+        if weights is not None:
+            weights = np.array(weights, dtype = float)
+
+        self.weights = weights
+
+
+    def combine(self, errors):
+        if self.weights is None:
+            return np.prod(errors)
+
+        if len(errors) != len(self.weights):
+            raise ValueError(textwrap.fill((
+                "TODO: add error message"
+            )))
+
+        return np.prod(errors ** self.weights)
+
+
+
+
+class Sum:
+
+    def __init__(self, weights):
+        pass
+
+
+    def combine(self, errors):
+        pass
+
+
 
 @autorepr(short = {"script", "scheduler_cmd"})
 class AccessSetup:
@@ -696,7 +730,17 @@ class AccessProgress:
         ))
 
 
-    def gather_results(self, processes, paths, result_paths, verbose):
+    def gather_results(
+        self,
+        processes,
+        paths,
+        result_paths,
+        multi_objective,
+        verbose,
+    ):
+        '''One-sentence description.
+        '''
+
         results = []
         stdout_rec = []
         stderr_rec = []
@@ -743,10 +787,19 @@ class AccessProgress:
                     # Load result if the file exists, otherwise set it to NaN
                     if os.path.isfile(result_paths[i]):
                         with open(result_paths[i], "rb") as f:
-                            # Error value must be a float!
-                            results.append(float(pickle.load(f)))
+                            # Accept any form of error and turn it into an array
+
+                            # TODO: verify bonkers errors
+                            errors = pickle.load(f)
+                            if hasatrr(errors, "__iter__"):
+                                errors = np.array(errors, dtype = float)
+                            else:
+                                errors = np.array([errors], dtype = float)
+
+                            combined = multi_objective.combine(errors)
+                            results.append(np.append(errors, combined))
                     else:
-                        results.append(np.nan)
+                        results.append(None)
                         crashed.append(proc_index)
 
             # Every 30 minutes print remaining jobs
@@ -874,7 +927,7 @@ class Access:
         maximally verbose.
     '''
 
-    __slots__ = "setup", "paths", "progress", "verbose"
+    __slots__ = "setup", "paths", "progress", "multi_objective", "verbose"
 
     def __init__(
         self,
@@ -905,6 +958,7 @@ class Access:
         self.setup = AccessSetup(script_path, scheduler)
         self.paths = AccessPaths()
         self.progress = AccessProgress()
+        self.multi_objective = None
         self.verbose = None
 
 
@@ -913,6 +967,7 @@ class Access:
         num_solutions = 8,
         target_sigma = 0.1,
         random_seed = None,
+        multi_objective = Product(),
         verbose = 4,
     ):
         '''Learn the free `parameters` from the user script that minimise the
@@ -920,10 +975,17 @@ class Access:
         a time until the overall uncertainty becomes lower than `target_sigma`.
         '''
 
+        # Type-checking inputs
+        if not hasattr(multi_objective, "combine"):
+            raise TypeError(textwrap.fill((
+                "TODO: add error message"
+            )))
+
         # Set last setup attributes and create ACCES directories
         self.verbose = int(verbose)
         self.setup.setup_complete(num_solutions, target_sigma, random_seed)
         self.paths.create_directories(self)
+        self.multi_objective = multi_objective
 
         # Save this ACCES run's files
         self.save_setup()
@@ -976,7 +1038,9 @@ class Access:
 
             # Evaluate each solution - i.e. run simulations in parallel
             results = self.evaluate_solutions(solutions * scaling, epoch)
-            es.tell(solutions, results)
+            print(results)
+
+            es.tell(solutions, results[:, -1])
             epoch += 1
 
             # Save historical data as function evaluations are very expensive
@@ -1270,6 +1334,7 @@ class Access:
                     processes,
                     self.paths,
                     result_paths,
+                    self.multi_objective,
                     self.verbose,
                 )
 
@@ -1283,6 +1348,27 @@ class Access:
             signal_handler.unset()
 
         self.print_status_eval(stdout_rec, stderr_rec, crashed)
+
+        # Find number of error values returned for one successful simulation
+        num_errors = 1
+        for i, res in enumerate(results):
+            if res is not None:
+                if num_errors == 1:
+                    num_errors = len(res)
+                    continue
+
+                if len(res) != num_errors:
+                    raise ValueError(textwrap.fill((
+                        f"The simulation at index {start_index + i} returned "
+                        f"{len(res) - 1} error values, while previous "
+                        f"simulation had {num_errors - 1} error values."
+                    )))
+
+        # Substitute results that are None (i.e. crashed) with rows of NaNs
+        for i in range(len(results)):
+            if results[i] is None:
+                results[i] = np.full(num_errors, np.nan)
+
         return np.array(results)
 
 
