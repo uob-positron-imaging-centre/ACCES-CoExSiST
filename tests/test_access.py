@@ -88,6 +88,96 @@ def test_access():
     coexist.Access(file).learn(random_seed = 124)
 
 
+def test_access_multi_objective():
+    # Simple, idiomatic, correct multi-objective ACCES test
+    code = textwrap.dedent('''
+        # ACCESS PARAMETERS START
+        import sys
+        import coexist
+
+        parameters = coexist.create_parameters(
+            ["fp1", "fp2", "fp3"],
+            [-5, -5, -5],
+            [10, 10, 10],
+        )
+        # ACCESS PARAMETERS END
+
+        print("Example stdout message.")
+        print("Example stderr message.", file=sys.stderr)
+
+        values = parameters["value"]
+        error = [
+            values["fp1"]**2 + values["fp2"]**2,
+            values["fp1"]**2 * values["fp3"],
+        ]
+    ''')
+
+    file = "access_script_multi1.py"
+    with open(file, "w") as f:
+        f.write(code)
+
+    access = coexist.Access(file)
+    print(access)
+
+    data = access.learn(random_seed = 123)
+    print(access)
+    print(data)
+
+    data = coexist.AccessData(access.paths.directory)
+    print(data)
+
+    # Multi-objective ACCES test where some jobs crash
+    code = textwrap.dedent('''
+        # ACCESS PARAMETERS START
+        import sys
+        import coexist
+
+        parameters = coexist.create_parameters(
+            ["fp1", "fp2", "fp3"],
+            [-5, -5, -5],
+            [10, 10, 10],
+        )
+
+        access_id = 0
+        # ACCESS PARAMETERS END
+
+        print("Example stdout message.")
+        print("Example stderr message.", file=sys.stderr)
+
+        # Make some simulations crash
+        if access_id < 8:
+            raise ValueError("Crashing first 8 epochs...")
+
+        if access_id >= 8 and access_id < 10:
+            raise ValueError("Crashing simulations 8 and 9...")
+
+        values = parameters["value"]
+        error = [
+            values["fp1"]**2 + values["fp2"]**2,
+            values["fp1"]**2 * values["fp3"],
+        ]
+    ''')
+
+    file = "access_script_multi1.py"
+    with open(file, "w") as f:
+        f.write(code)
+
+    access = coexist.Access(file)
+    print(access)
+
+    data = access.learn(num_solutions = 8, random_seed = 123)
+    print(access)
+    print(data)
+
+    data = coexist.AccessData(access.paths.directory)
+    print(data)
+
+
+def test_multi_objective_combiners():
+    # TODO: check the multi-objective classes work
+    pass
+
+
 def test_access_plots():
     # Using AccessData
     data = coexist.AccessData.read("access_data/access_seed123")
@@ -124,7 +214,7 @@ def test_schedulers():
 
 
 if __name__ == "__main__":
-    # test_access_data()
+    test_access_data()
     test_access()
-    # test_access_plots()
-    # test_schedulers()
+    test_access_plots()
+    test_schedulers()

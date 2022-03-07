@@ -27,6 +27,8 @@ import  coexist
 from    .base               import  Simulation
 from    .                   import  schedulers
 
+from    .combiners          import  Product
+
 from    .code_trees         import  code_contains_variable
 from    .code_trees         import  code_substitute_variable
 
@@ -38,40 +40,6 @@ from    .utilities          import  SignalHandlerKI
 
 signal_handler = SignalHandlerKI()
 
-
-
-# Multi-objective functionality
-class Product:
-
-    def __init__(self, weights = None):
-        if weights is not None:
-            weights = np.array(weights, dtype = float)
-
-        self.weights = weights
-
-
-    def combine(self, errors):
-        if self.weights is None:
-            return np.prod(errors)
-
-        if len(errors) != len(self.weights):
-            raise ValueError(textwrap.fill((
-                "TODO: add error message"
-            )))
-
-        return np.prod(errors ** self.weights)
-
-
-
-
-class Sum:
-
-    def __init__(self, weights):
-        pass
-
-
-    def combine(self, errors):
-        pass
 
 
 
@@ -418,15 +386,18 @@ class AccessPaths:
             os.mkdir(self.outputs)
 
         # Save information about the run
-        now = datetime.now().strftime(r"%H:%M:%S on %d/%m/%Y")
-        with open(os.path.join(self.directory, "loginfo.txt"), "a") as f:
+        now = datetime.now().strftime("%H:%M:%S on %d/%m/%Y")
+
+        logfile = os.path.join(self.directory, "loginfo.txt")
+        with open(logfile, "a", encoding = "utf-8") as f:
             f.write((
                 80 * "-" + "\n" +
                 f"Starting ACCESS run at {now}\n\n" +
                 access.__repr__() + "\n"
             ))
 
-        with open(os.path.join(self.directory, "readme.rst"), "w") as f:
+        readmefile = os.path.join(self.directory, "readme.rst")
+        with open(readmefile, "w", encoding = "utf-8") as f:
             f.write(textwrap.dedent(f'''
                 ACCES Optimisation Run Directory
                 --------------------------------
@@ -573,9 +544,7 @@ class AccessPaths:
                 self.history, dtype = float
             )
         else:
-            access.progress.history = np.empty(
-                (0, len(access.setup.parameters) + 1)
-            )
+            access.progress.history = None
 
         # Scaling and unscaling parameter values introduce numerical errors
         # that confuse the optimiser. Thus save unscaled values separately
@@ -591,9 +560,7 @@ class AccessPaths:
                 self.history_scaled, dtype = float
             )
         else:
-            access.progress.history_scaled = np.empty(
-                (0, len(access.setup.parameters) + 1)
-            )
+            access.progress.history_scaled = None
 
 
     def save_epochs(self, setup, progress):
@@ -718,16 +685,40 @@ class AccessProgress:
 
     def update_history(self, es, scaling, solutions, results):
         solutions = np.asarray(solutions)
+        current = np.c_[solutions * scaling, results]
+        current_scaled = np.c_[solutions, results]
 
-        self.history = np.vstack((
-            self.history,
-            np.c_[solutions * scaling, results],
-        ))
+        # Check that we have the correct number of columns - if all simulations
+        # in an epoch crashed, we'll have a single error column filled with NaN
+        history = self.history
+        history_scaled = self.history_scaled
 
-        self.history_scaled = np.vstack((
-            self.history_scaled,
-            np.c_[solutions, results],
-        ))
+        if self.history is None:
+            # First epoch
+            self.history = current
+            self.history_scaled = current_scaled
+            return
+
+        if np.isnan(self.history[:, -1]).all():
+            # History does not have enough columns - pad with NaNs
+            pad = np.full((
+                self.history.shape[0],
+                current.shape[1] - self.history.shape[1],
+            ), np.nan)
+            history = np.c_[self.history, pad]
+            history_scaled = np.c_[self.history_scaled, pad]
+
+        if np.isnan(current[:, -1]).all():
+            # Current does not have enough columns - pad with NaNs
+            pad = np.full((
+                current.shape[0],
+                self.history.shape[1] - current.shape[1],
+            ), np.nan)
+            current = np.c_[current, pad]
+            current_scaled = np.c_[current_scaled, pad]
+
+        self.history = np.vstack((history, current))
+        self.history_scaled = np.vstack((history_scaled, current_scaled))
 
 
     def gather_results(
@@ -738,7 +729,7 @@ class AccessProgress:
         multi_objective,
         verbose,
     ):
-        '''One-sentence description.
+        '''TODO: One-sentence description for all methods that don't have one already.
         '''
 
         results = []
@@ -787,11 +778,9 @@ class AccessProgress:
                     # Load result if the file exists, otherwise set it to NaN
                     if os.path.isfile(result_paths[i]):
                         with open(result_paths[i], "rb") as f:
-                            # Accept any form of error and turn it into an array
-
                             # TODO: verify bonkers errors
                             errors = pickle.load(f)
-                            if hasatrr(errors, "__iter__"):
+                            if hasattr(errors, "__iter__"):
                                 errors = np.array(errors, dtype = float)
                             else:
                                 errors = np.array([errors], dtype = float)
@@ -927,8 +916,6 @@ class Access:
         maximally verbose.
     '''
 
-    __slots__ = "setup", "paths", "progress", "multi_objective", "verbose"
-
     def __init__(
         self,
         script_path: str,
@@ -1020,9 +1007,7 @@ class Access:
             solutions = es.ask()
 
             # If we have historical data, inject it for each epoch
-            if epoch * self.setup.population < len(
-                self.progress.history_scaled
-            ):
+            if self.has_historical(epoch):
                 self.inject_historical(es, epoch)
                 epoch += 1
 
@@ -1038,8 +1023,6 @@ class Access:
 
             # Evaluate each solution - i.e. run simulations in parallel
             results = self.evaluate_solutions(solutions * scaling, epoch)
-            print(results)
-
             es.tell(solutions, results[:, -1])
             epoch += 1
 
@@ -1089,6 +1072,18 @@ class Access:
 
         with open(self.paths.setup, "w") as f:
             toml.dump(setup_dict, f)
+
+
+    def has_historical(self, epoch):
+        '''Check ACCES still has historical solutions to inject.
+        '''
+
+        if (
+            self.progress.history_scaled is not None and
+            epoch * self.setup.population < len(self.progress.history_scaled)
+        ):
+            return True
+        return False
 
 
     def inject_historical(self, es, epoch):
@@ -1203,8 +1198,10 @@ class Access:
         results,
     ):
         # Display evaluation results: solutions, error values, etc.
-        cols = self.setup.parameters.index.to_list() + ["error"]
         sols_results = np.c_[solutions * scaling, results]
+        cols = self.setup.parameters.index.to_list() + [
+            f"error{i}" for i in range(results.shape[1] - 1)
+        ] + ["error"]
 
         # Store solutions and results in a DataFrame for easy pretty printing
         pop = len(results)
@@ -1361,7 +1358,7 @@ class Access:
                     raise ValueError(textwrap.fill((
                         f"The simulation at index {start_index + i} returned "
                         f"{len(res) - 1} error values, while previous "
-                        f"simulation had {num_errors - 1} error values."
+                        f"simulations had {num_errors - 1} error values."
                     )))
 
         # Substitute results that are None (i.e. crashed) with rows of NaNs
@@ -1492,15 +1489,21 @@ class AccessData:
         target = setup_dict["setup"]["target"]
         seed = setup_dict["setup"]["seed"]
 
-        results = pd.DataFrame(
-            np.loadtxt(paths.history),
-            columns = parameters.index.to_list() + ["error"],
-            dtype = float,
-        )
+        history = np.loadtxt(paths.history)
+        columns = parameters.index.to_list() + [
+            f"error{i}"
+            for i in range(history.shape[1] - len(parameters) - 1)
+        ] + ["error"]
+        results = pd.DataFrame(history, columns = columns, dtype = float)
 
+        history_scaled = np.loadtxt(paths.history_scaled)
+        columns_scaled = parameters.index.to_list() + [
+            f"error{i}"
+            for i in range(history_scaled.shape[1] - len(parameters) - 1)
+        ] + ["error"]
         results_scaled = pd.DataFrame(
-            np.loadtxt(paths.history_scaled),
-            columns = parameters.index.to_list() + ["error"],
+            history_scaled,
+            columns = columns_scaled,
             dtype = float,
         )
 
@@ -2256,7 +2259,8 @@ class AccessCoupled:
             # Save current checkpoint and extra data for parallel computation
             self.simulations[i].save(self.sim_paths[i])
 
-        with open(f"{self.save_path}/opt_run_info.txt", "a") as f:
+        infofile = f"{self.save_path}/opt_run_info.txt"
+        with open(infofile, "a", encoding = "utf-8") as f:
             now = datetime.now().strftime("%H:%M:%S - %D")
             f.writelines([
                 "--------------------------------------------------------\n",

@@ -138,8 +138,6 @@ class SignalHandlerKI:
             "SIGTERM",
             "SIGBREAK",
             "SIGABRT",
-            "CTRL_C_EVENT",
-            "CTRL_BREAK_EVENT",
         ],
     ):
         self.signals = signals
@@ -149,21 +147,29 @@ class SignalHandlerKI:
     def set(self):
         '''Set the signals' handlers. Save the previous handlers.
         '''
+
+        # The signal number may not exist (AttributeError) or be wrong
+        # (ValueError) on some platforms, so catch possible exceptions and
+        # simply ignore these signals
         for sig in self.signals:
             try:
-                s = getattr(signal, sig)        # This may raise AttributeError
+                s = getattr(signal, sig)                       # AttributeError
                 self.previous_handlers[sig] = signal.getsignal(s)
-                signal.signal(s, interrupt_handler)
-            except AttributeError:
+                signal.signal(s, interrupt_handler)            # Key|ValueError
+            except (AttributeError, KeyError, ValueError):
                 pass
 
 
     def unset(self):
         '''Unset the signals' handlers. Return to previous handlers.
         '''
+
+        # The signal number may not exist (AttributeError) or be wrong
+        # (ValueError) on some platforms, so catch possible exceptions and
+        # simply ignore these signals
         for sig in self.signals:
             try:
-                s = getattr(signal, sig)        # This may raise AttributeError
-                signal.signal(s, self.previous_handlers[sig])
-            except AttributeError:
+                s = getattr(signal, sig)                       # AttributeError
+                signal.signal(s, self.previous_handlers[sig])  # Key|ValueError
+            except (AttributeError, KeyError, ValueError):
                 pass

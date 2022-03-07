@@ -1,3 +1,4 @@
+[![CI Status](https://github.com/uob-positron-imaging-centre/Coexist/actions/workflows/ci.yml/badge.svg)](https://github.com/uob-positron-imaging-centre/Coexist/actions/workflows/ci.yml)
 [![Documentation Status](https://readthedocs.org/projects/coexist/badge/?version=latest)](https://coexist.readthedocs.io/en/latest/?badge=latest)
 [![Language grade: Python](https://img.shields.io/lgtm/grade/python/g/uob-positron-imaging-centre/Coexist.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/uob-positron-imaging-centre/Coexist/context:python)
 [![License: GPL-3.0](https://img.shields.io/github/license/uob-positron-imaging-centre/Coexist?style=flat-square)](https://github.com/uob-positron-imaging-centre/Coexist)
@@ -84,10 +85,7 @@ access_id = 0                       # Optional, unique ID for each simulation
 
 
 # Extract the free parameters' values - ACCES will modify / optimise them.
-x = parameters["value"][0]
-y = parameters["value"][1]
-z = parameters["value"][2]
-t = parameters["value"][3]
+x, y, z, t = parameters["value"]
 
 
 # Define the error value in *any* way - run a simulation, analyse data, etc.
@@ -286,5 +284,6 @@ Copyright (C) 2020-2021 the Coexist developers. Until now, this library was buil
 - Jack Sykes (University of Birmingham)
 - Dr. Kit Windows-Yule (University of Birmingham)
 - Prof. Jonathan Seville (University of Birmingham)
+- Albert Bauer (TU Berlin)
 
 Thank you.

@@ -68,27 +68,29 @@ vary at the top, e.g.:
 
     # In file `simulation_script.py`
 
-    #### ACCESS PARAMETERS START
+    # ACCESS PARAMETERS START
     import coexist
 
     parameters = coexist.create_parameters(
-        variables = ["param1", "param2"],
-        minimums = [-1, -3],
-        maximums = [5, 3],
-        values = [3, 2],                # Optional, initial guess
+        variables = ["CED", "CoR", "Epsilon", "Mu"],
+        minimums = [-5, -5, -5, -5],
+        maximums = [+5, +5, +5, +5],
+        values = [0, 0, 0, 0],          # Optional, initial guess
     )
 
     access_id = 0                       # Optional, unique ID for each simulation
-    #### ACCESS PARAMETERS END
+    # ACCESS PARAMETERS END
 
 
-    # The `parameters` variable is a pandas.DataFrame - extract param1, param2
-    p1 = parameters.at["param1", "value"]
-    p2 = parameters.at["param2", "value"]
+    # Extract the free parameters' values - ACCES will modify / optimise them.
+    x, y, z, t = parameters["value"]
 
 
-    # Define the error value in any way - run a simulation, analyse data, etc.
-    error = p1 ** 2 + p2 ** 2
+    # Define the error value in *any* way - run a simulation, analyse data, etc.
+    #
+    # For simplicity, here's an analytical 4D Himmelblau function with 8 global
+    # and 2 local minima - the initial guess is very close to the local one!
+    error = (x**2 + y - 11)**2 + (x + y**2 - 7)**2 + z * t
 
 
 All you need to do is to create a variable called ``parameters`` (a simple
@@ -123,125 +125,117 @@ corresponding error values:
 
 ::
 
-    (5_w,10)-aCMA-ES (mu_w=3.2,w_1=45%) in dimension 2 (seed=<module 'time' (built-in)>, Wed Oct 27 10:02:03 2021)
+    ================================================================================
+    Starting ACCES run at 13:05:47 on 02/03/2022 in directory `access_seed42`.
+    ================================================================================
+    Epoch    0 | Population 10
+    --------------------------------------------------------------------------------
     Scaled overall standard deviation: 1.0
-    Scaled individual standard deviations:
-    [1.       1.000025]
+                 CED       CoR   Epsilon        Mu
+    estimate     0.0  0.000000  0.000000  0.000000
+    uncertainty  4.0  4.000050  4.000100  4.000150
+    scaled_std   1.0  1.000013  1.000025  1.000038
 
-    Trying 10 parameter combinations...
-         param1    param2      error
-    0  3.731321 -0.496024  14.168796
-    1  4.781306  2.282588  28.071099
-    2 -0.657516 -1.125309   1.698647
-    3  3.306817  1.240999  12.475116
-    4  2.959677 -0.047357   8.761932
-    5  4.954519  2.673253  31.693540
-    6  3.158474  1.834553  13.341542
-    7  4.122022 -0.062353  16.994957
-    8  3.885002 -0.301376  15.184067
-    9  4.953718  1.880175  28.074382
-    Function evaluations: 10
-    ---
-    Scaled overall standard deviation: 1.240843559888434
-    Scaled individual standard deviations:
-    [1.37258669 1.34768971]
+            CED       CoR   Epsilon        Mu       error
+    0  1.218868 -4.159988  3.001880  3.762400  331.093228
+    1 -3.095859 -4.967675  0.511374 -1.265018  252.732762
+    2 -0.067205 -3.412218  3.517680  3.111284  239.466423
+    3  0.264123  4.509021  1.870084 -3.437299  219.638764
+    4  1.475003 -3.835578  3.513889 -0.199711  243.967225
+    5 -0.739449 -2.723752  4.825957 -0.618141  170.752129
+    6 -1.713311 -1.408552  2.129290  1.461831  138.135979
+    7  1.650930  1.723306  2.333195 -1.625721   44.785098
+    8 -2.048971 -3.255132  2.463979  4.516059  114.660635
+    9 -0.455790 -3.360668 -3.298007  2.602469  206.454823
+    Total function evaluations: 10
+
+    ================================================================================
+    Epoch    1 | Population 10
+    --------------------------------------------------------------------------------
+    Scaled overall standard deviation: 1.0346092474852793
+                      CED       CoR   Epsilon        Mu
+    estimate    -0.154096 -0.641435  4.978669  0.731821
+    uncertainty  3.895601  3.679495  4.795107  4.013030
+    scaled_std   0.973900  0.919874  1.198777  1.003258
 
     [...output truncated...]
 
-    ---
-    Scaled overall standard deviation: 0.1265506796562545
-    Scaled individual standard deviations:
-    [0.01103251 0.01237254]
+    ================================================================================
+    Epoch   31 | Population 10
+    --------------------------------------------------------------------------------
+    Scaled overall standard deviation: 0.10326429766691796
+                      CED       CoR   Epsilon        Mu
+    estimate     3.621098 -1.748473  4.999445 -4.992881
+    uncertainty  0.052355  0.078080  0.284105  0.180196
+    scaled_std   0.013089  0.019520  0.071026  0.045049
 
-    Trying 10 parameter combinations...
-         param1    param2     error
-    0 -0.002522 -0.024961  0.000629
-    1  0.057048 -0.041534  0.004980
-    2  0.027572 -0.000700  0.000761
-    3 -0.019132  0.058721  0.003814
-    4 -0.020061 -0.036178  0.001711
-    5 -0.008127 -0.013306  0.000243
-    6  0.000361  0.009405  0.000089
-    7 -0.015397 -0.014005  0.000433
-    8 -0.017028 -0.040828  0.001957
-    9 -0.033740  0.074407  0.006675
-    Function evaluations: 240
-    ---
+              CED       CoR   Epsilon        Mu      error
+    310  3.574473 -1.650134  4.999374 -4.901913 -23.996813
+    311  3.582026 -1.756384  4.863496 -4.973417 -24.071692
+    312  3.628789 -1.616891  4.859678 -4.992656 -23.386000
+    313  3.662351 -1.782704  4.982040 -4.998059 -24.478008
+    314  3.594971 -1.725715  4.999877 -4.898257 -24.269162
+    315  3.577725 -1.744971  4.998411 -4.956502 -24.629198
+    316  3.613914 -1.747412  4.983253 -4.996630 -24.690880
+    317  3.579212 -1.774811  4.852262 -4.972910 -24.055219
+    318  3.634952 -1.784927  4.999971 -4.999863 -24.783959
+    319  3.647169 -1.872419  4.999971 -4.978640 -24.685207
+    Total function evaluations: 320
+
+
     Optimal solution found within `target_sigma`, i.e. 10.0%:
-    sigma = 0.08958381541480065 < 0.1
+      sigma = 0.08390460663313563 < 0.1
 
-    ---
-    The best result was achieved for these parameter values:
-    [-0.00261052 -0.0018851 ]
+    ================================================================================
+    The best result was found in 32 epochs:
+                  CED       CoR   Epsilon        Mu      error
+      value  3.569249 -1.813354  4.995112 -4.994052 -24.920092
+      sigma  0.042168  0.060116  0.203900  0.140874
 
-    The standard deviation / uncertainty in each parameter is:
-    [0.01689302 0.01582416]
-
-    For these parameters, the error value found was: 1.03684456038658e-05
-
-    These results were found for the simulation at index 227, which can be found in:
-    access_info_000042/simulations
+    These results were found for the job:
+      access_seed42/results/parameters.284.pickle
+    ================================================================================
 
 
-Each ACCES run creates a folder "access_info_<random_seed>" saving the optimisation
-state. You can access (pun intended) it using ``coexist.AccessData.read()``,
+Take a moment to appreciate what we've done here: out of 8 global and 2 local -
+false - minima, we have found an optimum 4-dimensional parameter combination with
+only 320 function evaluations. Compare that with a classical approach of regularly
+sampling on a 10x10x10x10 grid - we used 30 times fewer "simulations", yet we
+found an optimum within 0.32% of the analytical solution!
+
+Each ACCES run creates a folder "access_seed<random_seed>" saving the optimisation
+state. You can access (pun intended) it using ``coexist.AccessData()``,
 even while the optimisation is still running for intermediate results:
 
 ::
 
-    >>> access_data = coexist.AccessData.read("access_info_000042")
+    >>> access_data = coexist.AccessData("access_seed42")
     >>> access_data
 
-    AccessData(
-      parameters:
-                value  min  max  sigma
-        param1    3.0 -1.0  5.0    2.4
-        param2    2.0 -3.0  3.0    2.4
-
-      num_solutions:
-        10
-
-      target_sigma:
-        0.1
-
-      random_seed:
-        42
-
-      results:
-               param1    param2  param1_std  param2_std  overall_std      error
-        0    3.731321 -0.496024    3.294208    3.234455     1.240844  14.168796
-        1    4.781306  2.282588    3.294208    3.234455     1.240844  28.071099
-        2   -0.657516 -1.125309    3.294208    3.234455     1.240844   1.698647
-        3    3.306817  1.240999    3.294208    3.234455     1.240844  12.475116
-        4    2.959677 -0.047357    3.294208    3.234455     1.240844   8.761932
-        ..        ...       ...         ...         ...          ...        ...
-        235 -0.008127 -0.013306    0.016893    0.015824     0.089584   0.000243
-        236  0.000361  0.009405    0.016893    0.015824     0.089584   0.000089
-        237 -0.015397 -0.014005    0.016893    0.015824     0.089584   0.000433
-        238 -0.017028 -0.040828    0.016893    0.015824     0.089584   0.001957
-        239 -0.033740  0.074407    0.016893    0.015824     0.089584   0.006675
-
-        [240 rows x 6 columns]
-
-      results_scaled:
-               param1    param2  param1_std  param2_std  overall_std      error
-        0    1.554717 -0.206677    1.372587    1.347690     1.240844  14.168796
-        1    1.992211  0.951078    1.372587    1.347690     1.240844  28.071099
-        2   -0.273965 -0.468879    1.372587    1.347690     1.240844   1.698647
-        3    1.377840  0.517083    1.372587    1.347690     1.240844  12.475116
-        4    1.233199 -0.019732    1.372587    1.347690     1.240844   8.761932
-        ..        ...       ...         ...         ...          ...        ...
-        235 -0.003386 -0.005544    0.007039    0.006593     0.089584   0.000243
-        236  0.000151  0.003919    0.007039    0.006593     0.089584   0.000089
-        237 -0.006415 -0.005835    0.007039    0.006593     0.089584   0.000433
-        238 -0.007095 -0.017011    0.007039    0.006593     0.089584   0.001957
-        239 -0.014058  0.031003    0.007039    0.006593     0.089584   0.006675
-
-        [240 rows x 6 columns]
-
-      num_epochs:
-        24
-    )
+    AccessData
+    --------------------------------------------------------------------------------
+    paths             ╎ AccessPaths(...)
+    parameters        ╎             value  min  max     sigma
+                      ╎ CED      3.569249 -5.0  5.0  0.052355
+                      ╎ CoR     -1.813354 -5.0  5.0  0.078080
+                      ╎ Epsilon  4.995112 -5.0  5.0  0.284105
+                      ╎ Mu      -4.994052 -5.0  5.0  0.180196
+    parameters_scaled ╎             value   min   max     sigma
+                      ╎ CED      0.892312 -1.25  1.25  0.013089
+                      ╎ CoR     -0.453338 -1.25  1.25  0.019520
+                      ╎ Epsilon  1.248778 -1.25  1.25  0.071026
+                      ╎ Mu      -1.248513 -1.25  1.25  0.045049
+    scaling           ╎ [4. 4. 4. 4.]
+    population        ╎ 10
+    num_epochs        ╎ 32
+    target            ╎ 0.1
+    seed              ╎ 42
+    epochs            ╎ DataFrame(CED_mean, CoR_mean, Epsilon_mean, Mu_mean,
+                      ╎           CED_std, CoR_std, Epsilon_std, Mu_std, overall_std)
+    epochs_scaled     ╎ DataFrame(CED_mean, CoR_mean, Epsilon_mean, Mu_mean,
+                      ╎           CED_std, CoR_std, Epsilon_std, Mu_std, overall_std)
+    results           ╎ DataFrame(CED, CoR, Epsilon, Mu, error)
+    results_scaled    ╎ DataFrame(CED, CoR, Epsilon, Mu, error)
 
 
 You can create a "convergence plot" showing the evolution of the ACCES run using
@@ -251,9 +245,9 @@ You can create a "convergence plot" showing the evolution of the ACCES run using
 
     import coexist
 
-    # Use path to either the `access_info_<random_seed>` folder itself, or its
+    # Use path to either the `access_seed<random_seed>` folder itself, or its
     # parent directory
-    access_data = coexist.AccessData.read("access_info_000042")
+    access_data = coexist.AccessData("access_seed42")
 
     fig = coexist.plots.access(access_data)
     fig.show()
@@ -266,21 +260,21 @@ Which will produce the following interactive Plotly figure:
 
 
 If you zoom into the error value, you'll see that ACCES effectively found the
-optimum in less than 15 epochs; while this particular error function is
-well-behaved and a gradient-based optimiser may be quicker, this can never be
-assumed with physical simulations and noisy measurements (see the image at the
-top of the page).
+optimum in less than 15 epochs; while this particular error function is smooth
+and a gradient-based optimiser may be quicker if the initial guess is close to
+a global optimum, this can never be assumed with physical simulations and noisy
+measurements (see the image at the top of the page).
 
-If you have only two free parameters (or take a slice through your larger parameter
-space) you can see which parts ACCES explored:
+You can visualise 2D slices through the parameter space explored, colour-coded
+by the error value of the closest parameter combination tried:
 
 ::
 
     import coexist
 
-    # Use path to either the `access_info_<random_seed>` folder itself, or its
+    # Use path to either the `access_seed<random_seed>` folder itself, or its
     # parent directory
-    access_data = coexist.AccessData.read("access_info_000042")
+    access_data = coexist.AccessData("access_seed42")
 
     fig = coexist.plots.access2d(access_data)
     fig.show()
@@ -314,11 +308,12 @@ the awesome BlueBEAR @Birmingham):
 
     scheduler = SlurmScheduler(
         "10:0:0",           # Time allocated for a single simulation
-        commands = [        # Commands you'd add in the sbatch script, after `#`
-            "set -e",
-            "module purge; module load bluebear",
-            "module load BEAR-Python-DataScience/2020a-foss-2020a-Python-3.8.2",
-        ],
+        commands = '''
+            # Commands you'd add in the sbatch script, after `#`
+            set -e
+            module purge; module load bluebear
+            module load BEAR-Python-DataScience/2020a-foss-2020a-Python-3.8.2
+        ''',
         qos = "bbdefault",
         account = "windowcr-rt-royalsociety",
         constraint = "cascadelake",     # Any other #SBATCH -- <CMD> = "VAL" pair

@@ -178,11 +178,12 @@ def access(
 
     # The number of parameters
     num_parameters = len(parameters)
+    num_errors = results.shape[1] - num_parameters
     names = parameters.index
 
     # Create a subplots grid
-    ncols = int(np.ceil(np.sqrt(num_parameters + 2)))
-    nrows = int(np.ceil((num_parameters + 2) / ncols))
+    ncols = int(np.ceil(np.sqrt(num_parameters + 1 + num_errors)))
+    nrows = int(np.ceil((num_parameters + 1 + num_errors) / ncols))
 
     fig = make_subplots(
         rows = nrows,
@@ -264,6 +265,7 @@ def access(
                 go.Scatter(
                     x = std_x,
                     y = std_lo,
+                    mode = "lines",
                     line_width = 0,
                     hoverinfo = "skip",
                     showlegend = False,
@@ -276,6 +278,7 @@ def access(
                 go.Scatter(
                     x = std_x,
                     y = std_hi,
+                    mode = "lines",
                     line_width = 0,
                     fill = 'tonexty',
                     fillcolor = color_alpha,
@@ -286,7 +289,7 @@ def access(
                 col = col,
             )
 
-        # Plot the scaled standard deviations and results on the bottom row
+        # Plot the scaled standard deviations after parameter values
         fig.add_trace(
             go.Scatter(
                 name = names[i],
@@ -318,21 +321,26 @@ def access(
         )
 
     # Plot the error values
-    fig.add_trace(
-        go.Scatter(
-            name = "Error values",
-            x = epochs_params[selection],
-            y = results[selection, -1],
-            mode = "markers",
-            marker = dict(
-                size = 8,
-                opacity = 0.4,
-                color = "black",
-            )
-        ),
-        row = (num_parameters + 1) // ncols + 1,
-        col = (num_parameters + 1) % ncols + 1,
-    )
+    for i in range(num_errors):
+        row = (num_parameters + 1 + i) // ncols + 1
+        col = (num_parameters + 1 + i) % ncols + 1
+
+        fig.add_trace(
+            go.Scatter(
+                x = epochs_params[selection],
+                y = results[selection, num_parameters + i],
+                mode = "markers",
+                marker = dict(
+                    size = 8,
+                    opacity = 0.4,
+                    color = results[selection, -1],
+                    colorscale = "cividis",
+                ),
+                showlegend = False,
+            ),
+            row = row,
+            col = col,
+        )
 
     # Set graph ranges and axis labels
     for i in range(num_parameters):
@@ -349,7 +357,17 @@ def access(
     fig.layout[f"yaxis{num_parameters + 1}"].update(
         title = "Standard Deviation"
     )
-    fig.layout[f"yaxis{num_parameters + 2}"].update(title = "Error Value")
+
+    # If the default error names are given, capitalise them
+    for i in range(num_errors):
+        title = access_data.results.columns[num_parameters + i]
+        if title.startswith("error"):
+            title = "E" + title[1:]
+
+            if i == num_errors - 1:
+                title = "Combined " + title
+
+        fig.layout[f"yaxis{num_parameters + 2 + i}"].update(title = title)
 
     format_fig(fig)
     fig.update_layout(title = dict(
