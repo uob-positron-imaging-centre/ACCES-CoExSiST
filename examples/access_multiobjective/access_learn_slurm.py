@@ -3,7 +3,7 @@
 # File   : access_learn_slurm.py
 # License: GNU v3.0
 # Author : Jack Sykes <jas653@student.bham.ac.uk>
-# Date   : 09.03.2022
+# Date   : 10.03.2022
 
 import coexist
 import textwrap
@@ -13,9 +13,9 @@ from coexist.schedulers import SlurmScheduler
 scheduler = SlurmScheduler(
     "10:0:0",           # Time allocated for a single simulation
     commands = textwrap.dedent('''
-        "set -e"
-        "module purge; module load bluebear"
-        "module load SciPy-bundle/2021.05-foss-2021a"
+        set -e
+        module purge; module load bluebear
+        module load SciPy-bundle/2021.05-foss-2021a
     '''),
     qos = "bbdefault",
     account = "windowcr-pept-as-a-service",
