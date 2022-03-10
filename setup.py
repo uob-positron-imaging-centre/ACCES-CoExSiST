@@ -78,7 +78,8 @@ setuptools.setup(
     version = about["__version__"],
     author = (
         "Andrei Leonard Nicusan <a.l.nicusan@bham.ac.uk>, "
-        "Dominik Werner <d.werner.1@bham.ac.uk>"
+        "Dominik Werner <d.werner.1@bham.ac.uk>, "
+        "Jack Sykes <jas653@student.bham.ac.uk>"
     ),
 
     keywords = (
