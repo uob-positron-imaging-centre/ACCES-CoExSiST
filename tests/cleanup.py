@@ -14,6 +14,7 @@ def cleanup(
     files = [
         "access_script1.py",
         "access_script2.py",
+        "access_script_multi1.py",
         "access_single_submission.sh",
     ],
     directories = [

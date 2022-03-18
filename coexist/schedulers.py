@@ -92,9 +92,6 @@ class SlurmScheduler(Scheduler):
     qos : str, optional
         The "#SBATCH --qos bbdefault" ``sbatch`` command.
 
-    account : str, optional
-        The "#SBATCH --account windowcr-rt-royalsociety" ``sbatch`` command.
-
     mail_type : str, default "1"
         The "#SBATCH --mail-type FAIL" ``sbatch`` command.
 
@@ -136,7 +133,6 @@ class SlurmScheduler(Scheduler):
     >>>         module load BEAR-Python-DataScience
     >>>     """,
     >>>     qos = "bbdefault",
-    >>>     account = "windowcr-rt-royalsociety",
     >>>     constraint = "cascadelake",   # Any other #SBATCH --<CMD> = "VAL"
     >>> )
     '''

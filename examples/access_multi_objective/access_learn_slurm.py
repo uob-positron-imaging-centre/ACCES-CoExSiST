@@ -13,9 +13,9 @@ from coexist.schedulers import SlurmScheduler
 scheduler = SlurmScheduler(
     "10:0:0",           # Time allocated for a single simulation
     commands = textwrap.dedent('''
-        "set -e"
-        "module purge; module load bluebear"
-        "module load SciPy-bundle/2021.05-foss-2021a"
+        set -e
+        module purge; module load bluebear
+        module load SciPy-bundle/2021.05-foss-2021a
     '''),
     qos = "bbdefault",
     account = "windowcr-pept-as-a-service",

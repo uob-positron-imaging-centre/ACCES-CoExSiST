@@ -173,11 +173,6 @@ def test_access_multi_objective():
     print(data)
 
 
-def test_multi_objective_combiners():
-    # TODO: check the multi-objective classes work
-    pass
-
-
 def test_access_plots():
     # Using AccessData
     data = coexist.AccessData.read("access_data/access_seed123")

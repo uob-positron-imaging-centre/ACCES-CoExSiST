@@ -52,6 +52,7 @@ Submodules
    :caption: Submodules
 
    access
+   combiners
    plots
    schedulers
    utilities

@@ -227,7 +227,7 @@ class AccessSetup:
             )))
 
         columns_needed = ["value", "min", "max", "sigma"]
-        if not all([c in parameters.columns for c in columns_needed]):
+        if not all(c in parameters.columns for c in columns_needed):
             raise ValueError(textwrap.fill((
                 "The `parameters` DataFrame defined in the user script must "
                 "have at least four columns defined: ['value', 'min', "
@@ -255,7 +255,6 @@ class AccessSetup:
     def starting_guess(self):
         '''Return the initial parameter combinations to start CMA-ES with.
         '''
-
         # First guess, scaled
         x0 = self.parameters_scaled["value"].to_numpy()
         bounds = [
@@ -316,6 +315,7 @@ class AccessPaths:
         history: str = None,
         history_scaled: str = None,
     ):
+
         self.directory = directory
         self.results = results
         self.outputs = outputs
@@ -668,6 +668,8 @@ class AccessProgress:
 
 
     def update_epochs(self, es, scaling):
+        '''Update each epoch array after an ACCES run has been completed.
+        '''
         self.epochs = np.vstack((
             self.epochs,
             np.hstack((
@@ -684,10 +686,12 @@ class AccessProgress:
 
 
     def update_history(self, es, scaling, solutions, results):
+        '''Update the ACCES history with the latest simulation solutions and
+        results.
+        '''
         solutions = np.asarray(solutions)
         current = np.c_[solutions * scaling, results]
         current_scaled = np.c_[solutions, results]
-
         # Check that we have the correct number of columns - if all simulations
         # in an epoch crashed, we'll have a single error column filled with NaN
         history = self.history
@@ -729,18 +733,19 @@ class AccessProgress:
         multi_objective,
         verbose,
     ):
-        '''TODO: One-sentence description for all methods that don't have one already.
+        '''Check whether the jobs have finished and retrieve the standard
+        deviation, errors and the combined total error.
         '''
-
         results = []
         stdout_rec = []
         stderr_rec = []
         crashed = []
 
         # Occasionally check if jobs finished
-        wait = 0.1
-        waited = 0.
-        logged = 0
+        wait = 0.1          # Time between checking results
+        waited = 0.         # Total time waited
+        logged = 0          # Number of times logged remaining simulations
+        tlog = 30 * 60      # Time until logging remaining simulations again
 
         while wait != 0:
             done = sum((p.poll() is not None for p in processes))
@@ -778,7 +783,6 @@ class AccessProgress:
                     # Load result if the file exists, otherwise set it to NaN
                     if os.path.isfile(result_paths[i]):
                         with open(result_paths[i], "rb") as f:
-                            # TODO: verify bonkers errors
                             errors = pickle.load(f)
                             if hasattr(errors, "__iter__"):
                                 errors = np.array(errors, dtype = float)
@@ -791,9 +795,11 @@ class AccessProgress:
                         results.append(None)
                         crashed.append(proc_index)
 
-            # Every 30 minutes print remaining jobs
-            if verbose >= 4 and wait != 0 and waited > (logged + 1) * 30 * 60:
+            # Every `remaining` seconds print remaining jobs
+            if verbose >= 4 and wait != 0 and waited > (logged + 1) * tlog:
                 logged += 1
+                tlog *= 1.5
+
                 remaining = " ".join([
                     p.args[-1].split(".")[-2]
                     for p in processes if p.poll() is None
@@ -811,10 +817,10 @@ class AccessProgress:
                 ), flush = True)
 
             # Wait for increasing numbers of seconds until checking for results
-            # again - at most 10 minutes
+            # again - at most 1 minute
             time.sleep(wait)
             waited += wait
-            wait = min(wait * 1.5, 10 * 60)
+            wait = min(wait * 1.5, 60)
 
         return results, stdout_rec, stderr_rec, crashed
 
@@ -960,12 +966,17 @@ class Access:
         '''Learn the free `parameters` from the user script that minimise the
         `error` variable by trying `num_solutions` parameter combinations at
         a time until the overall uncertainty becomes lower than `target_sigma`.
+
+        For `multi_objective` optimisation, use a `coexist.combiner` to combine
+        multiple error values into a single one.
         '''
 
         # Type-checking inputs
         if not hasattr(multi_objective, "combine"):
             raise TypeError(textwrap.fill((
-                "TODO: add error message"
+                "The input `mulit_objective` has no attribute `combine`. "
+                "Check you are using a `coexist.combiner` to combine "
+                "multiple error values into a single combined error."
             )))
 
         # Set last setup attributes and create ACCES directories
@@ -1112,6 +1123,8 @@ class Access:
 
 
     def print_before_eval(self, es, epoch, scaling):
+        '''Print current estimates before evaluating current epoch.
+        '''
         info = pd.DataFrame(
             np.vstack((
                 es.result.xfavorite * scaling,
@@ -1144,7 +1157,9 @@ class Access:
 
 
     def print_status_eval(self, stdout_rec, stderr_rec, crashed):
-        # Print messages for errors, outputs and simulation crashes
+        '''Print logged stdout and stderr messages and crashed simulations
+        after evaluating an epoch.
+        '''
         line = "-" * 80
         if len(stderr_rec):
             stderr_rec_str = textwrap.fill(" ".join(
@@ -1197,6 +1212,9 @@ class Access:
         scaling,
         results,
     ):
+        '''Display parameter combinations evaluated in the current epoch and
+        the corresponding errors found.
+        '''
         # Display evaluation results: solutions, error values, etc.
         sols_results = np.c_[solutions * scaling, results]
         cols = self.setup.parameters.index.to_list() + [
@@ -1228,6 +1246,9 @@ class Access:
 
 
     def print_finished(self, es, scaling):
+        '''Display final message after successful convergence on optimum
+        parameters.
+        '''
         solutions = list(es.result.xbest * scaling) + [es.result.fbest]
         stds = list(es.result.stds * scaling) + [" "]
         proc = os.path.join(
@@ -1253,6 +1274,9 @@ class Access:
 
 
     def finished(self, es):
+        '''Check if the optimisation run is done and display the best solution
+        found for the target sigma value.
+        '''
         if es.sigma < self.setup.target:
             if self.verbose >= 1:
                 print((
@@ -1266,8 +1290,8 @@ class Access:
 
 
     def evaluate_solutions(self, solutions, epoch):
-        '''Evaluate the parameter combinations given in `solutions` for `epoch`
-        in parallel.
+        '''Evaluate the parameter combinations given in `solutions` for the
+        current `epoch` in parallel.
         '''
 
         # Aliases
@@ -1558,6 +1582,16 @@ class AccessData:
 
     @staticmethod
     def empty():
+        '''Create an empty `AccessData` object that you can set attributes
+        to directly.
+
+        Examples
+        --------
+        Create an empty `AccessData` object:
+
+        >>> import coexist
+        >>> data = coexist.AccessData.empty()
+        '''
         return AccessData.__new__(AccessData)
 
 
@@ -1728,7 +1762,8 @@ class AccessData:
                 initial_indent = prep * " ",
                 subsequent_indent = prep * " ",
             )[prep:]
-
+            '''Combine the column data for the relevant parameters.
+            '''
         cols = wrap(", ".join(self.epochs.columns))
         epochs = f"DataFrame({cols})"
 
@@ -1782,8 +1817,9 @@ class AccessData:
 
 
 def find_access_path(path):
+    '''Locate the `access_seed<seed>` directory.
+    '''
     finder = re.compile(r"access_seed[0-9]+")
-
     # The directory itself
     if finder.match(path):
         return path
@@ -2156,6 +2192,9 @@ class AccessCoupled:
 
 
     def run_simulation_best(self, solutions, stds):
+        '''Save the radii, positions, and velocities for the simulations with
+        the best parameter values.
+        '''
         # Path for saving the simulations with the best parameters
         best_path = f"{self.save_path}/best"
 
@@ -2309,6 +2348,9 @@ class AccessCoupled:
 
 
     def print_before_eval(self, es, solutions):
+        '''Print the individual and overal scaled standard deviations along
+        with the parameter combinations to try.
+        '''
         print((
             f"Scaled overall standard deviation: {es.sigma}\n"
             f"Scaled individual standard deviations:\n{es.result.stds}"
@@ -2354,6 +2396,9 @@ class AccessCoupled:
 
 
     def finished(self, es):
+        '''If the overal sigma value is less than the target sigma value,
+        finish the simulation.
+        '''
         if es.sigma < self.target_sigma:
             if self.verbose:
                 print((
@@ -2368,7 +2413,10 @@ class AccessCoupled:
 
 
     def std_outputs(self, run_index, sim_index, stdout, stderr):
-        # If we had new errors, write them to `error.log`
+        '''If new errors and outputs are produced, write them to the correct
+        olders.
+        '''
+        # If we had new errors, write them to `error.log`.
         if len(stderr) and stderr != self._stderr:
             self._stderr = stderr.decode("utf-8")
 
@@ -2408,6 +2456,9 @@ class AccessCoupled:
 
 
     def simulations_save_paths(self, epoch):
+        '''For every simulation run in every parameter combination, append the
+        simulation, radii, position and velocity path to a corresponding list.
+        '''
         sim_paths = []
         radii_paths = []
         positions_paths = []
@@ -2453,6 +2504,11 @@ class AccessCoupled:
 
 
     def try_solutions(self, solutions, epoch):
+        '''For every solution to try and simulate a run, start a separate OS
+        process that runs the `async_access_error.py` file and saves the
+        positions in a `.npy` file.
+        '''
+
         # Aliases
         param_names = self.simulations[0].parameters.index
 
@@ -2462,9 +2518,6 @@ class AccessCoupled:
             "async_access_error.py"
         )
 
-        # For every solution to try and simulation run, start a separate OS
-        # process that runs the `async_access_error.py` file and saves the
-        # positions in a `.npy` file
         processes = []
 
         # These are all lists of lists: axis 0 is the parameter combination to

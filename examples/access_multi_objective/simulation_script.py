@@ -22,7 +22,6 @@ x, y = parameters["value"]
 
 # Multi-objective optimisation problem taken from:
 # http://www.cs.uccs.edu/~jkalita/work/cs571/2012/MultiObjectiveOptimization.pdf
-
 a1 = 0.5 * np.sin(1) - 2 * np.cos(1) + np.sin(2) - 1.5 * np.cos(2)
 a2 = 1.5 * np.sin(1) - np.cos(1) + 2 * np.sin(2) - 0.5 * np.cos(2)
 
