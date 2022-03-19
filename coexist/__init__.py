@@ -15,8 +15,10 @@ from        .base           import  to_vtk
 try:
     from    .liggghts       import  LiggghtsSimulation, AutoTimestep
 except ImportError:
-    LiggghtsSimulation = type("LiggghtsNotFound", (), {})
-    AutoTimestep = type("LiggghtsNotFound", (), {})
+    class LiggghtsNotFound:
+        pass
+    LiggghtsSimulation = LiggghtsNotFound
+    AutoTimestep = LiggghtsNotFound
 
 from        .optimisation   import  Coexist
 from        .access         import  Access, AccessData

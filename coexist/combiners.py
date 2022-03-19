@@ -28,6 +28,50 @@ import  textwrap
 import  numpy as  np
 
 
+
+
+def combiner(func):
+    '''Make a user-defined function a multi-objective error combiner.
+
+    Examples
+    --------
+    To simply multiply all error values together:
+
+    >>> import numpy as np
+    >>> from coexist.combiners import combiner
+    >>>
+    >>> @combiner
+    >>> def multiply(errors: np.ndarray) -> float:
+    >>>     return np.prod(errors)
+
+    The input argument "errors" will always be a 1D NumPy array, even when the
+    simulation error is a simple, single number.
+
+    If you know you will have only two error values, you can sum them up like
+    this:
+
+    >>> from coexist.combiners import combiner
+    >>>
+    >>> @combiner
+    >>> def sum_errors(errors):
+    >>>     return errors[0] + errors[1]
+
+    Then you can simply supply your function to ACCES:
+
+    >>> import coexist
+    >>> coexist.Access("<simulation_script>").learn(
+    >>>     multi_objective = sum_errors,
+    >>>     random_seed = 42,
+    >>> )
+    '''
+
+    # Attach a method called "combine" that simply calls the function itself
+    func.combine = func.__call__
+    return func
+
+
+
+
 class Product:
     '''Class for combining multiple errors by multiplying them.
 

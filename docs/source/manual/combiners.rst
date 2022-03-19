@@ -3,7 +3,7 @@ ACCES Multi-Objective (``coexist.combiners``)
 
 
 .. automodule:: coexist.combiners
-   :exclude-members: Product, Sum
+   :exclude-members: Product, Sum, combiner
 
 
 
@@ -13,3 +13,4 @@ ACCES Multi-Objective (``coexist.combiners``)
 
    coexist.combiners.Product
    coexist.combiners.Sum
+   coexist.combiners.combiner

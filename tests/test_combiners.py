@@ -67,6 +67,17 @@ def test_sum():
     assert comb5.combine(error5) == np.sum(np.array([error5]) * weights5)
 
 
+def test_combiner_decorator():
+    # Test user-friendly function decorator
+    @coexist.combiners.combiner
+    def sum_errors(errors):
+        return np.sum(errors)
+
+    errors = np.array([1, 2])
+    assert sum_errors.combine(errors) == sum_errors(errors)
+
+
 if __name__ == "__main__":
     test_product()
     test_sum()
+    test_combiner_decorator()
