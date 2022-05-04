@@ -21,6 +21,7 @@ def cleanup(
         "__pycache__",
         "access_seed123",
         "access_seed124",
+        "access_seed123_restore",
         "logs",
         "vtk_export",
     ],
