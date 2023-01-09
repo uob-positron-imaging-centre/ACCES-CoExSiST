@@ -220,7 +220,7 @@ class SlurmScheduler(Scheduler):
         if not os.path.isdir(outputdir):
             os.mkdir(outputdir)
 
-        outputpath = os.path.join(outputdir, f"output.{index}.slurm")
+        outputpath = os.path.join(outputdir, f"output.{index}.slurm-%j.out")
         return ["sbatch", f"--output={outputpath}", scriptpath]
 
 

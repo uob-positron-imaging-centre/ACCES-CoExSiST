@@ -1339,7 +1339,7 @@ class Access:
                     )
                 )
 
-            # Gather results
+            # Gather results and crashed simulations
             results, crashed = self.progress.gather_results(
                 processes,
                 self.paths,
