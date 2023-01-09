@@ -43,7 +43,7 @@ signal_handler = SignalHandlerKI()
 
 
 
-@autorepr(short = {"script", "scheduler_cmd"})
+@autorepr(short = {"script"})
 class AccessSetup:
     '''Structure storing constant attributes for an ACCES optimisation run.
 
@@ -65,10 +65,6 @@ class AccessSetup:
     script : str
         The modified user script that will be executed.
 
-    scheduler_cmd : list
-        The list of commands the will be prepended to each script execution,
-        defined by the `Scheduler`.
-
     population : int
         The number of simulations to be run in parallel in each epoch.
 
@@ -83,7 +79,7 @@ class AccessSetup:
         The random number generator used, seeded with `seed`.
     '''
 
-    def __init__(self, script_path, scheduler):
+    def __init__(self, script_path):
         '''Given a path to a user-defined simulation script, extract the free
         parameters and generate the ACCES script.
         '''
@@ -92,15 +88,6 @@ class AccessSetup:
         self.target = None
         self.rng = None
         self.seed = None
-
-        # Type-check and generate scheduler commands
-        if not isinstance(scheduler, schedulers.Scheduler):
-            raise TypeError(textwrap.fill((
-                "The input `scheduler` must be a subclass of `coexist."
-                f"schedulers.Scheduler`. Received {type(scheduler)}."
-            )))
-
-        self.scheduler_cmd = scheduler.generate()
 
         # Extract parameters and generate ACCES script
         with open(script_path, "r") as f:
@@ -737,8 +724,8 @@ class AccessProgress:
         deviation, errors and the combined total error.
         '''
         results = []
-        stdout_rec = []
-        stderr_rec = []
+        # stdout_rec = []
+        # stderr_rec = []
         crashed = []
 
         # Occasionally check if jobs finished
@@ -754,31 +741,7 @@ class AccessProgress:
                 wait = 0
                 for i, proc in enumerate(processes):
                     proc_index = int(proc.args[-1].split(".")[-2])
-                    stdout, stderr = proc.communicate()
-
-                    # If a *new* output message was recorded in stdout, log it
-                    if len(stdout) and stdout != self.stdout:
-                        stdout_rec.append(proc_index)
-                        self.stdout = stdout
-
-                        stdout_log = os.path.join(
-                            paths.outputs,
-                            f"stdout.{proc_index}.log",
-                        )
-                        with open(stdout_log, "w") as f:
-                            f.write(self.stdout)
-
-                    # If a *new* error message was recorded in stderr, log it
-                    if len(stderr) and stderr != self.stderr:
-                        stderr_rec.append(proc_index)
-                        self.stderr = stderr
-
-                        stderr_log = os.path.join(
-                            paths.outputs,
-                            f"stderr.{proc_index}.log",
-                        )
-                        with open(stderr_log, "w") as f:
-                            f.write(self.stderr)
+                    proc.communicate()
 
                     # Load result if the file exists, otherwise set it to NaN
                     if os.path.isfile(result_paths[i]):
@@ -822,7 +785,7 @@ class AccessProgress:
             waited += wait
             wait = min(wait * 1.5, 60)
 
-        return results, stdout_rec, stderr_rec, crashed
+        return results, crashed
 
 
 
@@ -898,14 +861,11 @@ class Access:
 
     Attributes
     ----------
-    script : str
-        The ACCES code generated from the user-supplied script.
-
     setup : coexist.access.AccessSetup
         Structure storing given ACCES configuration, containing the free
-        ``parameters``, scheduler commands ``scheduler_cmd``, number of
-        solutions to try in parallel ``population``, target uncertainty
-        ``target``, seeded random number generator ``rng`` and the ``seed``.
+        ``parameters``, number of solutions to try in parallel ``population``,
+        target uncertainty ``target``, seeded random number generator ``rng``
+        and the ``seed``.
 
     paths : coexist.access.AccessPaths
         Structure storing paths to the ACCES ``directory``, saved ``state``,
@@ -917,7 +877,14 @@ class Access:
         ``history`` (and CMA-scaled versions of them) and latest ``stdout`` and
         ``stderr`` messages.
 
-    verbose : int
+    scheduler : coexist.schedulers.Scheduler subclass
+        The scheduler used to launch each simulation in parallel.
+
+    multi_objective : object, optional
+        An object defining the method `combine`, combining multiple errors into
+        a single value.
+
+    verbose : int, optional
         Integer denoting the level of verbosity, where 0 is quiet and 5 is
         maximally verbose.
     '''
@@ -948,9 +915,19 @@ class Access:
         '''
 
         # Creating class attributes
-        self.setup = AccessSetup(script_path, scheduler)
+        self.setup = AccessSetup(script_path)
         self.paths = AccessPaths()
         self.progress = AccessProgress()
+
+        # Type-check scheduler
+        if not isinstance(scheduler, schedulers.Scheduler):
+            raise TypeError(textwrap.fill((
+                "The input `scheduler` must be a subclass of `coexist."
+                f"schedulers.Scheduler`. Received {type(scheduler)}."
+            )))
+        self.scheduler = scheduler
+
+        # Will be set in `learn`
         self.multi_objective = None
         self.verbose = None
 
@@ -1156,36 +1133,14 @@ class Access:
         pd.set_option("display.max_rows", old_max_rows)
 
 
-    def print_status_eval(self, stdout_rec, stderr_rec, crashed):
+    def print_status_eval(self, crashed):
         '''Print logged stdout and stderr messages and crashed simulations
         after evaluating an epoch.
         '''
-        line = "-" * 80
-        if len(stderr_rec):
-            stderr_rec_str = textwrap.fill(" ".join(
-                str(s) for s in stderr_rec
-            ))
-            print(
-                line + "\n" +
-                "New stderr messages were recorded while running jobs:\n" +
-                textwrap.indent(stderr_rec_str, "  ") + "\n" +
-                f"The error messages were logged in:\n  {self.paths.outputs}",
-                flush = True,
-            )
-
-        if len(stdout_rec):
-            stdout_rec_str = textwrap.fill(" ".join(
-                str(s) for s in stdout_rec
-            ))
-            print(
-                line + "\n" +
-                "New stdout messages were recorded while running jobs:\n" +
-                textwrap.indent(stdout_rec_str, "  ") + "\n" +
-                f"The output messages were logged in:\n  {self.paths.outputs}",
-                flush = True,
-            )
 
         if len(crashed):
+            line = "-" * 80
+
             crashed_str = textwrap.fill(" ".join(
                 str(c) for c in crashed
             ))
@@ -1196,12 +1151,10 @@ class Access:
                 textwrap.indent(crashed_str, "  ") + "\n" +
                 "They crashed or terminated early; for details, check the "
                 f"output logs in:\n  {self.paths.outputs}\n"
-                "The error values for these simulations were set to NaN.",
+                "The error values for these simulations were set to NaN.\n" +
+                line + "\n",
                 flush = True,
             )
-
-        if len(stderr_rec) or len(stdout_rec) or len(crashed):
-            print(line + "\n")
 
 
     def print_after_eval(
@@ -1320,6 +1273,16 @@ class Access:
             ) for i in range(pop)
         ]
 
+        output_files = [
+            open(
+                os.path.join(
+                    self.paths.outputs,
+                    f"output.{start_index + i}.log"
+                ),
+                "w",
+            ) for i in range(pop)
+        ]
+
         # Catch the KeyboardInterrupt (Ctrl-C) signal to shut down the spawned
         # processes before aborting.
         try:
@@ -1336,28 +1299,32 @@ class Access:
                 with open(parameters_paths[i], "wb") as f:
                     pickle.dump(parameters, f)
 
+                # Get job scheduling command
+                scheduler_cmd = self.scheduler.schedule(
+                    self.paths.directory,
+                    start_index + i,
+                )
+
                 processes.append(
                     subprocess.Popen(
-                        self.setup.scheduler_cmd + [
+                        scheduler_cmd + [
                             self.paths.script,
                             parameters_paths[i],
                             result_paths[i],
                         ],
-                        stdout = subprocess.PIPE,
-                        stderr = subprocess.PIPE,
-                        universal_newlines = True,      # outputs in text mode
+                        stdout = output_files[i],
+                        stderr = subprocess.STDOUT,
                     )
                 )
 
             # Gather results
-            results, stdout_rec, stderr_rec, crashed = \
-                self.progress.gather_results(
-                    processes,
-                    self.paths,
-                    result_paths,
-                    self.multi_objective,
-                    self.verbose,
-                )
+            results, crashed = self.progress.gather_results(
+                processes,
+                self.paths,
+                result_paths,
+                self.multi_objective,
+                self.verbose,
+            )
 
         except KeyboardInterrupt:
             for proc in processes:
@@ -1368,7 +1335,11 @@ class Access:
         finally:
             signal_handler.unset()
 
-        self.print_status_eval(stdout_rec, stderr_rec, crashed)
+            for of in output_files:
+                of.close()
+
+        if self.verbose >= 1:
+            self.print_status_eval(crashed)
 
         # Find number of error values returned for one successful simulation
         num_errors = 1

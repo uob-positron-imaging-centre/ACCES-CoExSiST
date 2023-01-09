@@ -187,7 +187,7 @@ def test_access_plots():
 def test_schedulers():
     s1 = coexist.schedulers.LocalScheduler()
     print(s1)
-    assert s1.generate()[0] == sys.executable
+    assert s1.schedule("access_seed123", 0)[0] == sys.executable
 
     s2 = coexist.schedulers.SlurmScheduler(
         "10:0:0",
@@ -204,8 +204,12 @@ def test_schedulers():
     )
     print(s2)
 
-    assert s2.generate()[0] == "sbatch"
-    assert os.path.isfile("access_single_submission.sh")
+    dirpath = "access_seed123"
+    if not os.path.isdir(dirpath):
+        os.mkdir(dirpath)
+
+    assert s2.schedule(dirpath, 0)[0] == "sbatch"
+    assert os.path.isfile(os.path.join(dirpath, s2.script))
 
 
 if __name__ == "__main__":

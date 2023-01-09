@@ -84,7 +84,7 @@ setuptools.setup(
 
     keywords = (
         "simulation optimization calibration parameter-estimation "
-        "parameter-tuning physics-simulation computational-fluid-dynamics"
+        "parameter-tuning physics-simulation computational-fluid-dynamics "
         "granular DEM discrete-element-method medical-imaging"
     ),
     description = (

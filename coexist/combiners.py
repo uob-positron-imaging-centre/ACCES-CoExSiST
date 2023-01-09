@@ -136,6 +136,8 @@ class Product:
         return np.prod(errors ** self.weights)
 
 
+
+
 class Sum:
     '''Class for combining errors by summing them together.
 

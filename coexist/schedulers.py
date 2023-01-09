@@ -39,7 +39,10 @@ class Scheduler(ABC):
     **Subclassing:**
 
     If you want to implement a concrete scheduler for another system, subclass
-    `Scheduler` and implement the `generate` method, which should:
+    `Scheduler` and implement the `schedule(dirpath, index)` method (`dirpath`
+    is the directory where the computation is run, e.g. "access_seed123" and
+    `index` is the job number), which will be called when launching each
+    simulation to:
 
     - Generate any files needed to schedule a Python script's execution.
     - Return a list of the system commands to be prepended to the Python
@@ -48,7 +51,7 @@ class Scheduler(ABC):
     '''
 
     @abstractmethod
-    def generate(self):
+    def schedule(self, dirpath, index):
         pass
 
 
@@ -66,7 +69,7 @@ class LocalScheduler(Scheduler):
         self.python_executable = list(python_executable)
 
 
-    def generate(self):
+    def schedule(self, dirpath, index):
         return self.python_executable
 
 
@@ -92,7 +95,7 @@ class SlurmScheduler(Scheduler):
     qos : str, optional
         The "#SBATCH --qos bbdefault" ``sbatch`` command.
 
-    mail_type : str, default "1"
+    mail_type : str, default "FAIL"
         The "#SBATCH --mail-type FAIL" ``sbatch`` command.
 
     ntasks : str, default "1"
@@ -100,9 +103,6 @@ class SlurmScheduler(Scheduler):
 
     mem : str, optional
         The "#SBATCH --mem 4G" ``sbatch`` command.
-
-    output : str, default "logs/sim_slurm_%j.out"
-        The output logs directory.
 
     commands : str or list[str], default "module load Python"
         Any other *non-SLURM* commands to run in the job submission script
@@ -144,9 +144,9 @@ class SlurmScheduler(Scheduler):
         mail_type = "FAIL",
         ntasks = "1",
         mem = None,
-        output = "logs/sim_slurm_%j.out",
-        commands = "module load Python\n",
+        commands = "set -e\n",
         interpreter = os.path.split(sys.executable)[1],
+        script = "access_slurm_submission.sh",
         **kwargs,
     ):
         self.time = str(time)
@@ -159,14 +159,12 @@ class SlurmScheduler(Scheduler):
         self.ntasks = str(ntasks) if ntasks is not None else None
         self.mem = str(mem) if mem is not None else None
 
-        self.output = str(output) if output is not None else None
+        self.script = script
         self.kwargs = kwargs
 
 
-    def generate(self):
-        filename = "access_single_submission.sh"
-
-        with open(filename, "w") as f:
+    def generate(self, scriptpath):
+        with open(scriptpath, "w") as f:
             f.write("#!/bin/bash\n")
             f.write(f"#SBATCH --time {self.time}\n")
 
@@ -182,17 +180,10 @@ class SlurmScheduler(Scheduler):
             if self.mem is not None:
                 f.write(f"#SBATCH --mem {self.mem}\n")
 
-            if self.output is not None:
-                output_path = os.path.split(self.output)
-                if output_path[0] and not os.path.isdir(output_path[0]):
-                    os.mkdir(output_path[0])
-
-                f.write(f"#SBATCH --output {self.output}\n")
-
-            f.write("#SBATCH --wait\n")
-
             for key, val in self.kwargs.items():
                 f.write(f"#SBATCH --{key.replace('_', '-')} {val}\n")
+
+            f.write("#SBATCH --wait\n")
 
             f.write("\n\n")
             if isinstance(self.commands, str):
@@ -211,7 +202,26 @@ class SlurmScheduler(Scheduler):
             ))
             f.write(f"{self.interpreter} $*\n")
 
-        return ["sbatch", filename]
+
+    def schedule(self, dirpath, index):
+        # Check directory exists
+        if not os.path.isdir(dirpath):
+            raise FileNotFoundError(
+                f"The given `dirpath` = '{dirpath}' does not exist."
+            )
+
+        # Generate SLURM launch script if it doesn't exist
+        scriptpath = os.path.join(dirpath, self.script)
+        if not os.path.isfile(scriptpath):
+            self.generate(scriptpath)
+
+        # Check outputs directory exists and create it otherwise
+        outputdir = os.path.join(dirpath, "outputs")
+        if not os.path.isdir(outputdir):
+            os.mkdir(outputdir)
+
+        outputpath = os.path.join(outputdir, f"output.{index}.slurm")
+        return ["sbatch", f"--output={outputpath}", scriptpath]
 
 
     def __repr__(self):
