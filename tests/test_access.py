@@ -23,7 +23,20 @@ def test_access_data():
     print(data)
 
     # Read data using direct class constructor
-    coexist.AccessData("access_data/access_seed123")
+    data = coexist.AccessData("access_data/access_seed123")
+
+    # Epoch selection
+    assert len(data[0].results) == data.population
+    assert len(data[0:1].results) == data.population
+    data[-1]
+    data[:-1]
+    data[0:]
+    data[:]
+
+    # Saving AccessData without last epoch
+    data[:-1].save("access_seed123_restore")
+    data2 = coexist.AccessData("access_seed123_restore")
+    assert data2.num_epochs == data.num_epochs - 1
 
 
 def test_access():
