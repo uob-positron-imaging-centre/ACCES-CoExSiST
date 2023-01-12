@@ -15,7 +15,7 @@ import  contextlib
 import  subprocess
 import  pickle
 import  shutil
-from    datetime            import  datetime
+from    datetime            import  datetime, timedelta
 from    concurrent.futures  import  ProcessPoolExecutor
 
 import  numpy               as      np
@@ -1143,9 +1143,31 @@ class Access:
 
         head = "=" * 80
         line = "-" * 80
+
+        # Current time, formatted
+        now_str = datetime.now().strftime(r"%H:%M:%S")
+
+        # Save and print time elapsed since last epoch
+        now = time.time()
+        elapsed = now - getattr(self, "_elapsed", now)
+        setattr(self, "_elapsed", now)
+
+        if elapsed == 0:
+            since_str = ""
+        else:
+            hours, remainder = divmod(int(elapsed), 3600)
+            minutes, seconds = divmod(remainder, 60)
+
+            elapsed_str = f"{minutes:02}:{seconds:02}"
+            if hours > 0:
+                elapsed_str = f"{hours:02}:" + elapsed_str
+
+            since_str = f" | Since Last {elapsed_str}"
+
         print((
             f"{head}\n"
-            f"Epoch {epoch:>4} | Population {self.setup.population}\n"
+            f"Epoch {epoch:>4} | Population {self.setup.population:>4} | "
+            f"Time {now_str}{since_str}\n"
             f"{line}\n"
             f"Scaled overall standard deviation: {es.sigma}\n"
             f"{info}\n"
