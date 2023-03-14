@@ -1,5 +1,6 @@
-[![CI Status](https://github.com/uob-positron-imaging-centre/Coexist/actions/workflows/ci.yml/badge.svg)](https://github.com/uob-positron-imaging-centre/Coexist/actions/workflows/ci.yml)
+[![PyPI version](https://badge.fury.io/py/coexist.svg)](https://badge.fury.io/py/coexist)
 [![Documentation Status](https://readthedocs.org/projects/coexist/badge/?version=latest)](https://coexist.readthedocs.io/en/latest/?badge=latest)
+[![CI Status](https://github.com/uob-positron-imaging-centre/Coexist/actions/workflows/ci.yml/badge.svg)](https://github.com/uob-positron-imaging-centre/Coexist/actions/workflows/ci.yml)
 [![Language grade: Python](https://img.shields.io/lgtm/grade/python/g/uob-positron-imaging-centre/Coexist.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/uob-positron-imaging-centre/Coexist/context:python)
 [![Colab example](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1p7OwnaYgENwK4DTn_6QETX4ajwVFeza0?usp=sharing)
 [![License: GPL-3.0](https://img.shields.io/github/license/uob-positron-imaging-centre/Coexist?style=flat-square)](https://github.com/uob-positron-imaging-centre/Coexist)
@@ -34,9 +35,13 @@ ACCES was implemented in the `coexist.Access` class, providing an interface that
 
 ## Getting Started
 
-These instructions will help you get started with Coexist. This is a pure Python package that does not require any extra system configuration, supporting Python 3.6 and above (though it might work with even older versions).
+This is a pure Python package that does not require any extra system configuration, supporting Python 3.6 and above (though it might work with even older versions) - to install it from PyPI, simply run:
 
-Before the package is published to PyPI, you can install it directly from this GitHub repository: 
+```
+pip install coexist
+```
+
+Or you can install the development version from the GitHub repository:
 
 ```
 pip install git+https://github.com/uob-positron-imaging-centre/Coexist
@@ -224,9 +229,9 @@ This library aims to be the state-of-the-art for simulation calibration, develop
 
 - GitHub issues.
 - Pull requests.
-- Email me at <a.l.nicusan@bham.ac.uk>.
+- Email me at <a.l.nicusan@gmail.com>.
 
-We are more than happy to discuss the library architecture and calibration / optimisation approach with any potential contributors and user.
+We are more than happy to discuss the library architecture and calibration / optimisation approach with any potential contributors and users.
 
 
 
@@ -278,7 +283,7 @@ This library - in its general, domain-agnostic form - is free and open-source, p
 If you are a company and would like to integrate ACCESS into your work - e.g. ACCESS-enabled equipment or general simulation calibration - please send an email to `a.l.nicusan@bham.ac.uk` to discuss commercial development of specific tools for your application. Relicensing for a closed-source / commercial project can be considered on an individual basis.
 
 
-Copyright (C) 2020-2021 the Coexist developers. Until now, this library was built directly or indirectly through the brain-time of:
+Copyright (C) 2020-2023 the Coexist developers. Until now, this library was built directly or indirectly through the brain-time of:
 
 - Andrei Leonard Nicusan (University of Birmingham)
 - Dominik Werner (University of Birmingham)
