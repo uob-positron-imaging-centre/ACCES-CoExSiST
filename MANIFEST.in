@@ -1,0 +1,8 @@
+include README.md LICENSE CITATION.cff
+include requirements.txt requirements_extra.txt
+include *.rst *.txt
+recursive-include coexist *.py *.pyx *.pxd *.c* *.h*
+global-exclude .DS_Store
+global-exclude __pycache__
+global-exclude *.pyc
+global-exclude *.so
