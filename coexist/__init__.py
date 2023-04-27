@@ -31,6 +31,10 @@ from        .               import  plots
 # Import package version
 from        .__version__    import  __version__
 
+from coexist.mpi.liggghtsbase import LiggghtsMPI
+
+
+
 
 __author__ = "Andrei Leonard Nicusan, "
 __email__ = "a.l.nicusan@bham.ac.uk"
