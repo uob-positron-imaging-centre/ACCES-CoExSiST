@@ -15,6 +15,7 @@ import subprocess
 import zmq
 import  numpy       as      np
 from    pyevtk.hl   import  pointsToVTK
+import sys
 
 # Local imports
 from    ..base       import  Simulation
@@ -67,10 +68,11 @@ class LiggghtsMPI():
 
 
     def start_process(self):
-        executable = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)
-                            ), "mpi_liggghts_script.py"
+        executing_file = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "mpi_liggghts_script.py"
         )
+        executable = sys.executable
         self._context = zmq.Context()
         self._socket = self._context.socket(zmq.PAIR)
         port_selected = self._socket.bind_to_random_port("tcp://*")
@@ -79,8 +81,8 @@ class LiggghtsMPI():
         cmds += [
             "-n",
             str(self.cores),
-            "python",
             executable,
+            executing_file,
             "--zmqport",
             str(port_selected),
             "--file",
