@@ -539,7 +539,7 @@ class LiggghtsMPISimulation(Simulation):
         return vel
     
     
-        def forces(self):
+    def forces(self):
         # Get particle vel in each local process
         nlocal = self.simulation.extract_atom("nlocal", 0)[0]
         id_lig = self.simulation.extract_atom("id", 0)
