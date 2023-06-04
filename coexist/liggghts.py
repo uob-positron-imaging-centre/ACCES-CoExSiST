@@ -450,6 +450,24 @@ class LiggghtsSimulation(Simulation):
 
         return vel
 
+    
+        def forces(self):
+        # Get particle velocities
+        nlocal = self.simulation.extract_atom("nlocal", 0)[0]
+        id_lig = self.simulation.extract_atom("id", 0)
+
+        ids = np.array([id_lig[i] for i in range(nlocal)])
+        forc = np.full((ids.max(), 3), np.nan)
+
+        forc_lig = self.simulation.extract_atom("f", 3)
+
+        for i in range(len(ids)):
+            forc[ids[i] - 1, 0] = forc_lig[i][0]
+            forc[ids[i] - 1, 1] = forc_lig[i][1]
+            forc[ids[i] - 1, 2] = forc_lig[i][2]
+
+        return forc
+    
 
     def set_position(
         self,
