@@ -537,7 +537,51 @@ class LiggghtsMPISimulation(Simulation):
                 vel[all_ids[i // 3] - 1, i % 3] = all_vel[i]
             vel.reshape(-1, 3)
         return vel
+    
+    
+        def forces(self):
+        # Get particle vel in each local process
+        nlocal = self.simulation.extract_atom("nlocal", 0)[0]
+        id_lig = self.simulation.extract_atom("id", 0)
 
+        ids = np.array([id_lig[i] for i in range(nlocal)])
+        ids = np.asarray(ids, dtype = np.int64)
+        #print("Ids of rank", self.rank, "are", ids)
+        forc = np.full(nlocal * 3, np.nan)
+
+        forc_lig = self.simulation.extract_atom("f", 3)
+        #print("Rank", self.rank, "has", nlocal, "particles.")
+        for i in range(nlocal):
+            forc[i * 3] = forc_lig[i][0]
+            forc[i * 3 + 1] = forc_lig[i][1]
+            forc[i * 3 + 2] = forc_lig[i][2]
+
+        forc = forc.flatten()
+        all_forc = None
+        all_ids = None
+        # first let rank 0 know how many particles each rank has
+        #print("Here rank", self.rank, "has", vel.size, "particles.")
+        sendcounts = np.array(self.comm.gather(forc.size, root=0))
+        sendcounts = self.comm.bcast(sendcounts, root = 0)
+        if self.rank == 0:
+            all_forc = np.full(sum(sendcounts), np.nan, dtype = np.float64)
+            all_ids = np.full(sum(sendcounts) // 3, np.nan, dtype = np.int64)
+        #print("Here rank", self.rank, "has", sendcounts, "particles.")
+        # then collect all forc to rank 0
+        self.comm.Gatherv(sendbuf=forc, recvbuf=(
+            all_forc, sendcounts), root = 0)
+        self.comm.Gatherv(sendbuf=ids, recvbuf=(
+            all_ids, sendcounts // 3), root = 0)
+
+        forc = None
+
+        if self.rank == 0:
+            forc = np.full((all_ids.max(), 3), np.nan)
+            for i in range(len(all_forc)):
+                forc[all_ids[i // 3] - 1, i % 3] = all_forc[i]
+            forc.reshape(-1, 3)
+        return forc
+    
 
     def set_position(
         self,
