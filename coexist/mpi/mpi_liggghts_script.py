@@ -540,7 +540,7 @@ class LiggghtsMPISimulation(Simulation):
     
     
     def forces(self):
-        # Get particle vel in each local process
+        # Get particle forces in each local process
         nlocal = self.simulation.extract_atom("nlocal", 0)[0]
         id_lig = self.simulation.extract_atom("id", 0)
 
@@ -581,6 +581,20 @@ class LiggghtsMPISimulation(Simulation):
                 forc[all_ids[i // 3] - 1, i % 3] = all_forc[i]
             forc.reshape(-1, 3)
         return forc
+    
+    
+    def mesh_forces(self, fix_id):
+        # Get forces on mesh with ID: fix_id
+        self.simulation.command(f'variable fx_{fix_id} equal f_{fix_id}[1]')
+        self.simulation.command(f'variable fy_{fix_id} equal f_{fix_id}[2]')
+        self.simulation.command(f'variable fz_{fix_id} equal f_{fix_id}[3]')
+
+        mesh_forc = [
+        self.simulation.extract_variable(f"fx_{fix_id}", "", 0),
+        self.simulation.extract_variable(f"fy_{fix_id}", "", 0),
+        self.simulation.extract_variable(f"fz_{fix_id}", "", 0),
+        ]
+        return mesh_forc
     
 
     def set_position(
