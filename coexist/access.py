@@ -1001,11 +1001,9 @@ class Access:
         sigma0 = 1.
 
         # Instantiate CMA-ES optimiser; silence initial CMA-ES message
-        with (
-            open(os.devnull, "w") as f,
-            contextlib.redirect_stdout(f),
-            warnings.catch_warnings(),
-        ):
+        with open(os.devnull, "w") as f, contextlib.redirect_stdout(f), \
+                warnings.catch_warnings():
+
             # CMA-ES sometimes warns about changing the initial standard
             # deviation; ACCES users don't control that, so we can hide it
             warnings.simplefilter("ignore", UserWarning)
