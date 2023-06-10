@@ -228,5 +228,6 @@ def test_schedulers():
 if __name__ == "__main__":
     test_access_data()
     test_access()
+    test_access_multi_objective()
     test_access_plots()
     test_schedulers()

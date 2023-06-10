@@ -15,6 +15,7 @@ import  contextlib
 import  subprocess
 import  pickle
 import  shutil
+import  warnings
 from    datetime            import  datetime, timedelta
 from    concurrent.futures  import  ProcessPoolExecutor
 
@@ -820,6 +821,8 @@ class Access:
 
     ::
 
+        # In file "script_filepath.py"
+
         # ACCESS PARAMETERS START
         import coexist
 
@@ -843,6 +846,7 @@ class Access:
 
     ::
 
+        # In file "access_learn.py"
         import coexist
 
         access = coexist.Access("script_filepath.py")
@@ -997,7 +1001,15 @@ class Access:
         sigma0 = 1.
 
         # Instantiate CMA-ES optimiser; silence initial CMA-ES message
-        with open(os.devnull, "w") as f, contextlib.redirect_stdout(f):
+        with (
+            open(os.devnull, "w") as f,
+            contextlib.redirect_stdout(f),
+            warnings.catch_warnings(),
+        ):
+            # CMA-ES sometimes warns about changing the initial standard
+            # deviation; ACCES users don't control that, so we can hide it
+            warnings.simplefilter("ignore", UserWarning)
+
             es = cma.CMAEvolutionStrategy(x0, sigma0, dict(
                 bounds = bounds,
                 popsize = self.setup.population,
@@ -1033,7 +1045,12 @@ class Access:
 
             # Evaluate each solution - i.e. run simulations in parallel
             results = self.evaluate_solutions(solutions * scaling, epoch)
-            es.tell(solutions, results[:, -1])
+
+            # We already warn about crashed simulations, so hide CMA-ES ones
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", UserWarning)
+                es.tell(solutions, results[:, -1])
+
             epoch += 1
 
             # Save historical data as function evaluations are very expensive
@@ -1274,6 +1291,8 @@ class Access:
         '''Check if the optimisation run is done and display the best solution
         found for the target sigma value.
         '''
+
+        # If overall sigma went below target
         if es.sigma < self.setup.target:
             if self.verbose >= 1:
                 print((
@@ -1281,8 +1300,18 @@ class Access:
                     f"{self.setup.target * 100}%:\n"
                     f"  sigma = {es.sigma} < {self.setup.target}"
                 ), flush = True)
-
             return True
+
+        # If all individual sigmas went below target
+        if np.all(es.result.stds < self.setup.target):
+            if self.verbose >= 1:
+                print((
+                    "\nAll parameters found within `target_sigma`, i.e. "
+                    f"{self.setup.target * 100}%:\n"
+                    f"  scaled_std = {es.result.stds} < {self.setup.target}"
+                ), flush = True)
+            return True
+
         return False
 
 

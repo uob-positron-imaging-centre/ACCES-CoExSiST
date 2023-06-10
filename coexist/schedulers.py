@@ -221,7 +221,12 @@ class SlurmScheduler(Scheduler):
             os.mkdir(outputdir)
 
         outputpath = os.path.join(outputdir, f"output.{index}.slurm-%j.out")
-        return ["sbatch", f"--output={outputpath}", scriptpath]
+        return [
+            "sbatch",
+            f"--output={outputpath}",
+            f"--job-name=aid{index}",
+            scriptpath,
+        ]
 
 
     def __repr__(self):
