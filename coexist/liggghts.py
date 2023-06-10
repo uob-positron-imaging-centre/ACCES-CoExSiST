@@ -124,6 +124,7 @@ class LiggghtsSimulation(Simulation):
 
         self.sim_name = str(sim_name)
         self.properties = []
+        self.check_mesh_stress_output = False
 
         # A list of keywords that, if found in a LIGGGHTS script line, will
         # make the class save that script line
@@ -470,6 +471,21 @@ class LiggghtsSimulation(Simulation):
     
     
     def mesh_forces(self, fix_id):
+        if not self.check_mesh_stress_output:
+            self.check_mesh_stress_output = True
+            # Check if the fix contains stress output such that it can be extracted
+            pattern = re.compile(f"fix[ \t]+{fix_id}[ \t]+[a-zA-Z0-9_]*[ \t]+mesh/surface/stress", re.IGNORECASE)
+            match_found = False
+            for i, line in enumerate(open(self.sim_name)):
+                if pattern.match(line):
+                    match_found = True
+                    break
+            if not match_found:
+                raise ValueError(textwrap.fill((
+                    f"Fix with ID '{fix_id}' does not contain stress output. "
+                    "Please add `mesh/surface/stress` to the fix command."
+                )))
+
         # Get forces on meash with ID: fix_id
         self.simulation.command(f'variable fx_{fix_id} equal f_{fix_id}[1]')
         self.simulation.command(f'variable fy_{fix_id} equal f_{fix_id}[2]')
