@@ -266,7 +266,7 @@ If you use this library in your research, you are kindly asked to cite:
 
 Until the ACCES paper is published, you may cite this repository:
 
-> Nicusan AL, Werner D, Sykes J, Seville JPK, Windows-Yule CR. ACCES: Autonomous Characterisation and Calibration via Evolutionary Simulation. GitHub repository. 2022 February 1.
+> Nicusan, A., Werner, D., Sykes, J. A., Seville, J., & Windows-Yule, K. (2022). ACCES: Autonomous Characterisation and Calibration via Evolutionary Simulation (Version 0.2.0) [Computer software]
 
 
 ACCES is built on top of the excellent CMA-ES evolutionary algorithm - specifically the [`pycma`](https://github.com/CMA-ES/pycma) implementation. If you use ACCES in your research, please also cite:

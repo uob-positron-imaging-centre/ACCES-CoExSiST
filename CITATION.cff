@@ -16,4 +16,6 @@ authors:
 
 title: "ACCES: Autonomous Characterisation and Calibration via Evolutionary Simulation"
 version: 0.2.0
+doi: 10.5281/zenodo.7215376
 date-released: 2022-02-01
+url: "https://github.com/uob-positron-imaging-centre/ACCES-CoExSiST"
