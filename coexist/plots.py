@@ -367,6 +367,7 @@ def access(
             if i == num_errors - 1:
                 title = "Combined " + title
 
+        fig.layout[f"xaxis{num_parameters + 2 + i}"].update(title = "Epoch")
         fig.layout[f"yaxis{num_parameters + 2 + i}"].update(title = title)
 
     format_fig(fig)
