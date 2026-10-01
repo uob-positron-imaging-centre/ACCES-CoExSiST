@@ -9,11 +9,12 @@
 import numpy as np
 from tqdm import tqdm
 
-import coexist
+import legacy
+from legacy.liggghts import LiggghtsSimulation
 
 
 # Define the user-changeable / free simulation parameters
-parameters = coexist.Parameters(
+parameters = legacy.Parameters(
     variables = ["corPP", "corPW"],
     commands = [
         "fix  m3 all property/global coefficientRestitution peratomtypepair 3 \
@@ -30,7 +31,7 @@ parameters = coexist.Parameters(
     maximums = [0.95, 0.95],
 )
 
-simulation = coexist.LiggghtsSimulation("vibrofluidised.sim", parameters)
+simulation = LiggghtsSimulation("vibrofluidised.sim", parameters)
 print(simulation)
 
 # Save particle locations at a 120 Hz sampling rate up to t = 1.0 s
@@ -60,14 +61,14 @@ for i, t in enumerate(tqdm(simulation_times)):
 
 
 # Test auto timesteps
-timestep = coexist.AutoTimestep(
+timestep = legacy.AutoTimestep(
     simulation.variable("youngmodP"),
     simulation.variable("r1") * 2,
     simulation.variable("poissP"),
     simulation.variable("densPart"),
 )
 
-simulation = coexist.LiggghtsSimulation(
+simulation = LiggghtsSimulation(
     "vibrofluidised.sim",
     parameters,
     timestep = timestep,

@@ -6,6 +6,6 @@
 # Date   : 20.01.2021
 
 
-VERSION = (0, 3, 2)
+__version__ = "0.4.0"
 
-__version__ = '.'.join(map(str, VERSION))
+VERSION = tuple(map(int, __version__.split(".")))

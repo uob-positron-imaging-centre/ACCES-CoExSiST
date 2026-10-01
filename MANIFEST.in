@@ -1,7 +1,10 @@
 include README.md LICENSE CITATION.cff
-include requirements.txt requirements_extra.txt
-include *.rst *.txt
-recursive-include coexist *.py *.pyx *.pxd *.c* *.h*
+recursive-include tests *.py *.toml *.csv *.pickle *.rst *.txt *.log
+recursive-include docs *.rst *.py *.png
+recursive-include examples *.py *.md
+prune legacy
+prune docs/_build
+prune docs/source/manual/generated
 global-exclude .DS_Store
 global-exclude __pycache__
 global-exclude *.pyc

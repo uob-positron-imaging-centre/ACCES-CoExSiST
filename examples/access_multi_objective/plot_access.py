@@ -7,7 +7,7 @@
 
 import coexist
 
-access_data = coexist.AccessData.read(".")
+access_data = coexist.AccessData(".")
 
 fig = coexist.plots.access(access_data)
 fig.show()

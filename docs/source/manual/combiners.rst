@@ -11,6 +11,6 @@ ACCES Multi-Objective (``coexist.combiners``)
 .. autosummary::
    :toctree: generated/
 
-   coexist.combiners.Product
-   coexist.combiners.Sum
-   coexist.combiners.combiner
+   Product
+   Sum
+   combiner

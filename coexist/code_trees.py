@@ -9,7 +9,6 @@
 import ast
 import textwrap
 
-import astunparse
 
 
 
@@ -30,13 +29,15 @@ def code_contains_variables(code, variables, root = False):
         for node in tree.body:
             if isinstance(node, ast.Assign):
                 for target in node.targets:
-                    vars_found.append(target.id)
+                    if isinstance(target, ast.Name):
+                        vars_found.append(target.id)
 
     else:
         for node in ast.walk(tree):
             if isinstance(node, ast.Assign):
                 for target in node.targets:
-                    vars_found.append(target.id)
+                    if isinstance(target, ast.Name):
+                        vars_found.append(target.id)
 
     found = [False for _ in range(len(variables))]
     for i, var in enumerate(variables):
@@ -113,4 +114,4 @@ def code_substitute_variable(old_code, variable, new_code):
         old_tree.body[(var_idx + 1):]
     )
 
-    return astunparse.unparse(old_tree) + "\n"
+    return ast.unparse(old_tree) + "\n"

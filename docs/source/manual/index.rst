@@ -16,7 +16,7 @@ and submit your changes to the GitHub repository directly!
 ACCES
 =====
 
-Exported functionality related to the ACCES macro calibration suite.
+Exported functionality related to the ACCES calibration and optimisation procedure.
 
 .. autosummary::
    :toctree: generated/
@@ -24,23 +24,6 @@ Exported functionality related to the ACCES macro calibration suite.
    coexist.Access
    coexist.AccessData
    coexist.create_parameters
-
-
-
-
-LIGGGHTS
-========
-
-Helpers for driving LIGGGHTS simulations with less code that is more memory efficient and
-error-proof. **You need the** ``liggghts`` **Python interface to LIGGGHTS to be installed to
-use** ``LiggghtsSimulation``. The `PICI-LIGGGHTS <https://github.com/uob-positron-imaging-centre/PICI-LIGGGHTS>`_ repository has instructions for this.
-
-.. autosummary::
-   :toctree: generated/
-
-   coexist.LiggghtsSimulation
-   coexist.Simulation
-   coexist.to_vtk
 
 
 
@@ -54,7 +37,7 @@ Submodules
    access
    combiners
    plots
+   sensitivity
    schedulers
    utilities
-
 

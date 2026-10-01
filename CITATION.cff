@@ -15,7 +15,6 @@ authors:
     orcid: https://orcid.org/0000-0003-1305-537X
 
 title: "ACCES: Autonomous Characterisation and Calibration via Evolutionary Simulation"
-version: 0.2.0
+version: 0.4.0
 doi: 10.5281/zenodo.7215376
-date-released: 2022-02-01
 url: "https://github.com/uob-positron-imaging-centre/ACCES-CoExSiST"

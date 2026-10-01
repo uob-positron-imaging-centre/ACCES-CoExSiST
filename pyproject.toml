@@ -1,2 +1,64 @@
 [build-system]
-requires = ["setuptools", "wheel"]
+requires = ["setuptools>=77.0.3"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "coexist"
+dynamic = ["version"]
+description = "ACCES: autonomous simulation calibration and optimisation"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE"]
+authors = [
+    {name = "Andrei Leonard Nicusan", email = "a.l.nicusan@bham.ac.uk"},
+    {name = "Dominik Werner", email = "d.werner.1@bham.ac.uk"},
+    {name = "Jack Sykes", email = "jas653@student.bham.ac.uk"},
+]
+keywords = [
+    "simulation", "optimisation", "calibration", "parameter-estimation",
+    "DEM", "discrete-element-method",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Scientific/Engineering :: Physics",
+    "Topic :: System :: Distributed Computing",
+]
+dependencies = [
+    "numpy>=1.21",
+    "scipy>=1.7",
+    "pandas>=1.3",
+    "toml>=0.10.2",
+    "cma>=3.0.3",
+    "matplotlib>=3.5",
+    "plotly>=5",
+]
+
+[project.optional-dependencies]
+sensitivity = ["scikit-learn>=1.1"]
+docs = ["sphinx>=7", "numpydoc>=1.6", "pydata-sphinx-theme>=0.15"]
+test = ["pytest>=7"]
+
+[project.urls]
+Documentation = "https://coexist.readthedocs.io/"
+Repository = "https://github.com/uob-positron-imaging-centre/ACCES-CoExSiST"
+Issues = "https://github.com/uob-positron-imaging-centre/ACCES-CoExSiST/issues"
+
+[tool.setuptools.dynamic]
+version = {attr = "coexist.__version__.__version__"}
+
+[tool.setuptools.packages.find]
+include = ["coexist", "coexist.*"]
+namespaces = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

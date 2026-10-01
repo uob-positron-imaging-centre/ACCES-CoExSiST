@@ -16,7 +16,7 @@ import  numpy               as      np
 import  pandas              as      pd
 import  cma
 
-from    coexist             import  Simulation, Experiment
+from    .base               import  Simulation, Experiment
 
 
 
@@ -32,8 +32,8 @@ class Coexist:
 
         Parameters
         ----------
-        simulation: coexist.Simulation
-            The DEM simulation, encapsulated in a `coexist.Simulation`
+        simulation: legacy.Simulation
+            The DEM simulation, encapsulated in a `legacy.Simulation`
             instance.
 
         save_log: bool, default False
@@ -46,7 +46,7 @@ class Coexist:
         if not isinstance(simulation, Simulation):
             raise TypeError(textwrap.fill((
                 "The `simulation` input parameter must be an instance of "
-                f"`coexist.Simulation`. Received type `{type(simulation)}`."
+                f"`legacy.Simulation`. Received type `{type(simulation)}`."
             )))
 
         self.save_log = bool(save_log)
@@ -100,9 +100,9 @@ class Coexist:
 
         Parameters
         ----------
-        experiment: coexist.Experiment
+        experiment: legacy.Experiment
             The experimental positions recorded, encapsulated in a
-            `coexist.Experiment` instance.
+            `legacy.Experiment` instance.
 
         max_optimisations: int, default 3
             The maximum number of optimisation runs to execute before
@@ -129,7 +129,7 @@ class Coexist:
         if not isinstance(experiment, Experiment):
             raise TypeError(textwrap.fill((
                 "The `experiment` input parameter must be an instance of "
-                f"`coexist.Experiment`. Received type `{type(experiment)}`."
+                f"`legacy.Experiment`. Received type `{type(experiment)}`."
             )))
 
         self.experiment = experiment
@@ -517,7 +517,7 @@ class Coexist:
         num_particles = len(p0)
 
         # The analytical expression was derived using SymPy in the
-        # `coexist.optimisation.ballistic_approx` function
+        # `legacy.optimisation.ballistic_approx` function
         def A(t):
             return -0.5 * (t - t0) ** 2
 
@@ -837,7 +837,7 @@ class Coexist:
 
         # Path to `async_coexist_error.py`
         async_xi = os.path.join(
-            os.path.split(coexist.__file__)[0],
+            os.path.dirname(__file__),
             "async_coexist_error.py"
         )
 
@@ -902,25 +902,3 @@ class Coexist:
             sys.exit(130)
 
         return results
-
-
-
-
-class AccessInfo:
-    '''Legacy class here only for backwards-compatibility in AccessData.legacy.
-    Needs to be in `coexist/optimisation.py`.
-    '''
-
-    def __init__(
-        self,
-        parameters: pd.DataFrame,
-        scheduler: list,
-        num_solutions: int = None,
-        target_sigma: float = None,
-        random_seed: int = None,
-    ):
-        self.parameters = parameters
-        self.scheduler = scheduler
-        self.num_solutions = num_solutions
-        self.target_sigma = target_sigma
-        self.random_seed = random_seed

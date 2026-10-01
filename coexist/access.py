@@ -16,8 +16,8 @@ import  subprocess
 import  pickle
 import  shutil
 import  warnings
-from    datetime            import  datetime, timedelta
-from    concurrent.futures  import  ProcessPoolExecutor
+import  tempfile
+from    datetime            import  datetime
 
 import  numpy               as      np
 import  pandas              as      pd
@@ -26,7 +26,6 @@ import  cma
 
 import  coexist
 
-from    .base               import  Simulation
 from    .                   import  schedulers
 
 from    .combiners          import  Product
@@ -58,11 +57,11 @@ class AccessSetup:
 
     parameters_scaled : pd.DataFrame
         The free parameters scaled to the phenotype space, such that the
-        initial variance (`sigma`) is unity.
+        initial standard deviation (`sigma`) is unity.
 
     scaling : np.ndarray
         A vector of values that the free parameters are scaled by; it is the
-        initial variance (`sigma`) given by the user.
+        initial standard deviation (`sigma`) given by the user.
 
     script : str
         The modified user script that will be executed.
@@ -71,8 +70,8 @@ class AccessSetup:
         The number of simulations to be run in parallel in each epoch.
 
     target : float
-        The target scaled variance - i.e. decrease the uncertainty from the
-        initial 1 down to `target`.
+        The target scaled standard deviation - decrease the uncertainty
+        from the initial 1 down to `target`.
 
     seed: int
         The random seed defining a single ACCES run.
@@ -499,112 +498,93 @@ class AccessPaths:
         files.
         '''
 
+        prefix = os.fspath(prefix)
         self.directory = prefix
-        for attr in ["results", "outputs", "script", "setup", "epochs",
-                     "epochs_scaled", "history", "history_scaled"]:
-            prev = getattr(self, attr)
-            if isinstance(prev, str):
-                setattr(
-                    self,
-                    attr,
-                    os.path.join(prefix, os.path.split(prev)[1])
-                )
+        for attr, prev in [
+            ("results", self.results), ("outputs", self.outputs),
+            ("script", self.script), ("setup", self.setup),
+            ("epochs", self.epochs), ("epochs_scaled", self.epochs_scaled),
+            ("history", self.history), ("history_scaled", self.history_scaled),
+        ]:
+            if prev is not None:
+                current = os.path.join(prefix, os.path.basename(prev))
+                setattr(self, attr, current)
+
 
 
     def save_history(self, setup, progress):
         '''Given an ``AccessSetup`` and ``AccessProgress`` instance, save the
-        results history.
+        results history without truncating an existing file on write failure.
         '''
-        np.savetxt(
-            self.history,
-            progress.history,
-            header = " ".join(setup.parameters.index.to_list() + ["error"]),
-        )
+        count = progress.history.shape[1] - len(setup.parameters) - 1
+        columns = setup.parameters.index.to_list() + [
+            f"error{i}" for i in range(count)
+        ] + ["error"]
 
-        np.savetxt(
-            self.history_scaled,
-            progress.history_scaled,
-            header = " ".join(setup.parameters.index.to_list() + ["error"]),
+        save_access_table(self.history, progress.history, " ".join(columns))
+        save_access_table(
+            self.history_scaled, progress.history_scaled, " ".join(columns),
         )
 
 
     def load_history(self, access):
-        '''Load previous results into ``access.progress``.
+        '''Load previous results into ``access.progress``, retaining the exact
+        saved CMA-ES coordinates. Repair missing or empty unscaled history.
         '''
-        # History columns: [param1, param2, ..., error_value] for each function
-        # evaluation
-        if os.path.isfile(self.history):
-            access.progress.history = np.loadtxt(
-                self.history, dtype = float
-            )
-        else:
-            access.progress.history = None
+        history, scaled = read_access_table(
+            self.history, self.history_scaled, access.setup.scaling,
+            access.setup.parameters.index.to_list(),
+            population = access.setup.population,
+        )
+        access.progress.history = history
+        access.progress.history_scaled = scaled
 
-        # Scaling and unscaling parameter values introduce numerical errors
-        # that confuse the optimiser. Thus save unscaled values separately
-        if os.path.isfile(self.history_scaled):
-            if access.verbose >= 3:
-                print(
-                    "Found previous ACCES results in " +
-                    f"`{self.history_scaled}`.\n" + "=" * 80 + "\n",
-                    flush = True,
-                )
-
-            access.progress.history_scaled = np.loadtxt(
-                self.history_scaled, dtype = float
+        if scaled is not None and access.verbose >= 3:
+            print(
+                "Found previous ACCES results in " +
+                f"`{self.history_scaled}`.\n" + "=" * 80 + "\n",
+                flush = True,
             )
-        else:
-            access.progress.history_scaled = None
 
 
     def save_epochs(self, setup, progress):
         '''Given an ``AccessSetup`` and ``AccessProgress`` instance, save the
-        optimisation epochs.
+        optimisation epochs without truncating existing files on write failure.
         '''
-        np.savetxt(
-            self.epochs,
-            progress.epochs,
-            header = " ".join(
-                [f"{p}_mean" for p in setup.parameters.index] +
-                [f"{p}_std" for p in setup.parameters.index] +
-                ["overall_std"]
-            ),
+        header = " ".join(
+            [f"{p}_mean" for p in setup.parameters.index] +
+            [f"{p}_std" for p in setup.parameters.index] +
+            ["overall_std"]
         )
-
-        np.savetxt(
-            self.epochs_scaled,
-            progress.epochs_scaled,
-            header = " ".join(
-                [f"{p}_mean" for p in setup.parameters.index] +
-                [f"{p}_std" for p in setup.parameters.index] +
-                ["overall_std"]
-            ),
-        )
+        save_access_table(self.epochs, progress.epochs, header)
+        save_access_table(self.epochs_scaled, progress.epochs_scaled, header)
 
 
     def load_epochs(self, access):
-        '''Given an ``Access`` instance, load previous ACCES runs' `epochs` and
-        `epochs_scaled` into ``access.progress``.
+        '''Load the epoch tables into ``access.progress``. Only include epochs
+        with a complete population in the saved scaled history.
         '''
-        # Epochs columns: [param1_mean, param2_mean, ..., param1_std,
-        # param2_std,..., overall_std] for each epochs
-        if os.path.isfile(self.epochs):
-            access.progress.epochs = np.loadtxt(
-                self.epochs, dtype = float
-            )
-        else:
-            access.progress.epochs = np.empty(
-                (0, 2 * len(access.setup.parameters) + 1)
-            )
+        names = access.setup.parameters.index
+        columns = (
+            [f"{p}_mean" for p in names] + [f"{p}_std" for p in names] +
+            ["overall_std"]
+        )
+        epochs, scaled = read_access_table(
+            self.epochs, self.epochs_scaled,
+            np.r_[access.setup.scaling, access.setup.scaling, 1.], columns,
+        )
+        history = access.progress.history_scaled
+        count = (0 if history is None
+                 else len(history) // access.setup.population)
+        if epochs is None:
+            if count:
+                raise ValueError("Saved history has no corresponding epochs.")
+            epochs = np.empty((0, len(columns)))
+            scaled = epochs.copy()
 
-        if os.path.isfile(self.epochs_scaled):
-            access.progress.epochs_scaled = np.loadtxt(
-                self.epochs_scaled, dtype = float
-            )
-        else:
-            access.progress.epochs_scaled = np.empty(
-                (0, 2 * len(access.setup.parameters) + 1)
-            )
+        epochs, scaled = completed_access_epochs(epochs, scaled, count)
+        access.progress.epochs = epochs
+        access.progress.epochs_scaled = scaled
 
 
     def copy(self):
@@ -642,16 +622,16 @@ class AccessProgress:
         std_param2, ..., std_overall] with one row per epoch.
 
     epochs_scaled: np.ndarray
-        Same as ``epochs``, scaled such that the initial variance (``sigma``)
-        becomes unity.
+        Same as ``epochs``, scaled such that the initial standard deviation
+        (``sigma``) becomes unity.
 
     history: np.ndarray = None
         Matrix with columns [param1, param2, ..., error] for each parameter
         combination tried - i.e. ``population * num_epochs``.
 
     history_scaled: np.ndarray = None
-        Same as ``history``, scaled such that the initial variance (``sigma``)
-        becomes unity.
+        Same as ``history``, scaled such that the initial standard deviation
+        (``sigma``) becomes unity.
 
     stdout: str = None
         The latest unique recorded stdout message.
@@ -669,12 +649,12 @@ class AccessProgress:
         stdout: str = None,
         stderr: str = None,
     ):
-        self.epochs = None
-        self.epochs_scaled = None
-        self.history = None
-        self.history_scaled = None
-        self.stdout = None
-        self.stderr = None
+        self.epochs = epochs
+        self.epochs_scaled = epochs_scaled
+        self.history = history
+        self.history_scaled = history_scaled
+        self.stdout = stdout
+        self.stderr = stderr
 
 
     def update_epochs(self, es, scaling):
@@ -852,9 +832,9 @@ class Access:
         access = coexist.Access("script_filepath.py")
         access.learn(num_solutions = 10, target_sigma = 0.1, random_seed = 42)
 
-    Once you run `access.learn()`, a folder named "access_42" is
+    Once you run `access.learn()`, a folder named "access_seed42" is
     generated which stores all information about this access run, including all
-    simulation data. You can load this data using ``coexist.AccessData.read``
+    simulation data. You can load this data using ``coexist.AccessData``
     even while the optimisation is still running.
 
     In general, an ACCESS user script must define one simulation whose
@@ -956,6 +936,7 @@ class Access:
         # Will be set in `learn`
         self.multi_objective = None
         self.verbose = None
+        self._elapsed = None
 
 
     def learn(
@@ -1073,7 +1054,7 @@ class Access:
         if self.verbose >= 1:
             self.print_finished(es, scaling)
 
-        return AccessData.read(self.paths.directory)
+        return AccessData(self.paths.directory)
 
 
     def save_setup(self):
@@ -1095,7 +1076,7 @@ class Access:
             ),
         )
 
-        with open(self.paths.setup, "w") as f:
+        with atomic_access_file(self.paths.setup) as f:
             toml.dump(setup_dict, f)
 
 
@@ -1164,8 +1145,8 @@ class Access:
 
         # Save and print time elapsed since last epoch
         now = time.time()
-        elapsed = now - getattr(self, "_elapsed", now)
-        setattr(self, "_elapsed", now)
+        elapsed = 0 if self._elapsed is None else now - self._elapsed
+        self._elapsed = now
 
         if elapsed == 0:
             since_str = ""
@@ -1437,15 +1418,9 @@ class Access:
 
 
 
-class AccessFileNotFoundLegacy:
-    pass
-
-
-
-
 class AccessData:
     '''Access (pun intended) data generated by a ``coexist.Access`` run; read
-    it in using ``coexist.AccessData.read("access_seed<seed>")``.
+    it in using ``coexist.AccessData("access_seed<seed>")``.
 
     Attributes
     ----------
@@ -1458,11 +1433,11 @@ class AccessData:
 
     parameters_scaled : pd.DataFrame
         The optimum free parameters found, divided by ``scaling`` such that the
-        initial variance in the parameter values was unity.
+        initial standard deviation in the parameter values was unity.
 
     scaling : np.ndarray
         A vector with the values to scale each parameter by - they are the
-        initial variances (``sigma``).
+        initial standard deviations (``sigma``).
 
     population : int
         The number of simulations to run in parallel within a single epoch, or
@@ -1472,27 +1447,39 @@ class AccessData:
         The number of epochs that were successfully executed.
 
     target : float
-        The target variance, where the initial parameter uncertainty must be
-        decreased from 1 to ``target``.
+        The target scaled standard deviation, decreasing the initial
+        sampling scale from 1 to ``target``.
 
     seed : int
         The random number generator seed uniquely defining this ACCES run.
 
-    epochs : np.ndarray
+    epochs : pd.DataFrame
         Matrix with columns [mean_param1, mean_param2, ..., std_param1,
         std_param2, ..., std_overall] with one row per epoch.
 
-    epochs_scaled : np.ndarray
-        Same as ``epochs``, scaled such that the initial variance (``sigma``)
-        becomes unity.
+    epochs_scaled : pd.DataFrame
+        Same as ``epochs``, scaled such that the initial standard deviation
+        (``sigma``) becomes unity.
 
-    results : np.ndarray
+    results : pd.DataFrame
         Matrix with columns [param1, param2, ..., error] for each parameter
         combination tried - i.e. ``population * num_epochs``.
 
-    results_scaled : np.ndarray
-        Same as ``results``, scaled such that the initial variance (``sigma``)
-        becomes unity.
+    results_scaled : pd.DataFrame
+        Same as ``results``, scaled such that the initial standard deviation
+        (``sigma``) becomes unity.
+
+    Notes
+    -----
+    Missing or empty unscaled history and epoch files are automatically
+    reconstructed from their scaled counterparts, with a message printed for
+    each repair. Only the unscaled files are written. Original scaled values
+    are needed to replay CMA-ES without changing floating-point precision.
+
+    Epoch files can contain one extra record after an interrupted save. This
+    record is excluded in memory until its population exists in scaled history.
+    An empty or damaged scaled file requires an intact saved copy; it cannot
+    be reconstructed exactly from the unscaled data.
 
     Examples
     --------
@@ -1501,7 +1488,7 @@ class AccessData:
     intended) all data generated in a Python-friendly format using:
 
     >>> import coexist
-    >>> data = coexist.AccessData("access_123")
+    >>> data = coexist.AccessData("access_seed123")
     >>> data
     AccessData
     --------------------------------------------------------------------------
@@ -1523,17 +1510,11 @@ class AccessData:
 
     def __init__(self, access_path = "."):
         '''Read in data generated by ``coexist.Access``; the `access_path` can
-        be either the "`access_info_<hash>`" directory itself, or its
+        be either the "`access_seed<seed>`" directory itself, or its
         parent directory.
         '''
 
         access_path = find_access_path(access_path)
-
-        # Check for data in the legacy coexist-0.1.0 format
-        legacy_finder = re.compile(r"opt_history_[0-9]+.csv")
-        if any(legacy_finder.match(f) for f in os.listdir(access_path)):
-            self.legacy(access_path)
-            return
 
         setup_path = os.path.join(access_path, "access_setup.toml")
         with open(setup_path) as f:
@@ -1555,54 +1536,51 @@ class AccessData:
         target = setup_dict["setup"]["target"]
         seed = setup_dict["setup"]["seed"]
 
-        history = np.loadtxt(paths.history)
-        columns = parameters.index.to_list() + [
-            f"error{i}"
-            for i in range(history.shape[1] - len(parameters) - 1)
+        names = parameters.index.to_list()
+        history, history_scaled = read_access_table(
+            paths.history, paths.history_scaled, scaling, names,
+            population = population,
+        )
+        if history is None:
+            raise ValueError(
+                f"No saved ACCES history was found at `{access_path}`."
+            )
+
+        columns = names + [
+            f"error{i}" for i in range(history.shape[1] - len(names) - 1)
         ] + ["error"]
         results = pd.DataFrame(history, columns = columns, dtype = float)
-
-        history_scaled = np.loadtxt(paths.history_scaled)
-        columns_scaled = parameters.index.to_list() + [
-            f"error{i}"
-            for i in range(history_scaled.shape[1] - len(parameters) - 1)
-        ] + ["error"]
         results_scaled = pd.DataFrame(
-            history_scaled,
-            columns = columns_scaled,
-            dtype = float,
+            history_scaled, columns = columns, dtype = float,
         )
 
-        epochs = pd.DataFrame(
-            np.loadtxt(paths.epochs),
-            columns = (
-                [f"{p}_mean" for p in parameters.index] +
-                [f"{p}_std" for p in parameters.index] +
-                ["overall_std"]
-            ),
-            dtype = float,
+        columns = (
+            [f"{p}_mean" for p in names] + [f"{p}_std" for p in names] +
+            ["overall_std"]
         )
-
+        epochs, epochs_scaled = read_access_table(
+            paths.epochs, paths.epochs_scaled,
+            np.r_[scaling, scaling, 1.], columns,
+        )
+        if epochs is None:
+            raise ValueError("Saved history has no corresponding epochs.")
+        num_epochs = len(history_scaled) // population
+        epochs, epochs_scaled = completed_access_epochs(
+            epochs, epochs_scaled, num_epochs,
+        )
+        epochs = pd.DataFrame(epochs, columns = columns, dtype = float)
         epochs_scaled = pd.DataFrame(
-            np.loadtxt(paths.epochs_scaled),
-            columns = (
-                [f"{p}_mean" for p in parameters.index] +
-                [f"{p}_std" for p in parameters.index] +
-                ["overall_std"]
-            ),
-            dtype = float,
+            epochs_scaled, columns = columns, dtype = float,
         )
 
-        num_epochs = len(epochs)
-
-        # Set parameters' values to the best results
+        # Set parameter estimates from a successful observation, if available.
         ns = len(parameters)
-        parameters["value"] = results.iloc[results["error"].idxmin()][:-1]
+        valid = np.isfinite(results_scaled["error"])
+        if valid.any():
+            best = results_scaled.loc[valid, "error"].idxmin()
+            parameters["value"] = results.loc[best, names]
+            parameters_scaled["value"] = results_scaled.loc[best, names]
         parameters["sigma"] = epochs.iloc[-1, ns:ns + ns].to_numpy()
-
-        parameters_scaled["value"] = results_scaled.iloc[
-            results_scaled["error"].idxmin()
-        ][:-1]
         parameters_scaled["sigma"] = epochs_scaled.iloc[
             -1, ns:ns + ns
         ].to_numpy()
@@ -1640,158 +1618,120 @@ class AccessData:
     @staticmethod
     def read(access_path = "."):
         '''Read in data generated by ``coexist.Access``; the `access_path` can
-        be either the "`access_seed<hash>`" directory itself, or its
+        be either the "`access_seed<seed>`" directory itself, or its
         parent directory.
 
-        Here for backwards-compatibility; you can instantiate the class
-        directly with the ``access_path``, e.g. ``AccessData(".")``.
+        Equivalent to constructing ``AccessData(access_path)``.
         '''
 
         return AccessData(access_path)
 
 
-    def legacy(self, access_path):
-        '''Read in data from legacy coexist-0.1.0 ACCES format; this is
-        normally called automatically by ``AccessData.read``.
+    def sensitivity(
+        self,
+        parameter_window = 0.2,
+        objective_tolerance = 0.1,
+        *,
+        objective = "error",
+        reference = None,
+        excluded_evaluations = None,
+        **kwargs,
+    ):
+        '''Analyse local parameter variations using existing evaluations.
+
+        Forward the stored parameters, scalar response and original bounds to
+        ``coexist.sensitivity.analyse``. Install ``coexist[sensitivity]``
+        to use this optional functionality.
+
+        Parameters
+        ----------
+        parameter_window : float in [0, 1], default 0.2
+            Box half-width as a fraction of each original parameter-bound
+            width, clipped to those bounds.
+
+        objective_tolerance : float >= 0, default 0.1
+            Symmetric allowance around the observed reference response. A
+            value of 0.1 allows +/-10% of its absolute magnitude.
+
+        objective : str, default "error"
+            Scalar response column to analyse. For the combined "error",
+            evaluations with missing individual error components are omitted,
+            even if their combined score is a finite penalty.
+
+        reference : index label, optional
+            Evaluation to use as the reference. Defaults to the complete
+            evaluation with the smallest combined error, including when
+            analysing an individual response such as "error0".
+
+        excluded_evaluations : iterable, optional
+            Additional evaluation index labels to omit as invalid.
+
+        **kwargs : other keyword arguments
+            Options forwarded to ``coexist.sensitivity.analyse``, including
+            ``absolute_tolerance``, ``interpolate``, ``response_transform``
+            and grid sizes. Progress is printed by default; set
+            ``verbose = False`` to silence it.
+
+        Returns
+        -------
+        coexist.sensitivity.SensitivityResult
+            Parameter ranges, rankings, paired responses and fitted model.
+            The saved ACCES data are not modified by this analysis.
+
+        Examples
+        --------
+        Analyse an ACCES run and save its tables and figures:
+
+        >>> import coexist
+        >>> data = coexist.AccessData("access_seed42")
+        >>> result = data.sensitivity(parameter_window = 0.2)
+        >>> result.ranges
+        >>> result.save("sensitivity_output")
         '''
+        from .sensitivity import analyse
 
-        # Check all legacy files exist
-        legacy_files = ["access_code.py", "access_info.pickle"]
-        if any(not os.path.isfile(os.path.join(access_path, f))
-               for f in legacy_files):
-            raise FileNotFoundError(textwrap.fill((
-                f"The legacy AccessData files `{legacy_files}` were not found "
-                f"in `{access_path}`."
-            )))
+        if not isinstance(objective, str):
+            raise TypeError("objective must name one scalar response column")
+        excluded = ([] if excluded_evaluations is None
+                    else list(excluded_evaluations))
+        rows = self.results.drop(index = excluded, errors = "ignore")
+        if not rows.index.is_unique:
+            raise ValueError("Evaluation index labels must be unique")
+        names = self.parameters.index.tolist()
+        values = rows[objective].copy()
+        components = [name for name in rows.columns
+                      if name.startswith("error") and name[5:].isdigit()]
+        complete_components = np.isfinite(rows[components]).all(axis = 1)
+        if objective == "error":
+            values.loc[~complete_components] = np.nan
+        complete = np.isfinite(rows[names]).all(axis = 1)
+        complete &= np.isfinite(values)
+        if reference is None:
+            eligible = rows.loc[
+                complete & complete_components & np.isfinite(rows.error)
+            ]
+            if eligible.empty:
+                raise ValueError("No complete evaluation defines a reference")
+            reference = eligible.error.idxmin()
+        if reference not in rows.index or not complete.loc[reference]:
+            raise ValueError(
+                "reference must identify a complete, included evaluation"
+            )
 
-        # Find legacy history file
-        history_finder = re.compile(r"opt_history_[0-9]+\.csv")
-
-        for f in os.listdir(access_path):
-            if history_finder.search(f):
-                history_path = os.path.join(access_path, f)
-                history_scaled_path = (
-                    history_path.split(".csv")[0] + "_scaled.csv"
-                )
-                num_solutions = int(
-                    re.split(r"opt_history_|\.csv", history_path)[1]
-                )
-                break
-        else:
-            raise FileNotFoundError(textwrap.fill((
-                f"No legacy history file was found in `{access_path}`."
-            )))
-
-        with open(os.path.join(access_path, "access_info.pickle"), "rb") as f:
-            access_info = pickle.load(f)
-
-        history = np.loadtxt(history_path)
-        history_scaled = np.loadtxt(history_scaled_path)
-
-        # Translate legacy data into modern format
-        notfound = AccessFileNotFoundLegacy()
-
-        paths = AccessPaths(
-            directory = access_path,
-            results = os.path.join(access_path, "simulations"),
-            outputs = os.path.join(access_path, "outputs"),
-            script = os.path.join(access_path, "access_code.py"),
-            setup = notfound,
-            epochs = notfound,
-            epochs_scaled = notfound,
-            history = history_path,
-            history_scaled = history_scaled_path,
+        result = analyse(
+            rows[names], values, self.parameters[["min", "max"]],
+            reference = rows.loc[reference, names],
+            reference_value = float(rows.loc[reference, objective]),
+            parameter_window = parameter_window,
+            objective_tolerance = objective_tolerance,
+            **kwargs,
         )
-
-        parameters = access_info.parameters
-        population = num_solutions
-        num_epochs = len(history) // population
-        target = access_info.target_sigma
-        seed = access_info.random_seed
-
-        # Infer scaled parameters
-        pop = population
-        nparams = len(parameters)
-
-        scaling = np.mean(
-            history[:, :nparams] / history_scaled[:, :nparams],
-            axis = 0,
+        result.metadata.update(
+            archive = self.paths.directory,
+            objective = objective, reference_evaluation = str(reference),
+            excluded_evaluations = list(map(str, excluded)),
         )
-        parameters_scaled = parameters.copy()
-        for i in range(len(parameters_scaled.columns)):
-            parameters_scaled.iloc[:, i] /= scaling
-
-        # Infer epochs data
-        means = np.array([
-            history[i * pop:i * pop + pop, :nparams].mean(axis = 0)
-            for i in range(num_epochs)
-        ])
-        stds = history[::pop, nparams:2 * nparams]
-        overall_stds = history[::pop, -2]
-        epochs = pd.DataFrame(
-            np.c_[means, stds, overall_stds],
-            columns = (
-                [f"{p}_mean" for p in parameters.index] +
-                [f"{p}_std" for p in parameters.index] +
-                ["overall_std"]
-            ),
-            dtype = float,
-        )
-
-        means = np.array([
-            history_scaled[i * pop:i * pop + pop, :nparams].mean(axis = 0)
-            for i in range(num_epochs)
-        ])
-        stds = history_scaled[::pop, nparams:2 * nparams]
-        overall_stds = history_scaled[::pop, -2]
-        epochs_scaled = pd.DataFrame(
-            np.c_[means, stds, overall_stds],
-            columns = (
-                [f"{p}_mean" for p in parameters.index] +
-                [f"{p}_std" for p in parameters.index] +
-                ["overall_std"]
-            ),
-            dtype = float,
-        )
-
-        # Translate history data
-        results = pd.DataFrame(
-            history[:, list(range(nparams)) + [-1]],
-            columns = parameters.index.to_list() + ["error"],
-            dtype = float,
-        )
-
-        results_scaled = pd.DataFrame(
-            history_scaled[:, list(range(nparams)) + [-1]],
-            columns = parameters.index.to_list() + ["error"],
-            dtype = float,
-        )
-
-        # Set parameters' values to the best results
-        ns = len(parameters)
-        parameters["value"] = results.iloc[results["error"].idxmin()][:-1]
-        parameters["sigma"] = epochs.iloc[-1, ns:ns + ns].to_numpy()
-
-        parameters_scaled["value"] = results_scaled.iloc[
-            results_scaled["error"].idxmin()
-        ][:-1]
-        parameters_scaled["sigma"] = epochs_scaled.iloc[
-            -1, ns:ns + ns
-        ].to_numpy()
-
-        # Set class attributes
-        self.paths = paths
-        self.parameters = parameters
-        self.parameters_scaled = parameters_scaled
-        self.scaling = scaling
-        self.population = population
-        self.num_epochs = num_epochs
-        self.target = target
-        self.seed = seed
-        self.epochs = epochs
-        self.epochs_scaled = epochs_scaled
-        self.results = results
-        self.results_scaled = results_scaled
+        return result
 
 
     def copy(self):
@@ -1827,20 +1767,20 @@ class AccessData:
             f"error{i}" for i in range(to_pad)
         ] + ["error"]
 
-        np.savetxt(
+        save_access_table(
             self.paths.history,
             self.results.to_numpy(),
             header = " ".join(columns),
         )
 
-        np.savetxt(
+        save_access_table(
             self.paths.history_scaled,
             self.results_scaled.to_numpy(),
             header = " ".join(columns),
         )
 
         # Save epochs
-        np.savetxt(
+        save_access_table(
             self.paths.epochs,
             self.epochs.to_numpy(),
             header = " ".join(
@@ -1850,7 +1790,7 @@ class AccessData:
             ),
         )
 
-        np.savetxt(
+        save_access_table(
             self.paths.epochs_scaled,
             self.epochs_scaled.to_numpy(),
             header = " ".join(
@@ -1873,7 +1813,7 @@ class AccessData:
             ),
         )
 
-        with open(self.paths.setup, "w") as f:
+        with atomic_access_file(self.paths.setup) as f:
             toml.dump(setup_dict, f)
 
 
@@ -1914,7 +1854,7 @@ class AccessData:
 
             # Allow negative indices
             while start < 0:
-                stop += self.num_epochs
+                start += self.num_epochs
 
             while stop < 0:
                 stop += self.num_epochs
@@ -2011,825 +1951,174 @@ class AccessData:
 
 
 
-def find_access_path(path):
-    '''Locate the `access_seed<seed>` directory.
+@contextlib.contextmanager
+def atomic_access_file(path):
+    '''Yield a temporary text file and replace `path` after a successful flush.
+
+    A failed write leaves the previous file intact. The temporary file is on
+    the same filesystem as the destination so replacement is atomic.
     '''
-    finder = re.compile(r"access_seed[0-9]+")
-    # The directory itself
-    if finder.match(path):
+    path = os.fspath(path)
+    parent = os.path.dirname(path) or "."
+    with tempfile.TemporaryDirectory(
+        prefix = ".access-", dir = parent,
+    ) as temp:
+        pending = os.path.join(temp, os.path.basename(path))
+        with open(pending, "w") as stream:
+            yield stream
+            stream.flush()
+            os.fsync(stream.fileno())
+
+        if os.path.exists(path):
+            shutil.copymode(path, pending)
+        os.replace(pending, path)
+
+
+
+
+def save_access_table(path, values, header):
+    '''Save an ACCES table without truncating an existing file on failure.
+
+    NumPy's default ``%.18e`` format preserves float64 values when read back.
+    '''
+    with atomic_access_file(path) as stream:
+        np.savetxt(stream, values, header = header)
+
+
+
+
+def read_access_table(path, scaled_path, scaling, columns, population = None):
+    '''Read paired ACCES tables as matrices, recovering missing or empty
+    unscaled data from the saved scaled values.
+
+    `scaling` multiplies only the leading parameter columns. For history,
+    `population` also requires complete generations and appends error column
+    names. For epochs, `columns` lists all columns, including the unchanged
+    overall standard deviation.
+
+    Scaled files are never reconstructed or rewritten here: dividing recovered
+    unscaled values by `scaling` can change the float64 values used by CMA-ES.
+    '''
+    if not os.path.isfile(path) and not os.path.isfile(scaled_path):
+        return None, None
+    if not os.path.isfile(scaled_path):
+        raise FileNotFoundError(
+            f"Missing scaled ACCES file `{scaled_path}`. Exact CMA-ES history "
+            "cannot be reconstructed from unscaled values."
+        )
+
+    # Empty files are handled explicitly instead of emitting loadtxt warnings.
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore", message = "loadtxt: input contained no data",
+            category = UserWarning,
+        )
+        scaled = np.loadtxt(scaled_path, ndmin = 2)
+        if not scaled.size:
+            raise ValueError(
+                f"Scaled ACCES file `{scaled_path}` is empty. Restore it "
+                "from an intact copy; unscaled values cannot reproduce it "
+                "at the exact precision required by CMA-ES."
+            )
+
+        columns = list(columns)
+        if population is not None:
+            if population < 1 or len(scaled) % population:
+                raise ValueError(
+                    f"Scaled history `{scaled_path}` does not contain "
+                    "complete populations. Restore an intact saved history."
+                )
+            columns += [
+                f"error{i}"
+                for i in range(scaled.shape[1] - len(columns) - 1)
+            ] + ["error"]
+
+        scaling = np.asarray(scaling, dtype = float)
+        if (
+            scaled.shape[1] != len(columns) or
+            not np.isfinite(scaled[:, :len(scaling)]).all()
+        ):
+            raise ValueError(f"Invalid scaled ACCES table `{scaled_path}`.")
+        if not np.isfinite(scaling).all() or (scaling <= 0).any():
+            raise ValueError(
+                "ACCES scaling values must be finite and positive."
+            )
+
+        values = (np.loadtxt(path, ndmin = 2)
+                  if os.path.isfile(path) else np.empty((0, 0)))
+
+    if not values.size:
+        values = scaled.copy()
+        values[:, :len(scaling)] *= scaling
+        save_access_table(path, values, " ".join(columns))
+        print(
+            f"Repaired missing or empty ACCES file `{path}` from "
+            f"`{scaled_path}`. The scaled file was left unchanged.",
+            flush = True,
+        )
+    elif values.shape[1] != scaled.shape[1] or len(values) < len(scaled):
+        raise ValueError(
+            f"ACCES tables `{path}` and `{scaled_path}` have inconsistent "
+            "shapes. Automatic repair requires missing or empty unscaled data."
+        )
+    elif len(values) > len(scaled):
+        print(
+            f"Reading the first {len(scaled)} rows of `{path}` to match "
+            f"the saved scaled table `{scaled_path}`.",
+            flush = True,
+        )
+        values = values[:len(scaled)]
+
+    return values, scaled
+
+
+
+
+def completed_access_epochs(epochs, scaled, count):
+    '''Select the epoch records corresponding to complete saved populations.
+
+    Epochs are written before history, so one extra record can remain after
+    an interrupted save. Exclude it in memory without changing the files.
+    '''
+    if len(scaled) < count or len(scaled) > count + 1:
+        raise ValueError(
+            "Saved ACCES epoch and history counts are inconsistent."
+        )
+    if len(scaled) > count:
+        print(
+            "Ignoring the final ACCES epoch record: its population was not "
+            "saved in the scaled history. The files were left unchanged.",
+            flush = True,
+        )
+    return epochs[:count], scaled[:count]
+
+
+
+
+def find_access_path(path):
+    '''Locate a run containing ``access_setup.toml``, directly or in a parent.
+    '''
+    path = os.fspath(path)
+    if os.path.isfile(os.path.join(path, "access_setup.toml")):
         return path
 
-    # The parent
-    matched = [f for f in os.listdir(path) if finder.match(f)]
+    finder = re.compile(r"access_seed[0-9]+")
+    matched = sorted(
+        name for name in os.listdir(path)
+        if finder.fullmatch(name) and os.path.isfile(
+            os.path.join(path, name, "access_setup.toml")
+        )
+    )
 
     if len(matched) == 1:
         return os.path.join(path, matched[0])
-    elif len(matched) > 1:
+    if len(matched) > 1:
         raise RuntimeError((
             f"Multiple ACCES directories were found at `{path}`:\n"
             f"{matched}\n\n"
             "Use the full path to the ACCES directory you want."
         ))
 
-    # If no `access_seed<seed>` was found, return the path as is in case it was
-    # renamed but ACCES files are inside still
-    return path
-
-
-
-
-class AccessCoupled:
-
-    def __init__(
-        self,
-        simulations: Simulation,
-        scheduler = [sys.executable],
-        max_workers = None,
-    ):
-        '''`Access` class constructor.
-
-        Parameters
-        ----------
-        simulations: Simulation or list[Simulation]
-            The particle simulation object, implementing the
-            `coexist.Simulation` interface (e.g. `LiggghtsSimulation`).
-            Alternatively, this can be a *list of simulations*, in which case
-            multiple simulations will be run **for the same parameter
-            combination tried**. This allows the implementation of error
-            functions using multiple simulation regimes.
-
-        scheduler: list[str], default [sys.executable]
-            The executable that will run individual simulations as separate
-            Python scripts. In the simplest case, it would be just
-            `["python3"]`. Alternatively, this can be used to schedule
-            simulations on a cluster / supercomputer, e.g.
-            `["srun", "-n", "1", "python3"]` for SLURM. Each list element is
-            a piece of a shell command that will be run.
-
-        max_workers: int, optional
-            The maximum number of threads used by the main Python script to
-            run the error function on each simulation result. If `None`, the
-            output from `len(os.sched_getaffinity(0))` is used.
-
-        '''
-
-        # Type-checking inputs
-        def error_simulations(simulations):
-            # Print error message if the input `simulations` does not have the
-            # required type
-            raise TypeError(textwrap.fill((
-                "The `simulation` input parameter must be an instance of "
-                "`coexist.Simulation` (or a subclass thereof) or a list "
-                f"of simulations. Received type `{type(simulations)}`."
-            )))
-
-
-        if isinstance(simulations, Simulation):
-            self.simulations = [simulations]
-
-        elif hasattr(simulations, "__iter__"):
-            if not len(simulations) >= 1:
-                error_simulations(simulations)
-
-            params = simulations[0].parameters
-
-            for sim in simulations:
-                if not isinstance(sim, Simulation):
-                    error_simulations(simulations)
-
-                if not params.equals(sim.parameters):
-                    raise ValueError((
-                        "The simulation parameters (`Simulation.parameters` "
-                        "attribute) must be the same across all simulations "
-                        "in the input list. The two unequal parameters are:\n"
-                        f"{params}\n\n"
-                        f"{sim.parameters}\n"
-                    ))
-
-            self.simulations = simulations
-
-        else:
-            error_simulations(simulations)
-
-        # Setting class attributes
-        self.scheduler = list(scheduler)
-
-        if max_workers is None:
-            self.max_workers = len(os.sched_getaffinity(0))
-        else:
-            self.max_workers = int(max_workers)
-
-        # These are the constant class attributes relevant for a single
-        # ACCESS run. They will be set in the `learn` method
-        self.rng = None
-        self.error = None
-
-        self.start_times = None
-        self.end_times = None
-
-        self.num_checkpoints = None
-        self.num_solutions = None
-        self.target_sigma = None
-
-        self.use_historical = None
-        self.save_positions = None
-
-        self.save_path = None
-        self.simulations_path = None
-        self.outputs_path = None
-        self.classes_path = None
-        self.sim_classes_paths = None
-        self.sim_paths = None
-
-        self.history_path = None
-        self.history_scaled_path = None
-
-        self.random_seed = None
-        self.verbose = None
-
-        # Message printed to the stdout and stderr by spawned OS processes
-        self._stdout = None
-        self._stderr = None
-
-
-    def learn(
-        self,
-        error,
-        start_times,
-        end_times,
-        num_checkpoints = 100,
-        num_solutions = 10,
-        target_sigma = 0.1,
-        use_historical = True,
-        save_positions = True,
-        random_seed = None,
-        verbose = True,
-    ):
-        # Type-checking inputs
-        if not callable(error):
-            raise TypeError(textwrap.fill((
-                "The input `error` must be a function (i.e. callable). "
-                f"Received `{error}` with type `{type(error)}`."
-            )))
-
-        self.error = error
-
-        if hasattr(start_times, "__iter__"):
-            self.start_times = [float(st) for st in start_times]
-        else:
-            self.start_times = [float(start_times) for _ in self.simulations]
-
-        if hasattr(end_times, "__iter__"):
-            self.end_times = [float(et) for et in end_times]
-        else:
-            self.end_times = [float(end_times) for _ in self.simulations]
-
-        if len(self.start_times) != len(self.simulations) or \
-                len(self.end_times) != len(self.simulations):
-            raise ValueError(textwrap.fill((
-                "The input `start_times` and `end_times` must have the same "
-                "number of elements as the number of simulations. Received "
-                f"{len(self.start_times)} start times / {len(self.end_times)} "
-                f"end times for {len(self.simulations)} simulations."
-            )))
-
-        if hasattr(num_checkpoints, "__iter__"):
-            self.num_checkpoints = [int(nc) for nc in num_checkpoints]
-        else:
-            self.num_checkpoints = [
-                int(num_checkpoints)
-                for _ in self.simulations
-            ]
-
-        if len(self.num_checkpoints) != len(self.simulations):
-            raise ValueError(textwrap.fill((
-                "The input `num_checkpoints` must be either a single value or "
-                "a list with the same number of elements as the number of "
-                f"simulations. Received {len(self.num_checkpoints)} "
-                f"checkpoints for {len(self.simulations)} simulations."
-            )))
-
-        self.num_solutions = int(num_solutions)
-        self.target_sigma = float(target_sigma)
-
-        self.use_historical = bool(use_historical)
-        self.save_positions = bool(save_positions)
-
-        self.random_seed = random_seed
-        self.verbose = bool(verbose)
-
-        # Setting constant class attributes
-        self.rng = np.random.default_rng(self.random_seed)
-
-        # Aliases
-        sims = self.simulations
-        rng = self.rng
-
-        # The random hash that represents this optimisation run. If a random
-        # seed was specified, this will make the simulation and optimisations
-        # fully deterministic (i.e. repeatable)
-        rand_hash = str(round(abs(rng.random() * 1e6)))
-
-        self.save_path = f"access_info_{rand_hash}"
-        self.simulations_path = f"{self.save_path}/simulations"
-        self.classes_path = f"{self.save_path}/classes"
-        self.outputs_path = f"{self.save_path}/outputs"
-
-        self.sim_classes_paths = [
-            f"{self.classes_path}/simulation_{i}_class.pickle"
-            for i in range(len(self.simulations))
-        ]
-
-        self.sim_paths = [
-            f"{self.classes_path}/simulation_{i}"
-            for i in range(len(self.simulations))
-        ]
-
-        # Check if we have historical data about the optimisation - these are
-        # pre-computed values for this exact simulation, random seed, and
-        # number of solutions
-        self.history_path = (
-            f"{self.save_path}/opt_history_{self.num_solutions}.csv"
-        )
-
-        self.history_scaled_path = (
-            f"{self.save_path}/opt_history_{self.num_solutions}_scaled.csv"
-        )
-
-        # Create all required paths above if they don't exist already
-        self.create_directories()
-
-        # History columns: [param1, param2, ..., stddev_param1, stddev_param2,
-        # ..., stddev_all, error_value]
-        if use_historical and os.path.isfile(self.history_path):
-            history = np.loadtxt(self.history_path, dtype = float)
-        elif use_historical:
-            history = []
-        else:
-            history = None
-
-        # Scaling and unscaling parameter values introduce numerical errors
-        # that confuse the optimiser. Thus save unscaled values separately
-        if self.use_historical and os.path.isfile(self.history_scaled_path):
-            history_scaled = np.loadtxt(
-                self.history_scaled_path, dtype = float
-            )
-        elif self.use_historical:
-            history_scaled = []
-        else:
-            history_scaled = None
-
-        # Minimum and maximum possible values for the DEM parameters
-        params_mins = sims[0].parameters["min"].to_numpy()
-        params_maxs = sims[0].parameters["max"].to_numpy()
-
-        # If any `sigma` value is smaller than 5% (max - min), clip it
-        for sim in sims:
-            sim.parameters["sigma"].clip(
-                lower = 0.05 * (params_maxs - params_mins),
-                inplace = True,
-            )
-
-        # Scale sigma, bounds, solutions, results to unit variance
-        scaling = sims[0].parameters["sigma"].to_numpy()
-
-        # First guess, scaled
-        x0 = sims[0].parameters["value"].to_numpy() / scaling
-        sigma0 = 1.0
-        bounds = [
-            params_mins / scaling,
-            params_maxs / scaling
-        ]
-
-        # Instantiate CMA-ES optimiser
-        es = cma.CMAEvolutionStrategy(x0, sigma0, dict(
-            bounds = bounds,
-            popsize = self.num_solutions,
-            randn = lambda *args: rng.standard_normal(args),
-            verbose = 3 if self.verbose else -9,
-        ))
-
-        # Start optimisation: ask the optimiser for parameter combinations
-        # (solutions), run the simulations between `start_index:end_index` and
-        # feed the results back to CMA-ES.
-        epoch = 0
-
-        while not es.stop():
-            solutions = es.ask()
-
-            # If we have historical data, inject it for each epoch
-            if self.use_historical and \
-                    epoch * self.num_solutions < len(history_scaled):
-
-                self.inject_historical(es, history_scaled, epoch)
-                epoch += 1
-
-                if self.finished(es):
-                    break
-
-                continue
-
-            if self.verbose:
-                self.print_before_eval(es, solutions)
-
-            results = self.try_solutions(solutions * scaling, epoch)
-
-            es.tell(solutions, results)
-            epoch += 1
-
-            # Save every step's historical data as function evaluations are
-            # very expensive. Save columns [param1, param2, ..., stdev_param1,
-            # stdev_param2, ..., stdev_all, error_val].
-            if self.use_historical:
-                if not isinstance(history, list):
-                    history = list(history)
-
-                for sol, res in zip(solutions, results):
-                    history.append(
-                        list(sol * scaling) +
-                        list(es.result.stds * scaling) +
-                        [es.sigma, res]
-                    )
-
-                np.savetxt(self.history_path, history)
-
-                # Save scaled values separately to avoid numerical errors
-                if not isinstance(history_scaled, list):
-                    history_scaled = list(history_scaled)
-
-                for sol, res in zip(solutions, results):
-                    history_scaled.append(
-                        list(sol) +
-                        list(es.result.stds) +
-                        [es.sigma, res]
-                    )
-
-                np.savetxt(self.history_scaled_path, history_scaled)
-
-            if self.verbose:
-                self.print_after_eval(es, solutions, scaling, results)
-
-            if self.finished(es):
-                break
-
-        solutions = es.result.xbest * scaling
-        stds = es.result.stds * scaling
-
-        if self.verbose:
-            print(f"Best results for solutions: {solutions}", flush = True)
-
-        # Run the simulation with the best parameters found and save the
-        # results to disk. Return the paths to the saved values
-        radii_paths, positions_paths, velocities_paths = \
-            self.run_simulation_best(solutions, stds)
-
-        return radii_paths, positions_paths, velocities_paths
-
-
-    def run_simulation_best(self, solutions, stds):
-        '''Save the radii, positions, and velocities for the simulations with
-        the best parameter values.
-        '''
-        # Path for saving the simulations with the best parameters
-        best_path = f"{self.save_path}/best"
-
-        if not os.path.isdir(best_path):
-            os.mkdir(best_path)
-
-        # Paths for saving the best simulations' outputs
-        best_radii_paths = [
-            f"{best_path}/best_radii_{i}.npy"
-            for i in range(len(self.simulations))
-        ]
-
-        best_positions_paths = [
-            f"{best_path}/best_positions_{i}.npy"
-            for i in range(len(self.simulations))
-        ]
-
-        best_velocities_paths = [
-            f"{best_path}/best_velocities_{i}.npy"
-            for i in range(len(self.simulations))
-        ]
-
-        # Change sigma, min and max based on optimisation results
-        param_names = self.simulations[0].parameters.index
-
-        for sim in self.simulations:
-            sim.parameters["sigma"] = stds
-
-        # Change parameters to the best solution
-        for i, sol_val in enumerate(solutions):
-            for sim in self.simulations:
-                sim[param_names[i]] = sol_val
-
-        # Run each simulation with the best parameters found. This cannot be
-        # done in parallel as the simulation library might be thread-unsafe
-        for i, sim in enumerate(self.simulations):
-            if self.verbose:
-                print((
-                    f"Running the simulation at index {i} with the best "
-                    "parameter values found..."
-                ))
-
-            checkpoints = np.linspace(
-                self.start_times[i],
-                self.end_times[i],
-                self.num_checkpoints[i],
-            )
-
-            positions = []
-            velocities = []
-
-            for t in checkpoints:
-                sim.step_to_time(t)
-                positions.append(sim.positions())
-                velocities.append(sim.velocities())
-
-            radii = sim.radii()
-            positions = np.array(positions, dtype = float)
-            velocities = np.array(velocities, dtype = float)
-
-            np.save(best_radii_paths[i], radii)
-            np.save(best_positions_paths[i], positions)
-            np.save(best_velocities_paths[i], velocities)
-
-        error = self.error(
-            best_radii_paths,
-            best_positions_paths,
-            best_velocities_paths,
-        )
-
-        if self.verbose:
-            print((f"Error (computed by the `error` function) for solution: "
-                   f"{error}\n---"), flush = True)
-
-        return best_radii_paths, best_positions_paths, best_velocities_paths
-
-
-    def create_directories(self):
-        # Save the current simulation state in a `restarts` folder
-        if not os.path.isdir(self.save_path):
-            os.mkdir(self.save_path)
-
-        # Save positions and parameters in a new folder inside `restarts`
-        if not os.path.isdir(self.simulations_path):
-            os.mkdir(self.simulations_path)
-
-        # Save classes objects in a new folder inside `restarts`
-        if not os.path.isdir(self.classes_path):
-            os.mkdir(self.classes_path)
-
-        # Save simulation outputs (stderr and stdout) in a new folder
-        if not os.path.isdir(self.outputs_path):
-            os.mkdir(self.outputs_path)
-
-        # Serialize the simulations' concrete class so that it can be
-        # reconstructed even if it is a `coexist.Simulation` subclass
-        for i in range(len(self.simulations)):
-            with open(self.sim_classes_paths[i], "wb") as f:
-                pickle.dump(self.simulations[i].__class__, f)
-
-            # Save current checkpoint and extra data for parallel computation
-            self.simulations[i].save(self.sim_paths[i])
-
-        infofile = f"{self.save_path}/opt_run_info.txt"
-        with open(infofile, "a", encoding = "utf-8") as f:
-            now = datetime.now().strftime("%H:%M:%S - %D")
-            f.writelines([
-                "--------------------------------------------------------\n",
-                f"Starting ACCESS run at {now}\n\n",
-                "Simulations:\n"
-                f"{self.simulations}\n\n",
-                f"start_times =         {self.start_times}\n",
-                f"end_times =           {self.end_times}\n",
-                f"num_checkpoints =     {self.num_checkpoints}\n",
-                f"target_sigma =        {self.target_sigma}\n",
-                f"num_solutions =       {self.num_solutions}\n",
-                f"random_seed =         {self.random_seed}\n",
-                f"use_historical =      {self.use_historical}\n",
-                f"save_positions =      {self.save_positions}\n\n",
-                f"save_path =           {self.save_path}\n",
-                f"simulations_path =    {self.simulations_path}\n",
-                f"classes_path =        {self.classes_path}\n",
-                f"outputs_path =        {self.outputs_path}\n",
-                f"sim_classes_paths =   {self.sim_classes_paths}\n",
-                f"sim_paths =           {self.sim_paths}\n\n",
-                f"history_path =        {self.history_path}\n",
-                f"history_scaled_path = {self.history_scaled_path}\n",
-                "--------------------------------------------------------\n\n",
-            ])
-
-
-    def inject_historical(self, es, history_scaled, epoch):
-        '''Inject the CMA-ES optimiser with pre-computed (historical) results.
-        The solutions must have a Gaussian distribution in each problem
-        dimension - though the standard deviation can vary for each of them.
-        Ideally, this should only use historical values that CMA-ES asked for
-        in a previous ACCESS run.
-        '''
-
-        ns = self.num_solutions
-        num_params = len(self.simulations[0].parameters)
-
-        results_scaled = history_scaled[(epoch * ns):(epoch * ns + ns)]
-        es.tell(results_scaled[:, :num_params], results_scaled[:, -1])
-
-        if self.verbose:
-            print((
-                f"Injected {(epoch + 1) * len(results_scaled)} / "
-                f"{len(history_scaled)} historical solutions."
-            ))
-
-
-    def print_before_eval(self, es, solutions):
-        '''Print the individual and overal scaled standard deviations along
-        with the parameter combinations to try.
-        '''
-        print((
-            f"Scaled overall standard deviation: {es.sigma}\n"
-            f"Scaled individual standard deviations:\n{es.result.stds}"
-            f"\n\nTrying {len(solutions)} parameter combinations..."
-        ), flush = True)
-
-
-    def print_after_eval(
-        self,
-        es,
-        solutions,
-        scaling,
-        results,
-    ):
-        # Display evaluation results: solutions, error values, etc.
-        cols = list(self.simulations[0].parameters.index) + ["error"]
-        sols_results = np.hstack((
-            solutions * scaling,
-            results[:, np.newaxis],
-        ))
-
-        # Store solutions and results in a DataFrame for easy pretty printing
-        sols_results = pd.DataFrame(
-            data = sols_results,
-            columns = cols,
-            index = None,
-        )
-
-        # Display all the DataFrame columns and rows
-        old_max_columns = pd.get_option("display.max_columns")
-        old_max_rows = pd.get_option("display.max_rows")
-
-        pd.set_option("display.max_columns", None)
-        pd.set_option("display.max_rows", None)
-
-        print((
-            f"{sols_results}\n"
-            f"Function evaluations: {es.result.evaluations}\n---"
-        ), flush = True)
-
-        pd.set_option("display.max_columns", old_max_columns)
-        pd.set_option("display.max_rows", old_max_rows)
-
-
-    def finished(self, es):
-        '''If the overal sigma value is less than the target sigma value,
-        finish the simulation.
-        '''
-        if es.sigma < self.target_sigma:
-            if self.verbose:
-                print((
-                    "Optimal solution found within `target_sigma`, i.e. "
-                    f"{self.target_sigma * 100}%:\n"
-                    f"sigma = {es.sigma} < {self.target_sigma}"
-                ), flush = True)
-
-            return True
-
-        return False
-
-
-    def std_outputs(self, run_index, sim_index, stdout, stderr):
-        '''If new errors and outputs are produced, write them to the correct
-        olders.
-        '''
-        # If we had new errors, write them to `error.log`.
-        if len(stderr) and stderr != self._stderr:
-            self._stderr = stderr.decode("utf-8")
-
-            error_path = (
-                f"{self.outputs_path}/"
-                f"error_{run_index}_{sim_index}.log"
-            )
-
-            print((
-                "A new error ocurred while running simulation (run "
-                f"{run_index} / index {sim_index}):\n"
-                f"{self._stderr}\n\n"
-                f"Writing error message to `{error_path}`\n"
-            ))
-
-            with open(error_path, "w") as f:
-                f.write(self._stderr)
-
-        # If we had new outputs, write them to `output.log`
-        if len(stdout) and stdout != self._stdout:
-            self._stdout = stdout.decode("utf-8")
-
-            output_path = (
-                f"{self.outputs_path}/"
-                f"output_{run_index}_{sim_index}.log"
-            )
-
-            print((
-                "A new message was outputted while running simulation (run "
-                f"{run_index} / index {sim_index}):\n"
-                f"{self._stdout}\n\n"
-                f"Writing output message to `{output_path}`\n"
-            ))
-
-            with open(output_path, "w") as f:
-                f.write(self._stdout)
-
-
-    def simulations_save_paths(self, epoch):
-        '''For every simulation run in every parameter combination, append the
-        simulation, radii, position and velocity path to a corresponding list.
-        '''
-        sim_paths = []
-        radii_paths = []
-        positions_paths = []
-        velocities_paths = []
-
-        start_index = epoch * self.num_solutions
-
-        # For every parameter combination...
-        for i in range(self.num_solutions):
-            sim_run = []
-            radii_run = []
-            positions_run = []
-            velocities_run = []
-
-            # For every simulation run...
-            for j in range(len(self.simulations)):
-                sim_run.append((
-                    f"{self.simulations_path}/"
-                    f"opt_{start_index + i}_{j}"
-                ))
-
-                radii_run.append((
-                    f"{self.simulations_path}/"
-                    f"opt_{start_index + i}_{j}_radii.npy"
-                ))
-
-                positions_run.append((
-                    f"{self.simulations_path}/"
-                    f"opt_{start_index + i}_{j}_positions.npy"
-                ))
-
-                velocities_run.append((
-                    f"{self.simulations_path}/"
-                    f"opt_{start_index + i}_{j}_velocities.npy"
-                ))
-
-            sim_paths.append(sim_run)
-            radii_paths.append(radii_run)
-            positions_paths.append(positions_run)
-            velocities_paths.append(velocities_run)
-
-        return sim_paths, radii_paths, positions_paths, velocities_paths
-
-
-    def try_solutions(self, solutions, epoch):
-        '''For every solution to try and simulate a run, start a separate OS
-        process that runs the `async_access_error.py` file and saves the
-        positions in a `.npy` file.
-        '''
-
-        # Aliases
-        param_names = self.simulations[0].parameters.index
-
-        # Path to `async_access_error.py`
-        async_xi = os.path.join(
-            os.path.split(coexist.__file__)[0],
-            "async_access_error.py"
-        )
-
-        processes = []
-
-        # These are all lists of lists: axis 0 is the parameter combination to
-        # try, while axis 1 is the particular simulation to run
-        sim_paths, radii_paths, positions_paths, velocities_paths = \
-            self.simulations_save_paths(epoch)
-
-        # Catch the KeyboardInterrupt (Ctrl-C) signal to shut down the spawned
-        # processes before aborting.
-        try:
-            # Run all simulations in `self.simulations` for each parameter
-            # combination in `solutions`
-            for i, sol in enumerate(solutions):
-                single_run_processes = []
-
-                # For every simulation in `self.simulations`, start a new proc
-                for j, sim in enumerate(self.simulations):
-
-                    # Change parameter values to save them along with the
-                    # full simulation state
-                    for k, sol_val in enumerate(sol):
-                        sim.parameters.at[param_names[k], "value"] = sol_val
-
-                    sim.save(sim_paths[i][j])
-
-                    single_run_processes.append(
-                        subprocess.Popen(
-                            self.scheduler + [  # Python interpreter path
-                                async_xi,       # async_access_error.py path
-                                self.sim_classes_paths[j],
-                                sim_paths[i][j],
-                                str(self.start_times[j]),
-                                str(self.end_times[j]),
-                                str(self.num_checkpoints[j]),
-                                radii_paths[i][j],
-                                positions_paths[i][j],
-                                velocities_paths[i][j],
-                            ],
-                            stdout = subprocess.PIPE,
-                            stderr = subprocess.PIPE,
-                        )
-                    )
-
-                processes.append(single_run_processes)
-
-            # Compute the error function values in a parallel environment.
-            with ProcessPoolExecutor(max_workers = self.max_workers) \
-                    as executor:
-                futures = []
-
-                # Get the output from each OS process / simulation
-                for i, run_procs in enumerate(processes):
-                    # Check simulations didn't crash
-                    crashed = False
-
-                    for j, proc in enumerate(run_procs):
-                        stdout, stderr = proc.communicate()
-
-                        proc_index = epoch * self.num_solutions + i
-                        self.std_outputs(proc_index, j, stdout, stderr)
-
-                        # Only load simulations if they exist - i.e. no errors
-                        # occurred
-                        if not (os.path.isfile(radii_paths[i][j]) and
-                                os.path.isfile(positions_paths[i][j]) and
-                                os.path.isfile(velocities_paths[i][j])):
-
-                            print((
-                                "At least one of the simulation files "
-                                f"{radii_paths[i][j]}, "
-                                f"{positions_paths[i][j]} or "
-                                f"{velocities_paths[i][j]}, was not found; "
-                                f"the simulation (run {i} / index {j}) most "
-                                "likely crashed. Check the error, output and "
-                                "LIGGGHTS logs for what went wrong. The error "
-                                "value for this simulation run is set to NaN."
-                            ))
-
-                            crashed = True
-
-                    # If no simulations crashed in this run, execute the error
-                    # function in parallel
-                    if not crashed:
-                        futures.append(
-                            executor.submit(
-                                self.error,
-                                radii_paths[i],
-                                positions_paths[i],
-                                velocities_paths[i],
-                            )
-                        )
-                    else:
-                        futures.append(None)
-
-                # Crashed solutions will have np.nan as a value.
-                results = np.full(len(solutions), np.nan)
-
-                for i, f in enumerate(futures):
-                    if f is not None:
-                        results[i] = f.result()
-
-        except KeyboardInterrupt:
-            for proc_run in processes:
-                for proc in proc_run:
-                    proc.kill()
-
-            sys.exit(130)
-
-        # If `save_positions` is not True, remove all simulation files
-        if not self.save_positions:
-            for radii_run in radii_paths:
-                [os.remove(rp) for rp in radii_run]
-
-            for positions_run in positions_paths:
-                [os.remove(pp) for pp in positions_run]
-
-            for velocities_run in velocities_paths:
-                [os.remove(vp) for vp in velocities_run]
-
-        return results
+    raise FileNotFoundError(
+        f"No ACCES run containing `access_setup.toml` was found at `{path}`."
+    )
