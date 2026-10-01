@@ -1076,8 +1076,9 @@ def analyse(
     if values.shape != (len(frame),):
         raise ValueError("Supply one scalar objective per evaluation")
 
-    complete = np.isfinite(frame).all(axis = 1).to_numpy()
-    complete &= np.isfinite(values)
+    complete = (
+        np.isfinite(frame).all(axis = 1).to_numpy() & np.isfinite(values)
+    )
     omitted = frame.index[~complete].tolist()
     frame, values = frame.loc[complete], values[complete]
     if len(frame) < 2:
