@@ -536,6 +536,19 @@ def fit_gaussian_process(
 
 
 
+def within_objective_band(values, lower, upper):
+    '''Test predicted values against the closed band, allowing for roundoff.
+
+    Root finding and batched GP predictions need not agree in their last
+    digits. Allow 1e-10 of the band magnitude when classifying predictions;
+    this scales with objective units and leaves an all-zero band exact.
+    '''
+    margin = 1e-10 * max(abs(lower), abs(upper))
+    return (values >= lower - margin) & (values <= upper + margin)
+
+
+
+
 def profile_match(surface, fixed, previous = None):
     '''Find a compensating vector whose prediction lies in the tolerance band.
 
@@ -585,8 +598,8 @@ def profile_match(surface, fixed, previous = None):
     if best_distance == 0:
         return best_value, best_point, "within_tolerance"
     if not free:
-        status = ("within_tolerance" if lower <= best_value <= upper
-                  else "outside_tolerance")
+        accepted = within_objective_band(best_value, lower, upper)
+        status = "within_tolerance" if accepted else "outside_tolerance"
         return best_value, best_point, status
 
     bounds = surface.box[free]
@@ -602,7 +615,7 @@ def profile_match(surface, fixed, previous = None):
         distance = abs(value - surface.reference_value)
         if distance < best_distance:
             best_value, best_point, best_distance = value, candidate, distance
-        if lower <= best_value <= upper:
+        if within_objective_band(best_value, lower, upper):
             return best_value, best_point, "within_tolerance"
 
     status = "outside_tolerance" if converged else "solver_failed"
@@ -701,9 +714,10 @@ def evaluate_grid(surface, points, fixed_indices, center, span, names):
             slice_objective = float(value),
             profile_objective = (matched if status != "solver_failed"
                                  else np.nan),
-            slice_accepted = (surface.reference_value - surface.tolerance
-                              <= value <=
-                              surface.reference_value + surface.tolerance),
+            slice_accepted = within_objective_band(
+                value, surface.reference_value - surface.tolerance,
+                surface.reference_value + surface.tolerance,
+            ),
             profile_accepted = status == "within_tolerance",
             profile_status = status,
         )
@@ -1010,6 +1024,8 @@ def analyse(
     miss this band even at the reference vector, so accepted ranges can be
     empty. The observed and predicted reference values are reported separately.
     Actual acceptable observations use the same band as the GP predictions.
+    Predicted acceptance flags allow roundoff of 1e-10 times the larger
+    absolute band limit. Observations and range crossings use the exact band.
 
     Ranges describe the fitted response across the reporting box. Sample
     counts and the prediction at the reference are included with the results.
@@ -1256,7 +1272,7 @@ def analyse(
         reference_evaluation = reference_evaluation,
         predicted_reference_value = predicted_reference,
         reference_accepted = bool(
-            objective_limits[0] <= predicted_reference <= objective_limits[1],
+            within_objective_band(predicted_reference, *objective_limits),
         ),
         complete_evaluations = len(frame),
         training_evaluations = len(x),

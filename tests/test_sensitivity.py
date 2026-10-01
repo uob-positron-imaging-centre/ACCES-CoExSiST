@@ -257,6 +257,37 @@ def test_repeatability():
         )
 
 
+@pytest.mark.parametrize("scale", [1e-12, 1, 1e12, -1])
+def test_pair_range_endpoints(scale):
+    parameters, objective, bounds, settings = quadratic_data()
+    settings.update(
+        reference_value = scale, grid_size = 9, pair_grid_size = 5,
+        verbose = False,
+    )
+    result = analyse(parameters, scale * objective, bounds, **settings)
+    pair = result.pairs[("a", "b")]
+    outside = abs(pair.slice_objective / scale - 1) > 1 + 1e-8
+    assert outside.any()
+    assert not pair.loc[outside, "slice_accepted"].any()
+    assert not pair.loc[outside, "profile_accepted"].any()
+
+    # Slice limits are roots of the tolerance boundary. Evaluating them in
+    # a batch must still accept the closed boundary despite roundoff.
+    for row in result.ranges.query("mode == 'slice'").itertuples():
+        other = "b" if row.parameter == "a" else "a"
+        for endpoint in [row.lower, row.upper]:
+            point = pair.loc[
+                (pair[f"value_{row.parameter}"] == endpoint) &
+                (pair[f"value_{other}"] == 0)
+            ]
+            assert len(point) == 1
+            np.testing.assert_allclose(
+                point.slice_objective / scale, 2, atol = 1e-9, rtol = 0,
+            )
+            assert point.slice_accepted.all()
+            assert point.profile_accepted.all()
+
+
 def test_parameter_and_objective_units():
     parameters, objective, bounds, settings = quadratic_data()
     original = analyse(parameters, objective, bounds, **settings)
