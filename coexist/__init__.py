@@ -6,33 +6,27 @@
 # Date   : 03.09.2020
 
 
-# Import base data structures and algorithms
-from        .base           import  save, load
-from        .base           import  create_parameters
-from        .base           import  Parameters, Experiment, Simulation
-from        .base           import  to_vtk
-
-try:
-    from    .liggghts       import  LiggghtsSimulation, AutoTimestep
-except ImportError:
-    class LiggghtsNotFound:
-        pass
-    LiggghtsSimulation = LiggghtsNotFound
-    AutoTimestep = LiggghtsNotFound
-
-from        .optimisation   import  Coexist
-from        .access         import  Access, AccessData
-
-# Import submodules
-from        .               import  schedulers
-from        .               import  ballistics
-from        .               import  plots
-
-# Import package version
-from        .__version__    import  __version__
+'''ACCES simulation calibration, optimisation and analysis.'''
 
 
-__author__ = "Andrei Leonard Nicusan, "
+from    importlib           import  import_module
+
+from    .base               import  create_parameters
+from    .access             import  Access, AccessData
+from    .                   import  combiners, schedulers, plots
+from    .__version__        import  __version__
+
+
+__author__ = "Andrei Leonard Nicusan"
 __email__ = "a.l.nicusan@bham.ac.uk"
 __license__ = "GNU v3.0"
 __status__ = "Beta"
+
+
+
+
+def __getattr__(name):
+    '''Load optional sensitivity analysis when it is first requested.'''
+    if name == "sensitivity":
+        return import_module(".sensitivity", __name__)
+    raise AttributeError(f"Module {__name__!r} has no attribute {name!r}.")

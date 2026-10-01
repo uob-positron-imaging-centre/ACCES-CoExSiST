@@ -8,7 +8,8 @@
 
 import numpy as np
 
-import coexist
+import legacy
+from legacy.liggghts import LiggghtsSimulation
 
 
 # Read in the "experimental" timesteps and particle locations
@@ -17,10 +18,10 @@ exp_positions = np.load("truth/positions.npy")
 
 resolution = 0.2e-3
 
-experiment = coexist.Experiment(exp_timesteps, exp_positions, resolution)
+experiment = legacy.Experiment(exp_timesteps, exp_positions, resolution)
 
 # Define the user-changeable / free simulation parameters
-parameters = coexist.Parameters(
+parameters = legacy.Parameters(
     variables = ["corPP", "corPW"],
     commands = [
         "fix  m3 all property/global coefficientRestitution peratomtypepair 3 \
@@ -37,10 +38,10 @@ parameters = coexist.Parameters(
     maximums = [0.95, 0.95],
 )
 
-simulation = coexist.LiggghtsSimulation("vibrofluidised.sim", parameters)
+simulation = LiggghtsSimulation("vibrofluidised.sim", parameters)
 print(simulation, "\n")
 
-opt = coexist.Coexist(simulation, save_log = True)
+opt = legacy.Coexist(simulation, save_log = True)
 opt.learn(
     experiment,
     num_solutions = 8,      # Number of solutions to try in parallel per epoch

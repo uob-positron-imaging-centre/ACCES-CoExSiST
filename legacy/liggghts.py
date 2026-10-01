@@ -36,8 +36,8 @@ class LiggghtsSimulation(Simulation):
     --------
     Simply load a LIGGGHTS simulation script's path as the first parameter:
 
-    >>> import coexist
-    >>> sim = coexist.LiggghtsSimulation("path_to_liggghts_script.sim")
+    >>> from legacy.liggghts import LiggghtsSimulation
+    >>> sim = LiggghtsSimulation("path_to_liggghts_script.sim")
 
     LIGGGHTS can only run simulations for a given integer number of timesteps,
     but often we want to run them up to a given physical time.
@@ -380,7 +380,7 @@ class LiggghtsSimulation(Simulation):
 
         if not os.path.exists(f"{filename}_parameters.sim"):
             raise FileNotFoundError(textwrap.fill((
-                "No pickled `coexist.Parameters` file found based on the "
+                "No pickled `legacy.Parameters` file found based on the "
                 f"input filename: `{filename}_parameters.sim`."
             )))
 

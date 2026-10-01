@@ -1,27 +1,21 @@
 [![PyPI version](https://badge.fury.io/py/coexist.svg)](https://badge.fury.io/py/coexist)
 [![Documentation Status](https://readthedocs.org/projects/coexist/badge/?version=latest)](https://coexist.readthedocs.io/en/latest/?badge=latest)
-[![CI Status](https://github.com/uob-positron-imaging-centre/Coexist/actions/workflows/ci.yml/badge.svg)](https://github.com/uob-positron-imaging-centre/Coexist/actions/workflows/ci.yml)
-[![Language grade: Python](https://img.shields.io/lgtm/grade/python/g/uob-positron-imaging-centre/Coexist.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/uob-positron-imaging-centre/Coexist/context:python)
+[![CI Status](https://github.com/uob-positron-imaging-centre/ACCES-CoExSiST/actions/workflows/ci.yml/badge.svg)](https://github.com/uob-positron-imaging-centre/ACCES-CoExSiST/actions/workflows/ci.yml)
 [![Colab example](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1p7OwnaYgENwK4DTn_6QETX4ajwVFeza0?usp=sharing)
-[![License: GPL-3.0](https://img.shields.io/github/license/uob-positron-imaging-centre/Coexist?style=flat-square)](https://github.com/uob-positron-imaging-centre/Coexist)
+[![License: GPL-3.0](https://img.shields.io/github/license/uob-positron-imaging-centre/ACCES-CoExSiST?style=flat-square)](https://github.com/uob-positron-imaging-centre/ACCES-CoExSiST)
 
 
-# CoExSiST & ACCES
+# ACCES
 ### Data-Driven Evolutionary Calibration & Optimisation of Simulations
 
-A Python library for autonomously learning simulation parameters from experimental data, from the *micro* to the *macro*, from laptops to clusters. This is done using either of two closely related frameworks:
+ACCES (Autonomous Characterisation and Calibration via Evolutionary Simulation)
+learns simulation parameters by minimising a user-defined objective. The Python
+package is named `coexist`.
 
-- **CoExSiST**: Coupled Experimental-Simulational Study Tool.
-- **ACCES**: Autonomous Characterisation and Calibration via Evolutionary Simulation. 
-
-Both libraries learn a given set of free parameters, such that an experiment is synchronised with an equivalent simulation; this synchronisation is done in one of two ways:
-
-- CoExSiST calibrates **microscopically**: in a Discrete Element Method (DEM) context, all simulated particles follow their experimental counterparts *exactly*. Naturally, this technique is limited to dilute systems and experimental imaging techniques that can capture the 3D position of *all* moving particles (e.g. PIV) - however, it provides information about the fundamental aspects of particle collision.
-- ACCES calibrates / optimises **macroscopically**: a given simulation reproduces a system-specific *macroscopic* quantity (e.g. residence time distribution, angle of repose). This technique is completely agnostic to the simulation method and the quantity to be reproduced. For example, it can train *coarse-grained DEM* simulations, using larger meso-particles to model multiple smaller ones.
-
-
-ACCES is ready for production use; it was successfully used to calibrate coarse-grained DEM digital twins of [GranuTools](https://www.granutools.com/en/) equipment (Andrei Leonard Nicusan and Dominik Werner, *paper under review*), CFDEM fluidised beds (Hanqiao Cha, *paper under review*) and even signal processing parameters in a PET scanner model (Matthew Herald, *paper under review*).
-
+ACCES can run arbitrary simulation scripts, from laptops to clusters. It is
+independent of the simulation engine and the quantity being optimised: examples
+include DEM calibration against a powder's free-surface shape, residence time
+distributions and coarse-grained digital twins.
 
 ![Calibrated GranuDrum](/docs/source/_static/calibrated.png?raw=true "Calibrated GranuDrum.")
 *Example of an ACCES-calibrated DEM Digital Twin of a GranuTools GranuDrum; the calibration was done effectively against a single experimental data point - a photograph of the free surface shape yielded by MCC particles (left panel). The occupancy grid of a LIGGGHTS simulation was optimised against the free surface shape (right panel). The two superimposed grids amount to 4 mm² dissimilarity (dark blue pixels, middle panel).*
@@ -35,7 +29,7 @@ ACCES was implemented in the `coexist.Access` class, providing an interface that
 
 ## Getting Started
 
-This is a pure Python package that does not require any extra system configuration, supporting Python 3.6 and above (though it might work with even older versions) - to install it from PyPI, simply run:
+This is a pure Python package that does not require any extra system configuration, supporting Python 3.10 and above - to install it from PyPI, simply run:
 
 ```
 pip install coexist
@@ -44,8 +38,37 @@ pip install coexist
 Or you can install the development version from the GitHub repository:
 
 ```
-pip install git+https://github.com/uob-positron-imaging-centre/Coexist
+pip install git+https://github.com/uob-positron-imaging-centre/ACCES-CoExSiST
 ```
+
+
+Sensitivity analysis uses an optional scikit-learn dependency:
+
+```sh
+python -m pip install "coexist[sensitivity]"
+```
+
+An existing run can be analysed with `coexist.AccessData("access_seed42").sensitivity()`.
+The default parameter window is 20% of each bound width, and the objective
+band is ±10% of the best observed objective's magnitude. See the
+[sensitivity manual](https://coexist.readthedocs.io/en/latest/manual/sensitivity.html)
+for interpretation, plots and the general-purpose NumPy/pandas API.
+
+For development, from a repository checkout:
+
+```sh
+python -m pip install -e ".[test,docs,sensitivity]"
+python -m pytest
+python -m sphinx -W --keep-going -b html docs/source docs/_build/html
+```
+
+Dependencies and package metadata are declared in `pyproject.toml`. The `test`,
+`docs` and `sensitivity` extras can be installed separately; building the complete
+API documentation requires both `docs` and `sensitivity`.
+
+The [research archive](https://github.com/uob-positron-imaging-centre/ACCES-CoExSiST/tree/main/legacy)
+contains the microscopic CoExSiST method and its simulation interfaces. It is
+kept for future development and is not included in the installed package.
 
 
 
@@ -54,7 +77,7 @@ pip install git+https://github.com/uob-positron-imaging-centre/Coexist
 
 The [documentation](https://coexist.readthedocs.io/) website contains an ACCES [tutorial](https://coexist.readthedocs.io/en/latest/tutorials/index.html) with explained code and output figures produced by `coexist`; all public functionality is fully documented in the [manual](https://coexist.readthedocs.io/en/latest/manual/index.html).
 
-Want something more hands on? Check out the `examples` folder for example scripts using `coexist.Coexist` and `coexist.Access`; `examples/access_simple` is a very simple, hackable example script (remember that the `simulation_script.py` can execute *anything*). For a more involved, complete calibration of a GranuTools GranuDrum digital twin - using LIGGGHTS - see our collection of peer-reviewed digital twins [repository](https://github.com/uob-positron-imaging-centre/DigitalTwins).
+Want something more hands on? Check out the `examples` folder for example scripts using `coexist.Access`; `examples/access_simple` is a very simple, hackable example script (remember that the `simulation_script.py` can execute *anything*). For a more involved, complete calibration of a GranuTools GranuDrum digital twin - using LIGGGHTS - see our collection of peer-reviewed digital twins [repository](https://github.com/uob-positron-imaging-centre/DigitalTwins).
 
 
 ![GranuDrum ACCES Example](/docs/source/_static/access_example.png?raw=true "GranuDrum ACCES Example.")
@@ -223,6 +246,81 @@ A tutorial with more detailed explanations is available [here](https://coexist.r
 
 
 
+## Parameter sensitivity
+
+Analyse how far parameters can vary around an existing optimum while keeping
+an objective within a chosen tolerance. Signed objectives and individual
+responses are supported without a minimise/maximise setting:
+
+```python
+import coexist
+
+data = coexist.AccessData("calibration_results/access_seed42")
+result = data.sensitivity(
+    parameter_window = 0.2,
+    objective_tolerance = 0.1,
+)
+print(result.ranges)
+print(result.importance)
+print(result.ranking)
+print(result.ranking_full)
+print(result.interactions)
+print(result.metadata["training_in_window"])
+result.save("sensitivity_output")
+```
+
+The tolerance permits `abs(prediction - observed_reference)` up to
+`0.1 * abs(observed_reference)`. The band remains centred on the observed
+reference even when the GP predicts a different value there. Both values are
+reported, and accepted ranges may be empty.
+`absolute_tolerance` supplies a half-width in objective units, useful at zero.
+The window permits ±20% of each original parameter-bound width. The reference
+is the best complete saved combined score; `objective="error0"` studies an
+individual response at that same vector.
+
+Results include fixed-other and compensated ranges, pair maps, interaction
+scores, importance rankings and the number of samples inside the window.
+`result.ranking` covers the supplied local window; `result.ranking_full` covers
+the complete min/max bounds. Both use the same GP and hold other parameters
+fixed. Each normalises its RMS objective changes by their sum, giving
+dimensionless `relative_sensitivity` scores summing to 1. All-flat responses
+receive zero scores. `result.importance` and `result.importance_full` retain
+objective units. These are relative response magnitudes, not variance
+fractions. Saving writes all four tables. The full-bound ranking can cover
+poorly sampled regions; plots and accepted ranges stay within the local window.
+Predictions cover the whole box; sample counts alone do not guarantee local
+accuracy. Profile ranges are numerical grid approximations with stored
+compensating vectors. The default GP interpolates recorded evaluations with
+a small numerical nugget and a signed `asinh` response transform.
+For positive discrepancies, `response_transform="log"` keeps predictions
+positive. Use `interpolate=False` to estimate a smoothed response instead.
+Interpolation does not establish predictive accuracy between evaluations.
+
+`result.plot(others_fixed=True)` returns a matrix with single responses on the
+diagonal, accepted pair variations below, and objective heatmaps above. Use `False` for
+adjusted parameters. `result.save(...)` writes both matrices as PNG and PDF.
+Legends identify the reference, observed alternatives and fitted regions.
+DataFrame column names are retained; array inputs use `Parameter 1`, etc.
+The colour scale is shared across panels and figures. `objective_scale="log"`
+improves readability for positive objectives spanning orders of magnitude;
+`"symlog"` supports signed values. Adjusted plots distinguish actual accepted
+evaluations from fitted regions. Missing component errors invalidate a saved
+combined score; additional processing failures can be explicitly excluded.
+
+All analysis lives in `coexist/sensitivity.py`. The general function
+`coexist.sensitivity.analyse(samples, objectives)` accepts NumPy arrays or pandas
+data independently of ACCES. Bounds default to the column minima/maxima of
+complete evaluations, and the reference to the smallest observed objective.
+Supply `bounds`, `reference` and `reference_value` to use other limits or study
+a maximum. Progress is printed by default; `verbose=False` silences it.
+`AccessData.sensitivity` forwards the stored data and original bounds to that API.
+Load a directory with the existing `AccessData` reader, then call
+`.sensitivity()`. The general module has no dependency on ACCES data structures.
+See the [sensitivity manual](docs/source/manual/sensitivity.rst) for details.
+
+
+
+
 ## Contributing
 
 This library aims to be the state-of-the-art for simulation calibration, developed in the open using modern, collaborative coding approaches - no dragons shall be dwelling in the codebase. You are more than welcome to contribute to this library in the form of code improvements, documentation or helpful examples; please submit them either as:
@@ -259,14 +357,8 @@ Thank you.
 
 ## Citing
 
-If you use this library in your research, you are kindly asked to cite:
-
-> [Paper after publication]
-
-
-Until the ACCES paper is published, you may cite this repository:
-
-> Nicusan, A., Werner, D., Sykes, J. A., Seville, J., & Windows-Yule, K. (2022). ACCES: Autonomous Characterisation and Calibration via Evolutionary Simulation (Version 0.2.0) [Computer software]
+If you use this library in your research, please cite the software using the
+metadata in [CITATION.cff](CITATION.cff), including the version you used.
 
 
 ACCES is built on top of the excellent CMA-ES evolutionary algorithm - specifically the [`pycma`](https://github.com/CMA-ES/pycma) implementation. If you use ACCES in your research, please also cite:
@@ -283,7 +375,7 @@ This library - in its general, domain-agnostic form - is free and open-source, p
 If you are a company and would like to integrate ACCESS into your work - e.g. ACCESS-enabled equipment or general simulation calibration - please send an email to `a.l.nicusan@bham.ac.uk` to discuss commercial development of specific tools for your application. Relicensing for a closed-source / commercial project can be considered on an individual basis.
 
 
-Copyright (C) 2020-2023 the Coexist developers. Until now, this library was built directly or indirectly through the brain-time of:
+Copyright (C) 2020-2026 the Coexist developers. Until now, this library was built directly or indirectly through the brain-time of:
 
 - Andrei Leonard Nicusan (University of Birmingham)
 - Dominik Werner (University of Birmingham)

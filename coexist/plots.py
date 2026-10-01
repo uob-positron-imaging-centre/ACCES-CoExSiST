@@ -97,7 +97,7 @@ def access(
     ----------
     access_data : coexist.AccessData or str
         An `AccessData` object containing all information about an ACCES run;
-        you can initialise it with ``coexist.AccessData.read("folder_path")``.
+        you can initialise it with ``coexist.AccessData("folder_path")``.
         Alternatively, supply the ``folder_path`` directly.
 
     select : function, default lambda results: results[:, -1] < np.inf
@@ -139,7 +139,7 @@ def access(
     directory "access_seed12345" would have been created. Plot its results:
 
     >>> import coexist
-    >>> data = coexist.AccessData.read("access_seed12345")
+    >>> data = coexist.AccessData("access_seed12345")
     >>> fig = coexist.plots.access(data)
     >>> fig.show()
 
@@ -158,7 +158,7 @@ def access(
 
     # Type-checking inputs
     if not isinstance(access_data, coexist.AccessData):
-        access_data = coexist.AccessData.read(access_data)
+        access_data = coexist.AccessData(access_data)
 
     # Check if sample_indices is an iterable collection (list-like)
     # otherwise just "iterate" over the single number or Ellipsis
@@ -396,7 +396,7 @@ def access2d(
     ----------
     access_data : coexist.AccessData or str
         An `AccessData` object containing all information about an ACCES run;
-        you can initialise it with ``coexist.AccessData.read("folder_path")``.
+        you can initialise it with ``coexist.AccessData("folder_path")``.
         Alternatively, supply the ``folder_path`` directly.
 
     resolution : 2-tuple, default (1000, 1000)
@@ -439,7 +439,7 @@ def access2d(
 
     >>> import coexist
     >>>
-    >>> data = coexist.AccessData.read("access_seed12345")
+    >>> data = coexist.AccessData("access_seed12345")
     >>> fig = coexist.plots.access2d(data)
     >>> fig.show()
 
@@ -464,7 +464,7 @@ def access2d(
 
     # Type-checking inputs
     if not isinstance(access_data, coexist.AccessData):
-        access_data = coexist.AccessData.read(access_data)
+        access_data = coexist.AccessData(access_data)
 
     # Check if sample_indices is an iterable collection (list-like)
     # otherwise just "iterate" over the single number or Ellipsis
@@ -531,9 +531,9 @@ def access2d(
 
             # Create a 2D error map with each pixel mappend to the closest
             # sample's error
-            x = np.linspace(parameters["min"][j], parameters["max"][j],
+            x = np.linspace(parameters["min"].iloc[j], parameters["max"].iloc[j],
                             resolution[0])
-            y = np.linspace(parameters["min"][i], parameters["max"][i],
+            y = np.linspace(parameters["min"].iloc[i], parameters["max"].iloc[i],
                             resolution[1])
 
             # Select parameter space slice of given `width`
@@ -542,7 +542,7 @@ def access2d(
             for o in others:
                 param_values = results[:, o]
                 param_range = parameters[["min", "max"]].iloc[o]
-                param_range = param_range[1] - param_range[0]
+                param_range = param_range["max"] - param_range["min"]
                 mean = epochs_raw[-1, o]
                 cond = cond & (
                     (param_values > mean - 0.5 * width * param_range) &
@@ -641,7 +641,7 @@ def surrogate2d(
     ----------
     access_data : coexist.AccessData or str
         An `AccessData` object containing all information about an ACCES run;
-        you can initialise it with ``coexist.AccessData.read("folder_path")``.
+        you can initialise it with ``coexist.AccessData("folder_path")``.
         Alternatively, supply the ``folder_path`` directly.
 
     resolution : 2-tuple, default (1000, 1000)
@@ -684,7 +684,7 @@ def surrogate2d(
 
     >>> import coexist
     >>>
-    >>> data = coexist.AccessData.read("access_seed12345")
+    >>> data = coexist.AccessData("access_seed12345")
     >>> fig = coexist.plots.access2d(data)
     >>> fig.show()
 
@@ -709,7 +709,7 @@ def surrogate2d(
 
     # Type-checking inputs
     if not isinstance(access_surrogate, coexist.AccessSurrogate):
-        access_data = coexist.AccessData.read(access_data)
+        access_data = coexist.AccessData(access_data)
 
     # Check if sample_indices is an iterable collection (list-like)
     # otherwise just "iterate" over the single number or Ellipsis
@@ -786,9 +786,9 @@ def surrogate2d(
 
             # Create a 2D error map with each pixel mappend to the closest
             # sample's error
-            x = np.linspace(parameters["min"][j], parameters["max"][j],
+            x = np.linspace(parameters["min"].iloc[j], parameters["max"].iloc[j],
                             resolution[0])
-            y = np.linspace(parameters["min"][i], parameters["max"][i],
+            y = np.linspace(parameters["min"].iloc[i], parameters["max"].iloc[i],
                             resolution[1])
 
             # Select parameter space slice of given `width`
@@ -797,7 +797,7 @@ def surrogate2d(
             for o in others:
                 param_values = results[:, o]
                 param_range = parameters[["min", "max"]].iloc[o]
-                param_range = param_range[1] - param_range[0]
+                param_range = param_range["max"] - param_range["min"]
                 mean = epochs_raw[-1, o]
                 cond = cond & (
                     (param_values > mean - 0.5 * width * param_range) &

@@ -1,49 +1,61 @@
 ***************
 Getting Started
 ***************
-These instructions will help you get started with Coexist. This is a pure Python
-package that does not require any extra system configuration.
 
-
-Prerequisites
--------------
-This package supports Python 3.6 and above (though it might work with even older
-versions).
-
+ACCES is distributed as the ``coexist`` Python package. It requires Python 3.10
+or newer. Your simulation engine is configured separately; ACCES runs the
+simulation through your Python script.
 
 Installation
-------------
-Before the package is published to PyPI, you can install it directly from this GitHub
-repository: 
+============
 
-```
-pip install git+https://github.com/uob-positron-imaging-centre/Coexist
-```
+Install the core optimisation, data-reading and plotting tools:
 
-Alternatively, you can download all the code and run `pip install .` inside its
-directory:
+.. code-block:: console
 
-```
-git clone https://github.com/uob-positron-imaging-centre/Coexist
-cd Coexist
-pip install .
-```
+   python -m pip install coexist
 
-If you would like to modify the source code and see your changes without reinstalling
-the package, use the `-e` flag for a *development installation*:
+For Gaussian-process sensitivity analysis, include the optional dependency:
 
-```
-pip install -e .
-```
+.. code-block:: console
 
+   python -m pip install "coexist[sensitivity]"
 
-Optional Dependencies
----------------------
-The ``coexist`` library can offer some extra functionality if optional dependencies
-are found:
+The core package does not require scikit-learn. See :doc:`tutorials/index` for
+an optimisation example and :doc:`manual/sensitivity` for sensitivity analysis.
 
-- **SymPy**: for the ``coexist.ballistics`` subpackages for analytically inferring the
-  equations of motion of a particle travelling without collisions.
-- **liggghts**: for the ``coexist.LiggghtsSimulation`` high-level interface to the
-  LIGGGHTS DEM engine.
+Working from source
+===================
 
+.. code-block:: console
+
+   git clone https://github.com/uob-positron-imaging-centre/ACCES-CoExSiST
+   cd ACCES-CoExSiST
+   python -m pip install -e ".[test,docs,sensitivity]"
+
+An editable install uses your source changes without reinstalling. Dependencies
+are declared in ``pyproject.toml``:
+
+- The core dependencies support optimisation, saved runs and plotting.
+- ``sensitivity`` adds scikit-learn for Gaussian-process analysis.
+- ``test`` adds pytest. Sensitivity tests are skipped when scikit-learn is absent.
+- ``docs`` adds Sphinx, numpydoc and the documentation theme. Building the complete
+  API reference also requires the ``sensitivity`` extra.
+
+Run the tests and build the documentation from the repository root:
+
+.. code-block:: console
+
+   python -m pytest
+   python -m sphinx -W --keep-going -b html docs/source docs/_build/html
+
+To build a source distribution and wheel:
+
+.. code-block:: console
+
+   python -m pip install build
+   python -m build
+
+The repository's ``legacy/`` directory preserves earlier microscopic simulation
+interfaces for research. It is excluded from package distributions; its README
+describes the archived code and dependencies.

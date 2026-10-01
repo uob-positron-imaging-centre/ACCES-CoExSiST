@@ -8,7 +8,7 @@
 import coexist
 
 # Use path to either the `access_<seed>` folder itself, or the parent
-access_data = coexist.AccessData.read(".")
+access_data = coexist.AccessData(".")
 
 fig = coexist.plots.access2d(access_data)
 fig.show()

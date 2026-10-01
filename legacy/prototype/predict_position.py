@@ -9,7 +9,7 @@
 import numpy as np
 import plotly.graph_objs as go
 
-import coexist
+import legacy
 
 
 t0 = 0.
@@ -28,7 +28,7 @@ p2 = np.array([[0., 0.30410576268765915, 1.131524137716995],
                [0., 37.97239953644785, 29.463879381130667],
                [0., 26.446793016329224, 52.921677607292615]])
 
-p3, u0 = coexist.Coexist.predict_positions(t0, p0, t1, p1, t2, p2, t3)
+p3, u0 = legacy.Coexist.predict_positions(t0, p0, t1, p1, t2, p2, t3)
 
 p = np.stack((p0, p1, p2, p3), axis = 0)
 

@@ -9,7 +9,7 @@ import coexist
 
 # Use path to either the `access_<random_seed>` folder itself, or its
 # parent directory
-access_data = coexist.AccessData.read(".")
+access_data = coexist.AccessData(".")
 
 fig = coexist.plots.access(access_data)
 fig.show()
